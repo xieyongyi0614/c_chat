@@ -1,0 +1,26 @@
+{
+  "name": "@c_chat/electron_client",
+  "version": "1.0.0",
+  "description": "",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "pnpm run build && electron ./dist/main/index.js --dev"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "@electron-toolkit/preload": "^3.0.2",
+    "@electron-toolkit/utils": "^4.0.0",
+    "@c_chat/typescript-config": "workspace:*",
+    "@c_chat/shared-config": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.0",
+    "electron": "^40.2.1",
+    "electron-builder": "^26.7.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
+  }
+}
