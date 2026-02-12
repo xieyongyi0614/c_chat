@@ -28,6 +28,10 @@
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.46.3",
     "vite": "^7.2.2",
-    "@c_chat/shared-config": "workspace:*"
+    "@c_chat/shared-config": "workspace:*",
+    "tailwindcss": "^3.4.17",
+    "postcss": "^8.4.49",
+    "autoprefixer": "^10.4.20",
+    "@tailwindcss/forms": "^0.5.9"
   }
 }

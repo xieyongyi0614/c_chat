@@ -1,0 +1,131 @@
+---
+alwaysApply: true
+---
+
+## 🌐 项目根目录结构
+
+c-chat/
+├── apps/
+│ ├── electron_client/ # 🖥️ Electron 主进程 (Node.js 环境)
+│ │ ├── src/
+│ │ │ ├── main.ts # 入口 (CommonJS 模块)
+│ │ │ ├── window.ts # 窗口管理 (创建/销毁/事件)
+│ │ │ ├── ipc/ # IPC 通道定义
+│ │ │ │ ├── chat.ipc.ts # 聊天消息通道
+│ │ │ │ └── auth.ipc.ts # 认证通道
+│ │ │ └── preload/ # 预加载脚本
+│ │ │ └── index.ts
+│ │ ├── public/ # 静态资源
+│ │ │ ├── icons/ # 多尺寸应用图标
+│ │ │ └── preload.js # 编译后的 preload 脚本
+│ │ ├── tsconfig.json # 继承 @c_chat/tsconfig/electron
+│ │ └── package.json
+│ │
+│ └── frontend/ # 🌐 React 渲染进程 (Vite + React 18)
+│ ├── src/
+│ │ ├── main.tsx # 入口
+│ │ ├── App.tsx # 根组件 (含主题提供者)
+│ │ │
+│ │ ├── components/ # 🧩 原子化组件 (按功能域组织)
+│ │ │ ├── ui/ # 基础 UI (Button, Input, Avatar...)
+│ │ │ ├── layout/ # 布局组件
+│ │ │ │ ├── Sidebar.tsx # 左侧联系人列表
+│ │ │ │ ├── ChatHeader.tsx # 聊天顶部栏
+│ │ │ │ └── ChatView.tsx # 三栏主布局
+│ │ │ └── chat/ # 聊天专属组件
+│ │ │ ├── MessageBubble.tsx # 消息气泡 (含状态指示)
+│ │ │ ├── ChatInput.tsx # 消息输入框 (含附件/表情)
+│ │ │ └── TypingIndicator.tsx
+│ │ │
+│ │ ├── features/ # 🧠 业务功能模块 (按域划分)
+│ │ │ ├── auth/ # 认证流程
+│ │ │ ├── contacts/ # 联系人管理
+│ │ │ ├── chat/ # 聊天核心
+│ │ │ │ ├── ChatList.tsx # 会话列表
+│ │ │ │ ├── MessageList.tsx # 消息流 (含虚拟滚动)
+│ │ │ │ └── hooks/ # 专属 Hooks
+│ │ │ │ ├── useChatScroll.ts
+│ │ │ │ └── useMessageStatus.ts
+│ │ │ └── settings/ # 设置面板
+│ │ │
+│ │ ├── stores/ # 🧠 状态管理 (Zustand)
+│ │ │ ├── chatStore.ts # 聊天状态 (消息/会话)
+│ │ │ ├── userStore.ts # 用户状态 (在线/离线)
+│ │ │ └── themeStore.ts # 主题状态 (浅色/深色)
+│ │ │
+│ │ ├── types/ # 📦 前端专用类型
+│ │ ├── utils/ # 🛠️ 工具函数
+│ │ │ ├── date.ts # 消息时间格式化
+│ │ │ └── file.ts # 文件上传/预览
+│ │ │
+│ │ └── styles/ # 🎨 样式系统
+│ │ ├── globals.css # Tailwind 指令 (@tailwind base...)
+│ │ ├── variables.css # CSS 变量 (主题色)
+│ │ └── animations.css # 微动效定义
+│ │
+│ ├── index.html # Electron 渲染入口
+│ ├── tsconfig.json # 继承 @c_chat/tsconfig/react
+│ ├── vite.config.ts # Vite 配置 (含 Electron 适配)
+│ ├── tailwind.config.js # 引用 @c_chat/tailwind-config
+│ └── package.json
+│
+├── packages/
+│ ├── shared-config/ # 📦 共享配置包 (无运行时代码)
+│ │ ├── tsconfig/
+│ │ │ ├── base.json # 基础 TS 配置 (compilerOptions)
+│ │ │ ├── electron.json # Electron 专用 (module: CommonJS)
+│ │ │ └── react.json # React 专用 (module: ESNext)
+│ │ ├── tailwind/
+│ │ │ └── index.js # Tailwind 配置 (导出配置对象)
+│ │ │ # ✅ 含配色系统/圆角/动画 (见下文)
+│ │ ├── eslint/
+│ │ │ └── index.js # ESLint 共享规则
+│ │ └── package.json # 包名: @c_chat/config
+│ │
+│ ├── shared-types/ # 📦 共享 TypeScript 类型
+│ │ ├── message.ts # 消息类型 (文本/图片/文件)
+│ │ ├── user.ts # 用户/联系人类型
+│ │ ├── chat.ts # 会话/群组类型
+│ │ └── package.json # 包名: @c_chat/types
+│ │
+│ └── shared-utils/ # 📦 共享工具函数 (纯函数)
+│ ├── date.ts # 通用时间处理
+│ ├── crypto.ts # 消息加密/解密
+│ └── package.json # 包名: @c_chat/utils
+│
+├── turbo.json # Turborepo 任务配置
+├── package.json # 根 package.json (定义 workspaces)
+├── pnpm-workspace.yaml # pnpm workspace 配置
+├── .cursor/
+│ └── rules/
+│ ├── project-structure.mdc # 本文件
+│ └── component-rules.mdc # 组件生成规则
+└── README.md
+
+
+
+## 🎨 Tailwind 配置关键片段 (packages/shared-config/tailwind/index.js)
+```js
+/** @type {import('tailwindcss').Config} */
+module.exports = {
+  content: [], // 由各 app 自行扩展
+  darkMode: 'class',
+  theme: {
+    extend: {
+      colors: {
+        primary: { /* 科技蓝系 */ },
+        surface: { /* 背景色系 */ },
+        status: { /* 在线/离线状态色 */ }
+      },
+      borderRadius: {
+        'message': '18px',   // 消息气泡圆角
+        'avatar': '24px'     // 头像圆角
+      },
+      animation: {
+        'pulse-slow': 'pulse 3s cubic-bezier(0.4,0,0.6,1) infinite',
+        'fade-in': 'fadeIn 0.25s ease-out'
+      }
+    }
+  },
+  plugins: [require('@tailwindcss/forms')]
+}
