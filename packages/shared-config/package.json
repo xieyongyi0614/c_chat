@@ -1,0 +1,19 @@
+{
+  "name": "@c_chat/shared-config",
+  "version": "0.0.0",
+  "scripts": {
+    "dev": "tsc --watch",
+    "build": "tsc"
+  },
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "devDependencies": {
+    "@c_chat/typescript-config": "workspace:*",
+    "typescript": "latest"
+  }
+}
