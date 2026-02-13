@@ -1,2 +1,3 @@
-const defaultConfig = require('../../eslint.config.mts');
-module.exports = defaultConfig;
+
+import defaultConfig from '../../eslint.config.mts';
+export default defaultConfig;
