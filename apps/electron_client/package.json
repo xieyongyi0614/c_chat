@@ -2,25 +2,27 @@
   "name": "@c_chat/electron_client",
   "version": "1.0.0",
   "description": "",
+  "main": "./dist/main/index.js",
   "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "dev": "pnpm run build && electron ./dist/main/index.js --dev"
+    "dev": "electron-vite dev -w"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "module",
   "dependencies": {
+    "@c_chat/shared-config": "workspace:*",
+    "@c_chat/typescript-config": "workspace:*",
     "@electron-toolkit/preload": "^3.0.2",
     "@electron-toolkit/utils": "^4.0.0",
-    "@c_chat/typescript-config": "workspace:*",
-    "@c_chat/shared-config": "workspace:*"
+    "socket.io-client": "^4.8.3"
   },
   "devDependencies": {
     "@types/node": "^24.10.0",
     "electron": "^40.2.1",
     "electron-builder": "^26.7.0",
+    "electron-vite": "^5.0.0",
     "ts-node": "^10.9.2",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vite": "^7.2.2"
   }
 }

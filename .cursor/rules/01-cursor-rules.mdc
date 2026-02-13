@@ -13,6 +13,8 @@ c-chat/
 │ │ │ ├── ipc/ # IPC 通道定义
 │ │ │ │ ├── chat.ipc.ts # 聊天消息通道
 │ │ │ │ └── auth.ipc.ts # 认证通道
+│ │ │ ├── utils/ # 工具函数
+│ │ │ │ ├── socket-client # socket.io 客户端
 │ │ │ └── preload/ # 预加载脚本
 │ │ │ └── index.ts
 │ │ ├── public/ # 静态资源
