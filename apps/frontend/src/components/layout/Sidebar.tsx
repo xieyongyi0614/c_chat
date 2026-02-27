@@ -1,18 +1,18 @@
-import type { Chat } from '../../types/chat'
-import { ChatList } from '../../features/chat/ChatList'
+import type { Chat } from '../../types/chat';
+import { ChatList } from '../../features/chat/ChatList';
 
 type Props = {
-  chats: Chat[]
-  activeId: number
-  onSelectChat: (id: number) => void
-}
+  chats: Chat[];
+  activeId: number;
+  onSelectChat: (id: number) => void;
+};
 
 export function Sidebar({ chats, activeId, onSelectChat }: Props) {
   return (
     <aside className="flex min-w-[280px] max-w-[360px] w-80 flex-col border-r border-surface-200/10 bg-gradient-to-b from-surface-800/60 via-surface-900 to-surface-900/95">
       <header className="flex flex-col gap-1 px-4 pt-4 pb-3">
         <span className="text-base font-semibold tracking-wide text-surface-50">c-chat</span>
-        <span className="text-xs text-surface-200/70">简洁 · 专注 · 高效</span>
+        {/* <span className="text-xs text-surface-200/70">简洁 · 专注 · 高效</span> */}
       </header>
 
       <div className="px-4 pb-3">
@@ -24,7 +24,5 @@ export function Sidebar({ chats, activeId, onSelectChat }: Props) {
 
       <ChatList chats={chats} activeId={activeId} onSelect={onSelectChat} />
     </aside>
-  )
+  );
 }
-
-
