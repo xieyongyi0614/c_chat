@@ -42,7 +42,7 @@ export class AuthService extends BaseService {
       );
       return response.data.data;
     } catch (error: any) {
-      console.error('登录失败:', error);
+      console.error('登录失败:', error.message);
       throw error;
     }
   }

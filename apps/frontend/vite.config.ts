@@ -1,10 +1,15 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
-import { ELECTRON_RENDERER_PORT } from '@c_chat/shared-config'
+import { ELECTRON_RENDERER_PORT } from '@c_chat/shared-config';
 // https://vite.dev/config/
 export default defineConfig({
   server: {
     port: ELECTRON_RENDERER_PORT,
+  },
+  resolve: {
+    alias: {
+      '@frontend': './src',
+    },
   },
   build: {
     outDir: '../../dist/apps/frontend',
@@ -14,8 +19,8 @@ export default defineConfig({
       output: {
         entryFileNames: 'index.js',
         chunkFileNames: '[name].js',
-      }
-    }
+      },
+    },
   },
   plugins: [
     react({
