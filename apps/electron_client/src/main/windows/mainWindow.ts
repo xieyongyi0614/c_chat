@@ -34,10 +34,8 @@ export class MainWindowManager {
       autoHideMenuBar: true,
       ...(process.platform === 'linux' ? { icon: join(process.resourcesPath, 'icon.png') } : {}),
       webPreferences: {
-        preload: join(__dirname, '../../preload/index.cjs'), // 确保是 .cjs
-        sandbox: true,
-        contextIsolation: true,
-        nodeIntegration: false,
+        preload: join(__dirname, '../preload/index.js'),
+        sandbox: false,
       },
     });
 
