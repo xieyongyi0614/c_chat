@@ -1,24 +1,49 @@
-import AuthForm from '../components/auth/AuthForm';
-import { createHashRouter } from 'react-router-dom';
-import App from '../App';
+import React from 'react';
+import { RouterProvider, Navigate, createHashRouter } from 'react-router-dom';
+import Layout from '@frontend/layout';
+import Chat from '@frontend/pages/chat';
+import AuthForm from '@frontend/components/auth/AuthForm';
 
-/** 路由配置 */
-const router = createHashRouter(
-  [
-    {
-      path: '/login',
-      element: <AuthForm isLogin={true} />,
-    },
-    {
-      path: '/register',
-      element: <AuthForm isLogin={false} />,
-    },
-    {
-      path: '/',
-      element: <App />,
-    },
-  ],
-  { basename: '/' },
-);
+const router = createHashRouter([
+  {
+    path: '/auth',
+    children: [
+      {
+        path: 'sign-in',
+        element: <AuthForm />,
+      },
+      {
+        path: 'sign-up',
+        element: <AuthForm />,
+      },
+    ],
+  },
+  {
+    path: '/',
+    element: <Layout />,
+    children: [
+      {
+        index: true,
+        element: <Navigate to="/dashboard" replace />,
+      },
+      {
+        path: 'chat',
+        element: <Chat />,
+      },
+      // {
+      //   path: 'settings',
+      //   element: <Settings />,
+      // },
+    ],
+  },
+  {
+    path: '*',
+    element: <Navigate to="/auth/sign-in" replace />,
+  },
+]);
 
-export default router;
+const AppRouter: React.FC = () => {
+  return <RouterProvider router={router} />;
+};
+
+export default AppRouter;

@@ -1,1 +1,4 @@
 export * from './components';
+export * from './lib/utils';
+export * from './assets';
+import './index.css';

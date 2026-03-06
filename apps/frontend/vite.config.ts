@@ -1,6 +1,8 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { ELECTRON_RENDERER_PORT } from '@c_chat/shared-config';
+import { resolve } from 'path';
+import tailwindcss from '@tailwindcss/vite';
 // https://vite.dev/config/
 export default defineConfig({
   server: {
@@ -8,7 +10,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      '@frontend': './src',
+      '@frontend': resolve(__dirname, 'src'),
     },
   },
   build: {
@@ -28,5 +30,6 @@ export default defineConfig({
         plugins: [['babel-plugin-react-compiler']],
       },
     }),
+    tailwindcss(),
   ],
 });

@@ -1,4 +1,7 @@
 {
-  "directory": "./src/components",
+  "directory": [
+    "./src/components",
+    "./src/assets"
+  ],
   "delete": true
 }
