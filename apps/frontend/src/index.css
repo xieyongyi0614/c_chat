@@ -1,17 +1,1 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-@layer base {
-  :root {
-    @apply text-surface-50 bg-surface-900;
-  }
-
-  body {
-    @apply m-0 min-h-screen font-sans text-surface-50 bg-gradient-to-br from-surface-900 via-surface-900 to-surface-800;
-  }
-
-  #root {
-    @apply h-screen;
-  }
-}
+@import 'tailwindcss';

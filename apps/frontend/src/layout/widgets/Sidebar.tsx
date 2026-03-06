@@ -1,5 +1,5 @@
 import type { Chat } from '../../types/chat';
-import { ChatList } from '../../features/chat/ChatList';
+import { ChatList } from '../../pages/chat/ChatList';
 
 type Props = {
   chats: Chat[];
