@@ -7,6 +7,7 @@ import tailwindcss from '@tailwindcss/vite';
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
+    tailwindcss(),
     react({
       babel: {
         plugins: [['babel-plugin-react-compiler']],
@@ -19,7 +20,6 @@ export default defineConfig({
       rollupTypes: false,
       staticImport: true,
     }),
-    tailwindcss(),
   ],
   resolve: {
     alias: {
@@ -41,6 +41,12 @@ export default defineConfig({
           'react-dom': 'ReactDOM',
         },
         chunkFileNames: '[name].[hash].js',
+        assetFileNames: (assetInfo) => {
+          if (assetInfo.name === 'style.css') {
+            return 'index.css';
+          }
+          return assetInfo.name;
+        },
       },
     },
     sourcemap: true,

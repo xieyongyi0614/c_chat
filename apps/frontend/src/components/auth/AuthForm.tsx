@@ -3,11 +3,19 @@ import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@c_chat/ui';
-import { Mail, Lock, ArrowRight, Github, Chrome } from 'lucide-react';
+import {
+  Button,
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+  Input,
+  Label,
+} from '@c_chat/ui';
 import { AuthLayout } from './auth-layout';
-import Logo from '../../assets/react.svg';
-import { Facebook } from 'lucide-react';
 import { UserAuthForm } from './user-auth-form';
 
 // 定义表单验证 schema
@@ -91,33 +99,72 @@ const AuthForm: React.FC = () => {
   };
 
   return (
-    <AuthLayout>
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg tracking-tight">Sign in</CardTitle>
-          <CardDescription>
-            Enter your email and password below to <br />
-            log into your account
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <UserAuthForm />
-        </CardContent>
-        <CardFooter>
-          <p className="px-8 text-center text-sm text-muted-foreground">
-            By clicking sign in, you agree to our{' '}
-            <a href="/terms" className="underline underline-offset-4 hover:text-primary">
-              Terms of Service
-            </a>{' '}
-            and{' '}
-            <a href="/privacy" className="underline underline-offset-4 hover:text-primary">
-              Privacy Policy
-            </a>
-            .
-          </p>
-        </CardFooter>
-      </Card>
-    </AuthLayout>
+    <Card className="w-full max-w-sm">
+      <CardHeader>
+        <CardTitle>Login to your account</CardTitle>
+        <CardDescription>Enter your email below to login to your account</CardDescription>
+        <CardAction>
+          <Button variant="link">Sign Up</Button>
+        </CardAction>
+      </CardHeader>
+      <CardContent>
+        <form>
+          <div className="flex flex-col gap-6">
+            <div className="grid gap-2">
+              <Label htmlFor="email">Email</Label>
+              <Input id="email" type="email" placeholder="m@example.com" required />
+            </div>
+            <div className="grid gap-2">
+              <div className="flex items-center">
+                <Label htmlFor="password">Password</Label>
+                <a
+                  href="#"
+                  className="ml-auto inline-block text-sm underline-offset-4 hover:underline"
+                >
+                  Forgot your password?
+                </a>
+              </div>
+              <Input id="password" type="password" required />
+            </div>
+          </div>
+        </form>
+      </CardContent>
+      <CardFooter className="flex-col gap-2">
+        <Button type="submit" className="w-full">
+          Login
+        </Button>
+        <Button variant="outline" className="w-full">
+          Login with Google
+        </Button>
+      </CardFooter>
+    </Card>
+    // <AuthLayout>
+    //   <Card>
+    //     <CardHeader>
+    //       <CardTitle className="text-lg tracking-tight">Sign in</CardTitle>
+    //       <CardDescription>
+    //         Enter your email and password below to <br />
+    //         log into your account
+    //       </CardDescription>
+    //     </CardHeader>
+    //     <CardContent>
+    //       <UserAuthForm />
+    //     </CardContent>
+    //     <CardFooter>
+    //       <p className="px-8 text-center text-sm text-muted-foreground">
+    //         By clicking sign in, you agree to our{' '}
+    //         <a href="/terms" className="underline underline-offset-4 hover:text-primary">
+    //           Terms of Service
+    //         </a>{' '}
+    //         and{' '}
+    //         <a href="/privacy" className="underline underline-offset-4 hover:text-primary">
+    //           Privacy Policy
+    //         </a>
+    //         .
+    //       </p>
+    //     </CardFooter>
+    //   </Card>
+    // </AuthLayout>
   );
 };
 
