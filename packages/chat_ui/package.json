@@ -6,11 +6,20 @@
   "main": "dist/index.es.js",
   "types": "dist/index.d.ts",
   "module": "dist/index.es.js",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.es.js",
+      "require": "./dist/index.es.js"
+    },
+    "./styles": "./src/index.css"
+  },
   "files": [
     "dist"
   ],
   "scripts": {
-    "dev": "pnpm run gen-export && vite build --watch",
+    "test": "vite",
+    "dev": "vite build --watch",
     "lint": "eslint .",
     "preview": "vite preview",
     "add-ui": "pnpm dlx shadcn@latest add",
@@ -24,9 +33,11 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.576.0",
+    "radix-ui": "^1.4.3",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-hook-form": "^7.71.2",
+    "shadcn": "^3.8.5",
     "tailwind-merge": "^3.5.0",
     "tailwindcss": "^4.2.1",
     "tailwindcss-animate": "^1.0.7",

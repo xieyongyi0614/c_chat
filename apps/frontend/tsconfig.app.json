@@ -31,9 +31,6 @@
     "paths": {
       "@frontend/*": [
         "./src/*"
-      ],
-      "@c_chat/ui": [
-        "../../packages/chat_ui/src/*"
       ]
     }
   },

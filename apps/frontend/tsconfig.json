@@ -1,4 +1,21 @@
 {
   "files": [],
-  "references": [{ "path": "./tsconfig.app.json" }, { "path": "./tsconfig.node.json" }]
+  "references": [
+    {
+      "path": "./tsconfig.app.json"
+    },
+    {
+      "path": "./tsconfig.node.json"
+    }
+  ],
+  "compilerOptions": {
+    "paths": {
+      "@frontend/*": [
+        "./src/*"
+      ],
+      "@c_chat/ui": [
+        "../../packages/chat_ui/src/index.ts"
+      ],
+    }
+  }
 }
