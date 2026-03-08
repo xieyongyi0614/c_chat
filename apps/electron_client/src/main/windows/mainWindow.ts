@@ -1,11 +1,22 @@
 import { ELECTRON_RENDERER_PORT } from '@c_chat/shared-config';
-import { BrowserWindow, shell } from 'electron';
+import { BrowserWindow, BrowserWindowConstructorOptions, shell } from 'electron';
 import { join } from 'path';
 import { env } from '../../utils/env';
 
 export class MainWindowManager {
   private static instance: MainWindowManager;
   private mainWindow: BrowserWindow | null = null;
+  private isAuthenticated = false;
+  private authWinOptions: BrowserWindowConstructorOptions = {
+    width: 400,
+    height: 510,
+  };
+  private defaultWinOptions: BrowserWindowConstructorOptions = {
+    width: 1200,
+    height: 800,
+    minWidth: 800,
+    minHeight: 600,
+  };
 
   private constructor() {}
 
@@ -23,14 +34,16 @@ export class MainWindowManager {
       this.mainWindow.focus();
       return this.mainWindow;
     }
+    const otherOptions = this.isAuthenticated ? this.defaultWinOptions : this.authWinOptions;
 
     // 创建窗口
     this.mainWindow = new BrowserWindow({
-      width: 1200,
-      height: 800,
-      minWidth: 800,
-      minHeight: 600,
-      show: false, // 先隐藏防闪烁
+      ...otherOptions,
+      resizable: this.isAuthenticated,
+      maximizable: this.isAuthenticated,
+      fullscreenable: this.isAuthenticated,
+      show: false,
+      frame: false,
       autoHideMenuBar: true,
       ...(process.platform === 'linux' ? { icon: join(process.resourcesPath, 'icon.png') } : {}),
       webPreferences: {
@@ -77,5 +90,26 @@ export class MainWindowManager {
 
   public getWindow(): BrowserWindow | null {
     return this.mainWindow;
+  }
+
+  public applyAuthState(loggedIn: boolean): void {
+    this.isAuthenticated = loggedIn;
+    if (!this.mainWindow) return;
+
+    if (loggedIn) {
+      this.mainWindow.setResizable(true);
+      this.mainWindow.setMaximizable(true);
+      this.mainWindow.setFullScreenable(true);
+      this.mainWindow.setMinimumSize(800, 600);
+      this.mainWindow.setSize(1200, 800);
+      this.mainWindow.center();
+    } else {
+      this.mainWindow.setResizable(false);
+      this.mainWindow.setMaximizable(false);
+      this.mainWindow.setFullScreenable(false);
+      this.mainWindow.setMinimumSize(600, 600);
+      this.mainWindow.setSize(600, 600);
+      this.mainWindow.center();
+    }
   }
 }

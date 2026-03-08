@@ -21,9 +21,24 @@ app.whenReady().then(() => {
   mainWindowManager = MainWindowManager.getInstance();
 
   ipcMain.on('ping', () => console.log('pong'));
+  ipcMain.on('auth:logged-in', () => {
+    mainWindowManager.applyAuthState(true);
+  });
+  ipcMain.on('auth:logged-out', () => {
+    mainWindowManager.applyAuthState(false);
+  });
+  ipcMain.on('window:close', () => {
+    mainWindowManager.getWindow()?.close();
+  });
+  ipcMain.on('window:open-settings', () => {
+    // TODO: 打开设置页（暂未实现），可以在现有窗口内导航或创建新窗口
+    // 这里先输出日志占位
+    console.log('Open settings requested');
+  });
 
   mainWindowManager.createWindow();
-  testLogin(mainWindowManager.getWindow());
+  // 可根据需要启动测试登录
+  // testLogin(mainWindowManager.getWindow());
 
   app.on('activate', function () {
     if (BrowserWindow.getAllWindows().length === 0) mainWindowManager.createWindow();

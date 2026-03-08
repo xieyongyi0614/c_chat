@@ -12,7 +12,7 @@
       "import": "./dist/index.es.js",
       "require": "./dist/index.es.js"
     },
-    "./styles": "./src/index.css"
+    "./styles": "./src/styles/index.css"
   },
   "files": [
     "dist"

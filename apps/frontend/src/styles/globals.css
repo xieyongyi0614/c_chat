@@ -1,1 +1,15 @@
 @import '@c_chat/ui/styles';
+
+/* 让内容避开固定标题栏 */
+.with-titlebar {
+  padding-top: 2.5rem; /* 40px */
+}
+
+/* 自定义 Electron 拖拽类 */
+.app-drag {
+  -webkit-app-region: drag;
+}
+
+.app-no-drag {
+  -webkit-app-region: no-drag;
+}
