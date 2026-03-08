@@ -43,8 +43,6 @@
 
 #### 🛠️ 如何自动化强制执行？
 
-靠人肉遵守很难，建议在你的项目中引入工具链自动检查：
-
 1. Commitizen / Cz-git: 提交时弹出交互式菜单，让你选类型、填内容，自动生成规范格式。
 
 ```bash
@@ -57,11 +55,20 @@ npm install -g commitizen cz-git
 ```bash
 # 安装
 npm install --save-dev @commitlint/config-conventional @commitlint/cli husky
+```
 
+```typescript
 # 配置 commitlint.config.js
-module.exports = { extends: ['@commitlint/config-conventional'] };
+import type { UserConfig } from '@commitlint/types';
 
+export default {
+  extends: ['@commitlint/config-conventional'],
+  rules: {},
+} satisfies UserConfig;
+```
+
+```bash
 # 启用 husky
 npx husky install
-npx husky add .husky/commit-msg 'npx --no -- commitlint --edit $1'
+npx husky init
 ```

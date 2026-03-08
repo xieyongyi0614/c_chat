@@ -1,0 +1,4 @@
+{
+  "extends": "@c_chat/typescript-config/base.json",
+  "exclude": ["apps/*", "packages/*"]
+}
