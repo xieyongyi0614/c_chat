@@ -64,7 +64,7 @@ const mockChats: Chat[] = [
       {
         id: 1,
         sender: 'me',
-        text: '记个 todo：把 TypeScript 配置都放到 @c_chat/typescript-config 里统一管理。',
+        text: '记个 todo：把 TypeScript 配置都放到 @c_chat/shared-types 里统一管理。',
         time: '21:08',
       },
     ],

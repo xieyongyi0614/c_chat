@@ -9,7 +9,7 @@ export class MainWindowManager {
   private isAuthenticated = false;
   private authWinOptions: BrowserWindowConstructorOptions = {
     width: 400,
-    height: 510,
+    height: 600,
   };
   private defaultWinOptions: BrowserWindowConstructorOptions = {
     width: 1200,

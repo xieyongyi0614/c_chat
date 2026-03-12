@@ -1,0 +1,15 @@
+{
+  "name": "@c_chat/shared-types",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "devDependencies": {
+    "typescript": "latest",
+    "@c_chat/shared-config": "workspace:*"
+  }
+}

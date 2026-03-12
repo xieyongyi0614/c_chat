@@ -11,17 +11,19 @@
   "license": "ISC",
   "dependencies": {
     "@c_chat/shared-config": "workspace:*",
-    "@c_chat/typescript-config": "workspace:*",
+    "@c_chat/shared-types": "workspace:*",
     "@electron-toolkit/preload": "^3.0.2",
     "@electron-toolkit/utils": "^4.0.0",
     "axios": "^1.13.5",
     "chalk": "^5.6.2",
     "https-proxy-agent": "^7.0.6",
+    "lodash": "^4.17.23",
     "socket.io-client": "^4.8.3",
     "winston": "^3.19.0",
     "winston-daily-rotate-file": "^5.0.0"
   },
   "devDependencies": {
+    "@types/lodash": "^4.17.24",
     "@types/node": "^24.10.0",
     "electron": "^40.2.1",
     "electron-builder": "^26.7.0",

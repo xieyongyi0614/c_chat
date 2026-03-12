@@ -1,7 +1,0 @@
-{
-  "name": "@c_chat/typescript-config",
-  "type": "module",
-  "devDependencies": {
-    "typescript": "latest"
-  }
-}
