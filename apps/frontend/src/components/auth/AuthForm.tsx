@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -16,6 +16,7 @@ import {
   Label,
 } from '@c_chat/ui';
 import { UserAuthForm } from './user-auth-form';
+import { AuthIpcCall } from '@frontend/ipcCall';
 
 // 定义表单验证 schema
 const loginSchema = z.object({
@@ -99,6 +100,9 @@ const AuthForm: React.FC = () => {
       setIsLoading(false);
     }
   };
+  useEffect(() => {
+    AuthIpcCall.login({});
+  }, []);
 
   return (
     <Card className="ring-0">

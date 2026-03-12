@@ -22,6 +22,7 @@
   },
   "devDependencies": {
     "@c_chat/shared-config": "workspace:*",
+    "@c_chat/shared-types": "workspace:*",
     "@eslint/js": "^9.39.1",
     "@tailwindcss/forms": "^0.5.9",
     "@tailwindcss/vite": "^4.2.1",

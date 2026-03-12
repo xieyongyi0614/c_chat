@@ -8,9 +8,6 @@ importers:
 
   .:
     devDependencies:
-      '@c_chat/typescript-config':
-        specifier: workspace:*
-        version: link:packages/typescript-config
       '@commitlint/cli':
         specifier: ^20.4.3
         version: 20.4.3(@types/node@24.10.1)(typescript@5.9.2)
@@ -71,9 +68,9 @@ importers:
       '@c_chat/shared-config':
         specifier: workspace:*
         version: link:../../packages/shared-config
-      '@c_chat/typescript-config':
+      '@c_chat/shared-types':
         specifier: workspace:*
-        version: link:../../packages/typescript-config
+        version: link:../../packages/shared-types
       '@electron-toolkit/preload':
         specifier: ^3.0.2
         version: 3.0.2(electron@40.2.1)
@@ -89,6 +86,9 @@ importers:
       https-proxy-agent:
         specifier: ^7.0.6
         version: 7.0.6
+      lodash:
+        specifier: ^4.17.23
+        version: 4.17.23
       socket.io-client:
         specifier: ^4.8.3
         version: 4.8.3
@@ -99,6 +99,9 @@ importers:
         specifier: ^5.0.0
         version: 5.0.0(winston@3.19.0)
     devDependencies:
+      '@types/lodash':
+        specifier: ^4.17.24
+        version: 4.17.24
       '@types/node':
         specifier: ^24.10.0
         version: 24.10.1
@@ -154,6 +157,9 @@ importers:
       '@c_chat/shared-config':
         specifier: workspace:*
         version: link:../../packages/shared-config
+      '@c_chat/shared-types':
+        specifier: workspace:*
+        version: link:../../packages/shared-types
       '@eslint/js':
         specifier: ^9.39.1
         version: 9.39.1
@@ -308,15 +314,21 @@ importers:
 
   packages/shared-config:
     devDependencies:
-      '@c_chat/typescript-config':
-        specifier: workspace:*
-        version: link:../typescript-config
       typescript:
         specifier: latest
         version: 5.9.3
+      vite:
+        specifier: ^7.3.1
+        version: 7.3.1(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.31.1)(yaml@2.8.2)
+      vite-plugin-dts:
+        specifier: ^4.5.4
+        version: 4.5.4(@types/node@24.10.1)(rollup@4.53.2)(typescript@5.9.3)(vite@7.3.1(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.31.1)(yaml@2.8.2))
 
-  packages/typescript-config:
+  packages/shared-types:
     devDependencies:
+      '@c_chat/shared-config':
+        specifier: workspace:*
+        version: link:../shared-config
       typescript:
         specifier: latest
         version: 5.9.3
@@ -2283,6 +2295,9 @@ packages:
 
   '@types/keyv@3.1.4':
     resolution: {integrity: sha512-BQ5aZNSCpj7D6K2ksrRCTmKRLEpnPvWDiLPfoGyhZ++8YtiK9d/3DBKPJgry359X/P1PfruyYwvnvwFjuEiEIg==}
+
+  '@types/lodash@4.17.24':
+    resolution: {integrity: sha512-gIW7lQLZbue7lRSWEFql49QJJWThrTFFeIMJdp3eH4tKoxm1OvEPg02rm4wCCSHS0cL3/Fizimb35b7k8atwsQ==}
 
   '@types/ms@2.1.0':
     resolution: {integrity: sha512-GsCCIZDE/p3i96vtEqx+7dBUGXrc7zeSK3wwPHIaRThS+9OhWIXRqzs4d6k1SVU8g91DrNRWxWUGhp5KXQb2VA==}
@@ -7982,6 +7997,8 @@ snapshots:
   '@types/keyv@3.1.4':
     dependencies:
       '@types/node': 24.10.1
+
+  '@types/lodash@4.17.24': {}
 
   '@types/ms@2.1.0': {}
 
