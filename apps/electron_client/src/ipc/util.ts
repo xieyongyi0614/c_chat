@@ -1,18 +1,13 @@
-import {
-  IPC_CONFIG,
-  IpcMessage,
-  IpcMethodParams,
-  IpcResponse,
-  IpcTypes,
-} from '@c_chat/shared-config';
+import { IPC_CONFIG } from '@c_chat/shared-config';
+import { IpcCallParams, IpcMessage, IpcResponse, IpcTypes } from '@c_chat/shared-types';
 import { ipcMain } from 'electron';
 import { isPlainObject } from 'lodash';
 
 // action注入的上下文类型
 export type ActionCtx = {
   // event: Electron.IpcMainInvokeEvent;
-  windowId: number;
-  webContentId?: number;
+  // windowId: number;
+  // webContentId?: number;
 };
 
 // 需要适配的参数类型有哪些？
@@ -70,7 +65,6 @@ export const actions = {} as ActionsMap;
 export const addActionHandler: AddActionHandlerType = (name, handler) => {
   // 将事件名和增强后的函数存储到events对象中
   actions[name] = handler as ActionsMap[typeof name];
-  console.log('addActionHandler', name, handler);
 };
 
 export const initActions = () => {
@@ -90,12 +84,12 @@ export const initActions = () => {
       //   webContentId,
       // };
       const call = actions[message.method];
-      console.log('ipc handle', message, typeof call, actions);
+      console.log('ipc handle', message);
 
       switch (typeof call) {
         case 'function': {
-          const params = message.params as IpcMethodParams<typeof call>;
-          let result;
+          const params = message.params as IpcCallParams<typeof call>;
+          const result = await call({ ...params[0] });
           // 如果无参数
           // if (!params?.length) {
           //   result = await call(actionCtx);
@@ -105,7 +99,6 @@ export const initActions = () => {
           // } else {
           //   result = await call(...params, actionCtx);
           // }
-          console.log(params, 'function');
 
           return {
             id: message.id,

@@ -3,5 +3,5 @@
   "exclude": [
     "apps/*",
     "packages/*"
-  ]
+  ],
 }

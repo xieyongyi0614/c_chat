@@ -23,6 +23,8 @@ import {
 } from '@c_chat/ui';
 import { IconGithub } from '@c_chat/ui';
 import { Link, useNavigate } from 'react-router-dom';
+import { useRequest } from 'ahooks';
+import { ipc } from '@c_chat/shared-utils';
 
 const formSchema = z.object({
   email: z.email({
@@ -31,29 +33,39 @@ const formSchema = z.object({
   password: z
     .string()
     .min(1, 'Please enter your password')
-    .min(7, 'Password must be at least 7 characters long'),
+    .min(6, 'Password must be at least 6 characters long'),
 });
+type FormSchema = z.infer<typeof formSchema>;
 
 interface UserAuthFormProps extends React.HTMLAttributes<HTMLFormElement> {
   redirectTo?: string;
 }
 
 export function UserAuthForm({ className, redirectTo, ...props }: UserAuthFormProps) {
-  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+
+  const { loading, run: signInRun } = useRequest(ipc.SignIn, {
+    manual: true,
+    onSuccess: (data) => {
+      console.log('登录成功', data);
+      navigate('/', { replace: true });
+    },
+    onError: (err) => {
+      console.log('登录失败', err);
+    },
+  });
+
   // const { auth } = useAuthStore();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
-    defaultValues: {
-      email: '',
-      password: '',
-    },
+    defaultValues: { email: '1796709584@qq.com', password: '123456' },
   });
 
-  function onSubmit(data: z.infer<typeof formSchema>) {
-    setIsLoading(true);
-
+  async function onSubmit(data: FormSchema) {
+    console.log(data, 'onsubmit');
+    if (loading) return;
+    signInRun(data);
     // toast.promise(sleep(2000), {
     //   loading: 'Signing in...',
     //   success: () => {
@@ -120,8 +132,8 @@ export function UserAuthForm({ className, redirectTo, ...props }: UserAuthFormPr
             </FormItem>
           )}
         />
-        <Button className="mt-2" disabled={isLoading}>
-          {isLoading ? <Loader2 className="animate-spin" /> : <LogIn />}
+        <Button className="mt-2" disabled={loading}>
+          {loading ? <Loader2 className="animate-spin" /> : <LogIn />}
           Sign in
         </Button>
 
@@ -135,10 +147,10 @@ export function UserAuthForm({ className, redirectTo, ...props }: UserAuthFormPr
         </div>
 
         <div className="grid grid-cols-2 gap-2">
-          <Button variant="outline" type="button" disabled={isLoading}>
+          <Button variant="outline" type="button" disabled={loading}>
             <IconGithub className="h-4 w-4" /> GitHub
           </Button>
-          <Button variant="outline" type="button" disabled={isLoading}>
+          <Button variant="outline" type="button" disabled={loading}>
             <IconFacebook className="h-4 w-4" /> Facebook
           </Button>
         </div>

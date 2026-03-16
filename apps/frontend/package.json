@@ -10,8 +10,10 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@c_chat/shared-utils": "workspace:^",
     "@c_chat/ui": "workspace:*",
     "@hookform/resolvers": "^5.2.2",
+    "ahooks": "^3.9.6",
     "lucide-react": "^0.576.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",

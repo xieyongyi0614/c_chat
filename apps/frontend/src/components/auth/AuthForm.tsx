@@ -15,7 +15,7 @@ import {
   Input,
   Label,
 } from '@c_chat/ui';
-import { UserAuthForm } from './user-auth-form';
+import { UserAuthForm } from './UserAuthForm';
 import { AuthIpcCall } from '@frontend/ipcCall';
 
 // 定义表单验证 schema
@@ -100,9 +100,6 @@ const AuthForm: React.FC = () => {
       setIsLoading(false);
     }
   };
-  useEffect(() => {
-    AuthIpcCall.login({});
-  }, []);
 
   return (
     <Card className="ring-0">

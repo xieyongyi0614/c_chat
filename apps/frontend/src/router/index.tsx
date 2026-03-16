@@ -24,7 +24,7 @@ const router = createHashRouter([
     children: [
       {
         index: true,
-        element: <Navigate to="/dashboard" replace />,
+        element: <Navigate to="/chat" replace />,
       },
       {
         path: 'chat',
@@ -38,7 +38,7 @@ const router = createHashRouter([
   },
   {
     path: '*',
-    element: <Navigate to="/auth/sign-in" replace />,
+    element: <Navigate to="/chat" replace />,
   },
 ]);
 
