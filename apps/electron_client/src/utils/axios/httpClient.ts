@@ -130,8 +130,11 @@ export class HttpClient {
   /**
    * GET 请求
    */
-  public async get<T = any>(url: string, config?: AxiosRequestConfig): Promise<AxiosResponse<T>> {
-    return this.axiosInstance.get<T>(url, config);
+  public async get<T = any>(
+    url: string,
+    config?: AxiosRequestConfig,
+  ): Promise<AxiosResponse<API.ApiResponse<T>>> {
+    return this.axiosInstance.get<API.ApiResponse<T>>(url, config);
   }
 
   /**
@@ -141,8 +144,8 @@ export class HttpClient {
     url: string,
     data?: any,
     config?: AxiosRequestConfig,
-  ): Promise<AxiosResponse<T>> {
-    return this.axiosInstance.post<T>(url, data, config);
+  ): Promise<AxiosResponse<API.ApiResponse<T>>> {
+    return this.axiosInstance.post<API.ApiResponse<T>>(url, data, config);
   }
 
   /**
@@ -152,8 +155,8 @@ export class HttpClient {
     url: string,
     data?: any,
     config?: AxiosRequestConfig,
-  ): Promise<AxiosResponse<T>> {
-    return this.axiosInstance.put<T>(url, data, config);
+  ): Promise<AxiosResponse<API.ApiResponse<T>>> {
+    return this.axiosInstance.put<API.ApiResponse<T>>(url, data, config);
   }
 
   /**
@@ -162,8 +165,8 @@ export class HttpClient {
   public async delete<T = any>(
     url: string,
     config?: AxiosRequestConfig,
-  ): Promise<AxiosResponse<T>> {
-    return this.axiosInstance.delete<T>(url, config);
+  ): Promise<AxiosResponse<API.ApiResponse<T>>> {
+    return this.axiosInstance.delete<API.ApiResponse<T>>(url, config);
   }
 
   /**
@@ -173,8 +176,8 @@ export class HttpClient {
     url: string,
     data?: any,
     config?: AxiosRequestConfig,
-  ): Promise<AxiosResponse<T>> {
-    return this.axiosInstance.patch<T>(url, data, config);
+  ): Promise<AxiosResponse<API.ApiResponse<T>>> {
+    return this.axiosInstance.patch<API.ApiResponse<T>>(url, data, config);
   }
 
   /**

@@ -47,9 +47,6 @@ const Layout: React.FC = () => {
   const handleCloseNotification = () => {
     setShowNotification(false);
   };
-  useEffect(() => {
-    navigate('/auth/sign-in', { replace: true });
-  });
 
   return (
     <div className="flex h-screen max-h-screen overflow-hidden bg-gradient-to-br from-surface-900 via-surface-900 to-surface-800 text-surface-50">

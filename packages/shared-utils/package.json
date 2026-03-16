@@ -1,0 +1,16 @@
+{
+  "name": "@c_chat/shared-utils",
+  "version": "1.0.0",
+  "description": "",
+  "main": "./src/index.ts",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@c_chat/shared-config": "workspace:^",
+    "@c_chat/shared-types": "workspace:^"
+  }
+}

@@ -1,13 +1,15 @@
 import { HttpClient } from '../httpClient';
+import { to } from 'await-to-js';
 
 export abstract class BaseService {
   protected httpClient: HttpClient;
+  public apiTool = to;
 
   constructor(httpClient: HttpClient) {
     this.httpClient = httpClient;
   }
 
-  /**
+  /***
    * 设置认证令牌
    */
   protected setAuthToken(token: string): void {
