@@ -1,8 +1,8 @@
-import { ChatHeader } from '@frontend/layout/widgets/ChatHeader';
+import { ChatHeader } from '@c_chat/frontend/layout/widgets/ChatHeader';
 import { MessageList } from './MessageList';
-import { ChatInput } from '@frontend/components/chat/ChatInput';
+import { ChatInput } from '@c_chat/frontend/components/chat/ChatInput';
 import { memo, useState } from 'react';
-import type { Chat, FriendRequest, TabType } from '@frontend/types/chat';
+import type { Chat, FriendRequest, TabType, User } from '@c_chat/frontend/types/chat';
 
 const mockChats: Chat[] = [
   {
@@ -196,9 +196,17 @@ const ChatComponent = () => {
 
   return (
     <div className="flex flex-col h-full">
-      <ChatHeader chat={activeChat} />
-      <MessageList messages={activeChat.messages} />
-      <ChatInput value={input} onChange={setInput} onSend={handleSend} />
+      {activeChat ? (
+        <>
+          <ChatHeader chat={activeChat} />
+          <MessageList messages={activeChat.messages} />
+          <ChatInput value={input} onChange={setInput} onSend={handleSend} />
+        </>
+      ) : (
+        <div className="flex flex-1 items-center justify-center text-muted-foreground">
+          No active chat
+        </div>
+      )}
     </div>
   );
 };

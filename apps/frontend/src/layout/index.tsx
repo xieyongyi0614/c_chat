@@ -1,11 +1,17 @@
 import { useEffect, useState } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
-import type { Chat, FriendRequest, User, TabType, AddFriendFormData } from '@frontend/types/chat';
+import type {
+  Chat,
+  FriendRequest,
+  User,
+  TabType,
+  AddFriendFormData,
+} from '@c_chat/frontend/types/chat';
 import { LeftSidebar } from './widgets/LeftSidebar';
 import { ContactsPanel } from './widgets/ContactsPanel';
 import { Sidebar } from './widgets/Sidebar';
-import { AddFriendModal } from '@frontend/components/modal/AddFriendModal';
-import { FriendRequestNotification } from '@frontend/components/notification/FriendRequestNotification';
+import { AddFriendModal } from '@c_chat/frontend/components/modal/AddFriendModal';
+import { FriendRequestNotification } from '@c_chat/frontend/components/notification/FriendRequestNotification';
 
 const mockChats: Chat[] = [];
 

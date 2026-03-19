@@ -2,10 +2,8 @@
   "name": "@c_chat/shared-types",
   "main": "./dist/index.es.js",
   "types": "./dist/index.d.ts",
-  "source": "./src/index.ts",
   "exports": {
     ".": {
-      "source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "import": "./dist/index.es.js",
       "require": "./dist/index.es.js"

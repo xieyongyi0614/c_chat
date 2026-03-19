@@ -16,7 +16,6 @@ import {
   Label,
 } from '@c_chat/ui';
 import { UserAuthForm } from './UserAuthForm';
-import { AuthIpcCall } from '@frontend/ipcCall';
 
 // 定义表单验证 schema
 const loginSchema = z.object({
@@ -108,6 +107,8 @@ const AuthForm: React.FC = () => {
         <CardDescription>
           Enter your email and password below to <br />
           log into your account
+          {/* ? 'Create your account to start chatting'
+            : 'Log into your account to start chatting' */}
         </CardDescription>
       </CardHeader>
       <CardContent>

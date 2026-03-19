@@ -1,9 +1,10 @@
 {
   "extends": "@c_chat/shared-config/baseTsConfig",
   "compilerOptions": {
+    "declaration": true,
+    "declarationMap": true,
     "outDir": "./dist",
     "noEmit": true,
-    "rootDir": "./src"
   },
   "include": [
     "src",

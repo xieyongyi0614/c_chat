@@ -1,12 +1,12 @@
 {
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
-    "baseUrl": ".",
-    "outDir": "dist",
+    "outDir": "./dist",
+    "noEmit": true,
+    "rootDir": "./src",
   },
   "include": [
     "src/**/*",
-    "../shared-types/src/ipc-types.ts"
   ],
   "exclude": [
     "node_modules",

@@ -1,3 +1,5 @@
+export * as db from './lib/db';
+
 /** electron 渲染端口 */
 export const ELECTRON_RENDERER_PORT = 3000;
 

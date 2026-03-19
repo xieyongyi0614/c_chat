@@ -1,16 +1,25 @@
-import { IpcCallMethod } from '@c_chat/shared-types';
+import { storeTableClass } from '../../db';
 import { ApiClient } from '../../utils/axios/service/apiService';
 import { addActionHandler } from '../util';
 
 /** 登录 */
-addActionHandler(IpcCallMethod.SignIn, async (params) => {
+addActionHandler('SignIn', async (params) => {
   const res = await ApiClient.auth.signIn(params);
-  console.log(res, 'signIn addActionHandler');
-  return res;
+  if (!res.access_token) {
+    console.log('SingIn failed');
+    throw new Error('登录失败,不存在token');
+  }
+  storeTableClass.setAccessToken(res.access_token, 1);
+  const userInfo = await ApiClient.auth.getUserInfo();
+  return userInfo;
 });
+
 /** 注册 */
-addActionHandler(IpcCallMethod.SignUp, async (params) => {
-  const res = await ApiClient.auth.signUp(params);
-  console.log(res, 'signUp');
-  return res;
+addActionHandler('SignUp', (params) => {
+  return ApiClient.auth.signUp(params);
+});
+
+/** 获取用户信息 */
+addActionHandler('GetUserInfo', () => {
+  return ApiClient.auth.getUserInfo();
 });

@@ -295,6 +295,13 @@
 import AppRouter from './router';
 import { TitleBar } from './components/system/TitleBar';
 const App = () => {
+  // const init = useAuthStore((s) => s.init);
+  // const status = useAuthStore((s) => s.status);
+
+  // React.useEffect(() => {
+  //   if (status === 'unknown') init();
+  // }, [init, status]);
+
   return (
     <div className="flex flex-col h-screen w-full overflow-hidden">
       <TitleBar />

@@ -1,12 +1,7 @@
 // apps/electron_client/src/main/services/auth-service.ts
 import { BaseService } from './baseService';
 import { HttpClient } from '../httpClient';
-import {
-  PostSignInParams,
-  PostSignInResponse,
-  PostSignUpParams,
-  PostSignUpResponse,
-} from '@c_chat/shared-types';
+import { AuthTypes } from '@c_chat/shared-types';
 
 export interface RegisterData {
   email: string;
@@ -30,9 +25,9 @@ export class AuthService extends BaseService {
   /**
    * 用户登录
    */
-  public async signIn(params: PostSignInParams) {
+  public async signIn(params: AuthTypes.PostSignInParams) {
     const [err, response] = await this.apiTool(
-      this.httpClient.post<PostSignInResponse>('/auth/sign-in', params),
+      this.httpClient.post<AuthTypes.PostSignInResponse>('/auth/sign-in', params),
     );
     if (err) {
       console.error('登录失败:', err.message);
@@ -44,9 +39,9 @@ export class AuthService extends BaseService {
   /**
    * 用户登录
    */
-  public async signUp(params: PostSignUpParams) {
+  public async signUp(params: AuthTypes.PostSignUpParams) {
     const [err, response] = await this.apiTool(
-      this.httpClient.post<PostSignUpResponse>('/auth/sign-up', params),
+      this.httpClient.post<AuthTypes.PostSignUpResponse>('/auth/sign-up', params),
     );
     if (err) {
       console.error('注册失败:', err.message);
@@ -55,19 +50,21 @@ export class AuthService extends BaseService {
     return response.data.data;
   }
 
-  //TODO 未对接
   /**
-   * 用户注册
+   * 获取用户信息
    */
-  // public async register(userData: RegisterData): Promise<AuthResponse> {
-  //   try {
-  //     const response = await this.httpClient.post<AuthResponse>('/auth/register', userData);
-  //     return response.data;
-  //   } catch (error) {
-  //     console.error('注册失败:', error);
-  //     throw error;
-  //   }
-  // }
+  public async getUserInfo() {
+    const [err, response] = await this.apiTool(
+      this.httpClient.get<AuthTypes.GetUserInfoResponse>('/users/userInfo'),
+    );
+    if (err) {
+      console.error('获取用户信息失败:', err.message);
+      throw err;
+    }
+    return response.data.data;
+  }
+
+  //TODO 未对接
 
   // /**
   //  * 刷新令牌

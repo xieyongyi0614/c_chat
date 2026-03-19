@@ -2,6 +2,9 @@ import { ELECTRON_RENDERER_PORT } from '@c_chat/shared-config';
 import { BrowserWindow, BrowserWindowConstructorOptions, shell } from 'electron';
 import { join } from 'path';
 import { env } from '../../utils/env';
+import { storeTableClass } from '@c_chat/electron_client/db';
+import { ApiClient } from '@c_chat/electron_client/utils/axios/service/apiService';
+import { socketService, SocketService } from '@c_chat/electron_client/utils/socket-io-client';
 
 export class MainWindowManager {
   private static instance: MainWindowManager;
@@ -34,6 +37,9 @@ export class MainWindowManager {
       this.mainWindow.focus();
       return this.mainWindow;
     }
+    const accessToken = storeTableClass.getAccessToken(1);
+    this.isAuthenticated = !!accessToken;
+
     const otherOptions = this.isAuthenticated ? this.defaultWinOptions : this.authWinOptions;
 
     // 创建窗口
@@ -51,6 +57,7 @@ export class MainWindowManager {
         sandbox: false,
       },
     });
+    accessToken && this.autoSignIn(accessToken);
 
     // 防闪烁显示
     this.mainWindow.once('ready-to-show', () => {
@@ -110,6 +117,17 @@ export class MainWindowManager {
       this.mainWindow.setMinimumSize(600, 600);
       this.mainWindow.setSize(600, 600);
       this.mainWindow.center();
+    }
+  }
+  /** 自动登录 */
+  autoSignIn(accessToken: string) {
+    if (!!accessToken) {
+      ApiClient.instance.setAuthHeader(accessToken);
+      /** 初始化socket连接 */
+
+      if (this.mainWindow) {
+        socketService.init(this.mainWindow, accessToken);
+      }
     }
   }
 }
