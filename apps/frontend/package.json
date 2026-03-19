@@ -1,5 +1,5 @@
 {
-  "name": "frontend",
+  "name": "@c_chat/frontend",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -20,7 +20,8 @@
     "react-hook-form": "^7.71.2",
     "react-router-dom": "^7.13.1",
     "sonner": "^2.0.7",
-    "zod": "^4.3.6"
+    "zod": "^4.3.6",
+    "zustand": "^5.0.12"
   },
   "devDependencies": {
     "@c_chat/shared-config": "workspace:*",

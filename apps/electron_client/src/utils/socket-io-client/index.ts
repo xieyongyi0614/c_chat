@@ -269,3 +269,5 @@ export class SocketService {
     logger.info('[Socket] Service destroyed');
   }
 }
+
+export const socketService = SocketService.getInstance();

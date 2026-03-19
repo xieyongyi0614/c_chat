@@ -6,6 +6,8 @@
     "build": "vite build"
   },
   "type": "module",
+  "main": "./dist/index.es.js",
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",

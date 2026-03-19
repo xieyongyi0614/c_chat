@@ -1,5 +1,5 @@
 import { IPC_CONFIG } from '@c_chat/shared-config';
-import { IpcCallParams, IpcMessage, IpcResponse, IpcTypes } from '@c_chat/shared-types';
+import { IpcMessage, IpcResponse, IpcTypes } from '@c_chat/shared-types';
 import { ipcMain } from 'electron';
 import { isPlainObject } from 'lodash';
 
@@ -22,33 +22,32 @@ enum ParamType {
 type IsPlainObject<T> =
   T extends Record<string, any> ? (T extends readonly any[] ? false : true) : false;
 
-// 分步骤的类型处理
-type ExtractParams<T> = T extends (...args: infer P) => any ? P : never;
-type ExtractReturn<T> = T extends (...args: any[]) => infer R ? R : never;
-
 // 参数处理策略
-type ParamStrategy<P extends readonly any[]> = P['length'] extends 0
-  ? ParamType.NoParams
-  : P['length'] extends 1
-    ? IsPlainObject<P[0]> extends true
-      ? ParamType.SingleObject
-      : ParamType.SingleValue
-    : ParamType.MultipleParams;
+// type ParamStrategy<P extends readonly any[]> = P['length'] extends 0
+//   ? ParamType.NoParams
+//   : P['length'] extends 1
+//     ? IsPlainObject<P[0]> extends true
+//       ? ParamType.SingleObject
+//       : ParamType.SingleValue
+//     : ParamType.MultipleParams;
 
 // 主要的ActionHandler类型
-type ActionHandler<K extends keyof IpcTypes> = {
-  [ParamType.NoParams]: (actionCtx: ActionCtx) => ExtractReturn<IpcTypes[K]>;
-  [ParamType.SingleObject]: (
-    params: ExtractParams<IpcTypes[K]>[0] & ActionCtx,
-  ) => ExtractReturn<IpcTypes[K]>;
-  [ParamType.SingleValue]: (
-    param: ExtractParams<IpcTypes[K]>[0],
-    actionCtx: ActionCtx,
-  ) => ExtractReturn<IpcTypes[K]>;
-  [ParamType.MultipleParams]: (
-    ...params: [...ExtractParams<IpcTypes[K]>, ActionCtx]
-  ) => ExtractReturn<IpcTypes[K]>;
-}[ParamStrategy<ExtractParams<IpcTypes[K]>>];
+// type ActionHandler<K extends keyof IpcTypes> = {
+//   // [ParamType.NoParams]: (actionCtx: ActionCtx) => ExtractReturn<IpcTypes[K]>;
+//   [ParamType.SingleObject]: (
+//     params: ExtractParams<IpcTypes[K]>[0] & ActionCtx,
+//   ) => ExtractReturn<IpcTypes[K]>;
+//   // [ParamType.SingleValue]: (
+//   //   param: ExtractParams<IpcTypes[K]>[0],
+//   //   actionCtx: ActionCtx,
+//   // ) => ExtractReturn<IpcTypes[K]>;
+//   // [ParamType.MultipleParams]: (
+//   //   ...params: [...ExtractParams<IpcTypes[K]>, ActionCtx]
+//   // ) => ExtractReturn<IpcTypes[K]>;
+// }[ParamStrategy<ExtractParams<IpcTypes[K]>>];
+type ActionHandler<K extends keyof IpcTypes> = (
+  params: Parameters<IpcTypes[K]>[0] & ActionCtx,
+) => ReturnType<IpcTypes[K]>;
 
 type AddActionHandlerType = <K extends keyof IpcTypes>(name: K, handler: ActionHandler<K>) => void;
 
@@ -78,19 +77,20 @@ export const initActions = () => {
         };
       }
       // const { windowId, webContentId } = message;
-      // const actionCtx: ActionCtx = {
-      //   // event, // 有序列化问题， 后续需要再加上
-      //   windowId,
-      //   webContentId,
-      // };
+      const actionCtx: ActionCtx = {
+        // event, // 有序列化问题， 后续需要再加上
+        // windowId,
+        // webContentId,
+      };
       const call = actions[message.method];
       console.log('ipc handle', message);
 
       switch (typeof call) {
         case 'function': {
-          const params = message.params as IpcCallParams<typeof call>;
-          const result = await call({ ...params[0] });
-          // 如果无参数
+          const params = message.params;
+          const result = await call(params[0] as never);
+          // let result;
+          // // 如果无参数
           // if (!params?.length) {
           //   result = await call(actionCtx);
           //   // 如果是单个对象

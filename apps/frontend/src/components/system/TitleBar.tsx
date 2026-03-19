@@ -15,16 +15,15 @@ export const TitleBar: React.FC<TitleBarProps> = ({ title = 'C Chat' }) => {
           variant="outline"
           size="sm"
           onClick={() => {
-            // @ts-ignore
             window.api?.openSettings?.();
           }}
         >
           <Settings className="h-4 w-4" />
         </Button>
         <Button
+          variant="destructive"
           size="sm"
           onClick={() => {
-            // @ts-ignore
             window.api?.closeWindow?.();
           }}
         >

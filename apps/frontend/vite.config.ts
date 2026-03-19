@@ -10,7 +10,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      '@frontend': resolve(__dirname, 'src'),
+      '@c_chat/frontend': resolve(__dirname, 'src'),
     },
   },
   build: {

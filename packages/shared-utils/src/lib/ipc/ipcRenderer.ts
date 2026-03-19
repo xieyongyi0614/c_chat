@@ -1,5 +1,5 @@
 import { IPC_CONFIG } from '@c_chat/shared-config';
-import { IpcMessage, IpcResponse } from '@c_chat/shared-types';
+import type { IpcMessage, IpcResponse } from '@c_chat/shared-types';
 type IpcMethods = object;
 
 interface MethodCallRecord {

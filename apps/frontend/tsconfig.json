@@ -10,7 +10,7 @@
   ],
   "compilerOptions": {
     "paths": {
-      "@frontend/*": [
+      "@c_chat/frontend/*": [
         "./src/*"
       ],
       "@c_chat/ui": [

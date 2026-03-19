@@ -1,17 +1,11 @@
 import { AuthPreloadTypes } from './authPreloadTypes';
 export * from './authPreloadTypes';
 
-export type IpcCallParams<T> = T extends (...args: infer U) => any ? U : never;
+export type IpcMethod<P = any, R = any> = (params?: P) => Promise<R>;
 
-export enum IpcCallMethod {
-  SignIn = 'SignIn',
-  SignUp = 'SignUp',
-}
-export type IpcMethod<P, R> = (params: P) => Promise<R>;
-
-export interface IpcMessage<T extends keyof any = keyof any> {
-  method: IpcCallMethod;
-  params: IpcCallParams<T>;
+export interface IpcMessage<T extends keyof IpcTypes = keyof IpcTypes> {
+  method: T;
+  params: Parameters<IpcTypes[T]>;
   id: string;
   windowId?: number;
   webContentId?: number;

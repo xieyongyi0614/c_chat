@@ -1,5 +1,7 @@
 export * from './global';
 
-export * from './ipc/ipcTypes';
+export * from './lib/ipc/ipcTypes';
 
-export * from './ipc/apiTypes';
+export * from './lib/ipc/apiTypes';
+
+export * from './lib/db';

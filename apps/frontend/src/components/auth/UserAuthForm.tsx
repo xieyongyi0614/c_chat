@@ -1,13 +1,9 @@
-import { useState } from 'react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-
 import { Loader2, LogIn } from 'lucide-react';
 import { toast } from 'sonner';
-import { Facebook } from 'lucide-react';
 
-// import { useAuthStore } from '@/stores/auth-store';
 import {
   cn,
   Form,
@@ -25,6 +21,7 @@ import { IconGithub } from '@c_chat/ui';
 import { Link, useNavigate } from 'react-router-dom';
 import { useRequest } from 'ahooks';
 import { ipc } from '@c_chat/shared-utils';
+import { useUserStore } from '@c_chat/frontend/stores';
 
 const formSchema = z.object({
   email: z.email({
@@ -43,11 +40,16 @@ interface UserAuthFormProps extends React.HTMLAttributes<HTMLFormElement> {
 
 export function UserAuthForm({ className, redirectTo, ...props }: UserAuthFormProps) {
   const navigate = useNavigate();
-
+  const { setUserInfo } = useUserStore();
   const { loading, run: signInRun } = useRequest(ipc.SignIn, {
     manual: true,
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       console.log('登录成功', data);
+      if (!data.id) {
+        toast.error('登录失败');
+        return;
+      }
+      setUserInfo(data);
       navigate('/', { replace: true });
     },
     onError: (err) => {
