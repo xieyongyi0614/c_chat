@@ -1,14 +1,19 @@
-// src/main/services/socket.service.ts
 import { io, Socket } from 'socket.io-client';
-import { BrowserWindow, ipcMain } from 'electron';
+import { BrowserWindow } from 'electron';
 import logger from '../logger';
+import { storeTableClass } from '@c_chat/electron_client/db';
+import initOsData from '../osData';
+import { db } from '@c_chat/shared-config';
+import { Command } from './proto';
+import { protoMap, ProtoMapKey } from './proto/protoMap';
 
 // ==================== 类型定义 ====================
-export interface SocketEventMap {
-  // 定义你的业务事件类型（示例）
-  message: { id: string; content: string; timestamp: number };
-  'user-joined': { userId: string; name: string };
-  'user-left': { userId: string };
+export interface ServerToClientEvents {
+  message: (data: Uint8Array | Buffer) => void;
+}
+
+export interface ClientToServerEvents {
+  message: (data: Uint8Array<ArrayBufferLike>) => void;
 }
 
 export interface SocketError {
@@ -17,21 +22,41 @@ export interface SocketError {
   timestamp: number;
 }
 
-export type SocketEvent = keyof SocketEventMap;
-export type SocketEventData<E extends SocketEvent> = SocketEventMap[E];
+interface QueuedEvent {
+  event: number;
+  data: Command;
+}
 
 // ==================== 核心服务 ====================
 export class SocketService {
+  private windowId = db.DEFAULT_WINDOW_ID;
   private static instance: SocketService;
-  private socket: Socket | null = null;
+  private socket: Socket<ServerToClientEvents, ClientToServerEvents> | null = null;
+  private sendQueue: QueuedEvent[] = [];
+
+  private eventListeners: Map<ProtoMapKey, Map<string, (data: any) => void>> = new Map();
+
   private mainWindow: BrowserWindow | null = null;
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 5;
-  private reconnectDelay = 3000;
   private accessToken: string | null = null;
 
+  private pingTimerId?: NodeJS.Timeout;
+  private reconnectTimerId?: NodeJS.Timeout;
+  private isReconnecting = false;
+
+  // 30s连接超时
+  private readonly AUTH_TIMEOUT = 30000;
+  // 10秒ping一次
+  private readonly PING_INTERVAL = 10000;
+  // 5秒ping超时
+  private readonly PING_TIMEOUT = 5000;
+  // 固定重连延迟 5秒
+  private readonly RECONNECT_DELAY = 5000;
+
   // 单例模式
-  private constructor() {
+  private constructor(windowId = db.DEFAULT_WINDOW_ID) {
+    this.windowId = windowId;
     this.setupIpcHandlers();
   }
 
@@ -42,25 +67,16 @@ export class SocketService {
     return SocketService.instance;
   }
 
-  /**
-   * 安全初始化（必须在 app ready 后调用）
-   */
   public init(mainWindow: BrowserWindow, accessToken: string): void {
     this.mainWindow = mainWindow;
     this.accessToken = accessToken;
-
-    // 从环境变量获取 URL（避免硬编码）
     const socketUrl = process.env.SOCKET_URL || 'http://localhost:3001/chat';
-
     this.connect(socketUrl);
   }
 
   private connect(url: string): void {
-    // 清理旧连接
     this.destroy();
-
     logger.info(`[Socket] Connecting to ${url}`);
-
     this.socket = io(url, {
       transports: ['websocket'], // 强制使用 WS
       auth: { token: this.accessToken }, // 传递认证令牌
@@ -76,7 +92,7 @@ export class SocketService {
         logger.error('[Socket] Initial connection timeout');
         this.handleConnectError(new Error('Connection timeout'));
       }
-    }, 15000);
+    }, this.AUTH_TIMEOUT);
 
     this.socket.once('connect', () => clearTimeout(timeout));
   }
@@ -84,27 +100,37 @@ export class SocketService {
   private setupSocketListeners(): void {
     if (!this.socket) return;
 
-    // 连接成功
+    /** 连接成功 */
     this.socket.on('connect', () => {
       this.reconnectAttempts = 0;
-      logger.success(`[Socket] Connected. ID: ${this.socket?.id}`);
+      this.isReconnecting = false;
+
+      logger.success(`[Socket] 连接成功. ID: ${this.socket?.id}`);
       this.sendToRenderer('socket-connected');
+
+      this.setupPingTimer();
+
+      this.subscribeToEvent(101, 'ping', () => {
+        this.cancelPendingReconnect();
+      });
     });
 
-    // 断开连接
+    /** 断开连接 */
     this.socket.on('disconnect', (reason) => {
       logger.warn(`[Socket] Disconnected: ${reason}`);
       this.sendToRenderer('socket-disconnected', reason);
 
-      // 非主动断开时尝试重连
+      /** 非主动断开时尝试重连 */
       if (reason !== 'io client disconnect') {
         this.scheduleReconnect();
       }
     });
 
-    // 连接错误
+    /** 连接错误 */
     this.socket.on('connect_error', (error) => {
       logger.error(`[Socket] Connect error: ${error.message}`);
+
+      this.isReconnecting = false;
       this.handleConnectError(error);
     });
 
@@ -112,43 +138,150 @@ export class SocketService {
     this.registerBusinessEvents();
   }
 
+  /** 设置ping定时器 */
+  private setupPingTimer() {
+    // 清除现有定时器
+    if (this.pingTimerId) {
+      clearInterval(this.pingTimerId);
+    }
+
+    const osData = initOsData();
+    const userInfo = storeTableClass.getUserInfo(this.windowId);
+
+    // 设置 ping 定时器
+    this.pingTimerId = setInterval(() => {
+      if (!this.socket?.connected) {
+        return;
+      }
+
+      const pingCommand = Command.create({
+        type: 101,
+        userId: userInfo?.id,
+        client: osData.machineId,
+      });
+
+      this.emitEvent(pingCommand);
+
+      this.cancelPendingReconnect();
+
+      this.reconnectTimerId = setTimeout(() => {
+        this.handlePingTimeout();
+      }, this.PING_TIMEOUT);
+    }, this.PING_INTERVAL);
+  }
+
+  /** 处理ping超时 */
+  private handlePingTimeout() {
+    if (this.pingTimerId) {
+      clearInterval(this.pingTimerId);
+      this.pingTimerId = undefined;
+    }
+
+    if (this.isReconnecting) return;
+
+    logger.info(`[客户端 ${this.windowId}] Ping失败重连，延迟${this.RECONNECT_DELAY}ms`);
+
+    this.reconnectTimerId = setTimeout(() => {
+      if (this.isReconnecting) return;
+      logger.info(`[客户端 ${this.windowId}] 开始Ping失败重连`);
+      this.scheduleReconnect();
+    }, this.RECONNECT_DELAY);
+  }
+
   private registerBusinessEvents(): void {
     if (!this.socket) return;
 
-    // 精确注册业务事件（避免通配符性能开销）
-    this.socket.on('message', (data) => this.handleTypedEvent('message', data));
-
-    this.socket.on('user-joined', (data) => this.handleTypedEvent('user-joined', data));
-
-    this.socket.on('user-left', (data) => this.handleTypedEvent('user-left', data));
+    this.socket.on('message', this.handleProtobufMessage.bind(this));
   }
 
-  private handleTypedEvent<E extends SocketEvent>(event: E, data: SocketEventData<E>): void {
-    // 开发环境数据验证
-    if (process.env.NODE_ENV === 'development') {
-      try {
-        this.validateEventData(event, data);
-      } catch (error) {
-        logger.error(`[Socket] Invalid data for event "${event}":`, error);
-        return;
+  private handleProtobufMessage(data: Uint8Array | Buffer) {
+    const command = Command.decode(data);
+    const type = command.type as ProtoMapKey;
+    console.log(command, 'command');
+
+    // 处理其他事件
+    const listener = this.eventListeners.get(type);
+
+    if (listener) {
+      if (listener instanceof Map) {
+        // 多订阅广播
+        listener?.forEach((callback) => {
+          try {
+            const clazz = protoMap[type];
+            const decodedResult = clazz?.decode(command.body[0]);
+            callback(decodedResult);
+          } catch (err) {
+            console.error(`[客户端 ${this.windowId}] 处理事件出错:`, err);
+          }
+        });
       }
     }
-
-    this.sendToRenderer(`socket-event:${event}`, data);
   }
 
-  private validateEventData<E extends SocketEvent>(
-    event: E,
-    data: any,
-  ): asserts data is SocketEventData<E> {
-    // 这里可集成 zod 做运行时验证
-    if (event === 'message' && !data.content) {
-      throw new Error('Missing content field in message event');
+  subscribeToEvent<T extends ProtoMapKey>(
+    type: T,
+    comIdentification: string,
+    callback: (data: any) => void,
+  ) {
+    if (!this.eventListeners) this.eventListeners = new Map();
+    if (!this.eventListeners.has(type)) {
+      this.eventListeners.set(type, new Map());
     }
-    // 其他事件验证...
+    const listeners = this.eventListeners.get(type);
+    listeners?.set(comIdentification, callback);
+    return this.subscribeToEvent;
   }
 
-  private scheduleReconnect(): void {
+  unsubscribeFromEvent(type: ProtoMapKey, comIdentification?: string): void {
+    if (!this.eventListeners) return;
+    const listeners = this.eventListeners.get(type);
+    if (!listeners) return;
+    if (comIdentification) {
+      listeners.delete(comIdentification);
+    } else {
+      this.eventListeners.delete(type);
+    }
+  }
+
+  emitEvent(command: Command) {
+    const event = command.type;
+    const data = Command.encode(command).finish();
+    if (this.socket && this.socket.connected) {
+      try {
+        this.socket.emit('message', data);
+        console.log(`[客户端 ${this.windowId}] 发送事件: ${event}`);
+      } catch (error) {
+        console.error(`[客户端 ${this.windowId}] 发送数据出错:`);
+        this._queueMessage(command);
+      }
+    } else {
+      this._queueMessage(command);
+    }
+  }
+
+  /** 发送消息队列 */
+  private _queueMessage(command: Command) {
+    const event = command.type;
+    const existingIndex = this.sendQueue.findIndex((q) => q.event === event);
+    if (existingIndex > -1) {
+      this.sendQueue[existingIndex] = { event, data: command };
+    } else {
+      this.sendQueue.push({ event, data: command });
+    }
+  }
+
+  /** 取消计划中的重连 */
+  private cancelPendingReconnect() {
+    if (this.reconnectTimerId) {
+      clearTimeout(this.reconnectTimerId);
+      this.reconnectTimerId = undefined;
+    }
+  }
+
+  /** 计划重连 */
+  private scheduleReconnect() {
+    if (this.isReconnecting) return;
+
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
       logger.error('[Socket] Max reconnection attempts reached. Giving up.');
       this.sendToRenderer('socket-error', {
@@ -158,8 +291,9 @@ export class SocketService {
       } as SocketError);
       return;
     }
+    this.isReconnecting = true;
 
-    const delay = this.reconnectDelay * (this.reconnectAttempts + 1);
+    const delay = this.RECONNECT_DELAY * (this.reconnectAttempts + 1);
     this.reconnectAttempts++;
 
     logger.info(
@@ -171,8 +305,9 @@ export class SocketService {
       delay,
     });
 
-    setTimeout(() => {
-      if (this.socket?.disconnected) {
+    this.reconnectTimerId = setTimeout(() => {
+      if (this.socket) {
+        this.disconnect();
         this.socket.connect();
       }
     }, delay);
@@ -203,37 +338,34 @@ export class SocketService {
   // ==================== IPC 通信 ====================
   private setupIpcHandlers(): void {
     // 渲染进程请求发送事件
-    ipcMain.on('socket-emit', (event, eventName: string, data: any) => {
-      if (!this.socket?.connected) {
-        logger.warn(`[Socket] Emit failed - not connected: ${eventName}`);
-        return;
-      }
-
-      // 安全白名单机制（关键！）
-      if (!this.isValidEvent(eventName)) {
-        logger.error(`[Socket] Invalid emit event: ${eventName}`);
-        return;
-      }
-
-      logger.debug(`[Socket] Emitting: ${eventName}`, data);
-      this.socket.emit(eventName, data);
-    });
-
-    // 获取连接状态
-    ipcMain.handle('socket-get-state', () => {
-      return {
-        connected: this.socket?.connected || false,
-        id: this.socket?.id || null,
-        attempts: this.reconnectAttempts,
-      };
-    });
+    // ipcMain.on('socket-emit', (event, eventName: string, data: any) => {
+    //   if (!this.socket?.connected) {
+    //     logger.warn(`[Socket] Emit failed - not connected: ${eventName}`);
+    //     return;
+    //   }
+    //   // 安全白名单机制（关键！）
+    //   if (!this.isValidEvent(eventName)) {
+    //     logger.error(`[Socket] Invalid emit event: ${eventName}`);
+    //     return;
+    //   }
+    //   logger.debug(`[Socket] Emitting: ${eventName}`, data);
+    //   this.socket.emit(eventName, data);
+    // });
+    // // 获取连接状态
+    // ipcMain.handle('socket-get-state', () => {
+    //   return {
+    //     connected: this.socket?.connected || false,
+    //     id: this.socket?.id || null,
+    //     attempts: this.reconnectAttempts,
+    //   };
+    // });
   }
 
-  private isValidEvent(eventName: string): boolean {
-    // 严格白名单（防止任意事件触发）
-    const allowedEvents = ['send-message', 'join-room', 'leave-room'];
-    return allowedEvents.includes(eventName);
-  }
+  // private isValidEvent(eventName: string): boolean {
+  //   // 严格白名单（防止任意事件触发）
+  //   const allowedEvents = ['send-message', 'join-room', 'leave-room'];
+  //   return allowedEvents.includes(eventName);
+  // }
 
   // ==================== 生命周期管理 ====================
   /**
@@ -261,8 +393,8 @@ export class SocketService {
     }
 
     // 清理 IPC 监听（防止内存泄漏）
-    ipcMain.removeAllListeners('socket-emit');
-    ipcMain.removeHandler('socket-get-state');
+    // ipcMain.removeAllListeners('socket-emit');
+    // ipcMain.removeHandler('socket-get-state');
 
     this.mainWindow = null;
     this.accessToken = null;

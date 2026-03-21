@@ -22,6 +22,8 @@
     "chalk": "^5.6.2",
     "https-proxy-agent": "^7.0.6",
     "lodash": "^4.17.23",
+    "node-machine-id": "^1.1.12",
+    "protobufjs": "^8.0.0",
     "socket.io-client": "^4.8.3",
     "winston": "^3.19.0",
     "winston-daily-rotate-file": "^5.0.0"
@@ -34,6 +36,7 @@
     "electron-builder": "^26.7.0",
     "electron-rebuild": "^3.2.9",
     "electron-vite": "^5.0.0",
+    "protobufjs-cli": "^2.0.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3",
     "vite": "^7.2.2"

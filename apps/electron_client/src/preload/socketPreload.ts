@@ -1,7 +1,7 @@
 // src/main/preload/socket-preload.ts
 import { contextBridge, ipcRenderer } from 'electron';
 
-contextBridge.exposeInMainWorld('socketAPI', {
+const socketAPI = {
   // 监听 Socket 事件（安全白名单）
   on: (channel: string, callback: (data: any) => void) => {
     const validChannels = [
@@ -33,4 +33,6 @@ contextBridge.exposeInMainWorld('socketAPI', {
   getConnectionState: async () => {
     return ipcRenderer.invoke('socket-get-state');
   },
-});
+};
+
+contextBridge.exposeInMainWorld('socketAPI', socketAPI);
