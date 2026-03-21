@@ -23,6 +23,11 @@ export const AuthProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
       navigate('/', { replace: true });
     }
   }, []);
+  useEffect(() => {
+    window.socketAPI.on('socket-connected', () => {
+      console.log('socket connected');
+    });
+  }, []);
 
   return <AuthContext.Provider value={null}>{children}</AuthContext.Provider>;
 };

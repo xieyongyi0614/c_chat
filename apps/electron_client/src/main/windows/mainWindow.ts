@@ -1,10 +1,11 @@
-import { ELECTRON_RENDERER_PORT } from '@c_chat/shared-config';
+import { ELECTRON_RENDERER_PORT, db } from '@c_chat/shared-config';
 import { BrowserWindow, BrowserWindowConstructorOptions, shell } from 'electron';
 import { join } from 'path';
 import { env } from '../../utils/env';
 import { storeTableClass } from '@c_chat/electron_client/db';
 import { ApiClient } from '@c_chat/electron_client/utils/axios/service/apiService';
 import { socketService, SocketService } from '@c_chat/electron_client/utils/socket-io-client';
+import initOsData from '@c_chat/electron_client/utils/osData';
 
 export class MainWindowManager {
   private static instance: MainWindowManager;
@@ -30,14 +31,16 @@ export class MainWindowManager {
     return MainWindowManager.instance;
   }
 
-  public createWindow(): BrowserWindow {
+  public createWindow(windowId = db.DEFAULT_WINDOW_ID): BrowserWindow {
     // 🔒 防止重复创建
     if (this.mainWindow) {
       if (this.mainWindow.isMinimized()) this.mainWindow.restore();
       this.mainWindow.focus();
       return this.mainWindow;
     }
-    const accessToken = storeTableClass.getAccessToken(1);
+    const accessToken = storeTableClass.getAccessToken(windowId);
+    initOsData();
+
     this.isAuthenticated = !!accessToken;
 
     const otherOptions = this.isAuthenticated ? this.defaultWinOptions : this.authWinOptions;
@@ -57,12 +60,13 @@ export class MainWindowManager {
         sandbox: false,
       },
     });
-    accessToken && this.autoSignIn(accessToken);
 
     // 防闪烁显示
     this.mainWindow.once('ready-to-show', () => {
       this.mainWindow!.show();
-      console.log('Main window ready-to-show');
+      console.log('Main window ready-to-show', this.mainWindow?.id);
+
+      accessToken && this.autoSignIn(accessToken);
 
       // 开发环境自动打开 DevTools
       if (env.isDev) {

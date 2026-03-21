@@ -1,8 +1,9 @@
 import BetterSqlite3 from 'better-sqlite3';
 import { EventTableConnection } from '../EventTable';
 import { db } from '@c_chat/shared-config';
-import { StoreTableTypes } from '@c_chat/shared-types';
+import { AuthTypes, StoreTableTypes } from '@c_chat/shared-types';
 import { safeJsonParse, safeJsonStringify } from '@c_chat/shared-utils';
+import { OsData } from '@c_chat/electron_client/utils/osData';
 
 const DEFAULT_LANGUAGE = 'en';
 
@@ -32,6 +33,13 @@ export class StoreTable extends EventTableConnection<StoreTableTypes.StoreItem> 
   setAccessToken(accessToken: string, windowId: number) {
     this.setStore(db.store.ACCESS_TOKEN, accessToken, { windowId });
   }
+  getUserInfo(windowId: number) {
+    return this.getStore<AuthTypes.GetUserInfoResponse>(db.store.USER_INFO, { windowId });
+  }
+
+  setUserInfo(userInfo: AuthTypes.GetUserInfoResponse, windowId: number) {
+    this.setStore(db.store.USER_INFO, userInfo, { windowId });
+  }
 
   getRefreshToken(windowId: number) {
     return this.getStore<string>(db.store.REFRESH_TOKEN, { windowId });
@@ -39,6 +47,13 @@ export class StoreTable extends EventTableConnection<StoreTableTypes.StoreItem> 
 
   setRefreshToken(refreshToken: string, windowId: number) {
     this.setStore(db.store.REFRESH_TOKEN, refreshToken, { windowId });
+  }
+
+  getOsData() {
+    return this.getStore<OsData>(db.store.OS_DATA, { windowId: db.GLOBAL_WINDOW_ID });
+  }
+  setDsData(osData: OsData) {
+    return this.setStore(db.store.OS_DATA, osData);
   }
 
   // getLanguage(windowId = 0): string {
@@ -93,7 +108,7 @@ export class StoreTable extends EventTableConnection<StoreTableTypes.StoreItem> 
       return defaultValue; // 返回默认值
     }
 
-    return safeJsonParse(result.value, undefined);
+    return safeJsonParse(result.value);
   }
 
   // private emitStoreListener(key: StoreKey | string, value: unknown, windowId: number) {
