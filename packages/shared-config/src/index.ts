@@ -1,5 +1,7 @@
 export * as db from './lib/db';
 
+export * from './lib/webContentEvent.config';
+export * from './lib/injected';
 /** electron 渲染端口 */
 export const ELECTRON_RENDERER_PORT = 3000;
 

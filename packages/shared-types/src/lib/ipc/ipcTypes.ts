@@ -1,7 +1,7 @@
 import { AuthPreloadTypes } from './authPreloadTypes';
 export * from './authPreloadTypes';
 
-export type IpcMethod<P = any, R = any> = (params?: P) => Promise<R>;
+export type IpcMethod<P = any, R = any> = (params: P) => Promise<R>;
 
 export interface IpcMessage<T extends keyof IpcTypes = keyof IpcTypes> {
   method: T;

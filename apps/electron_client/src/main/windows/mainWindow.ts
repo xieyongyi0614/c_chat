@@ -1,4 +1,4 @@
-import { ELECTRON_RENDERER_PORT, db } from '@c_chat/shared-config';
+import { ELECTRON_RENDERER_PORT, WEB_CONTENT_ID, WINDOW_ID, db } from '@c_chat/shared-config';
 import { BrowserWindow, BrowserWindowConstructorOptions, shell } from 'electron';
 import { join } from 'path';
 import { env } from '../../utils/env';
@@ -6,6 +6,7 @@ import { storeTableClass } from '@c_chat/electron_client/db';
 import { ApiClient } from '@c_chat/electron_client/utils/axios/service/apiService';
 import { socketService, SocketService } from '@c_chat/electron_client/utils/socket-io-client';
 import initOsData from '@c_chat/electron_client/utils/osData';
+import { WebContentEvents } from '@c_chat/shared-types';
 
 export class MainWindowManager {
   private static instance: MainWindowManager;
@@ -31,19 +32,20 @@ export class MainWindowManager {
     return MainWindowManager.instance;
   }
 
-  public createWindow(windowId = db.DEFAULT_WINDOW_ID): BrowserWindow {
+  createWindow(windowId = db.DEFAULT_WINDOW_ID): BrowserWindow {
     // 🔒 防止重复创建
     if (this.mainWindow) {
       if (this.mainWindow.isMinimized()) this.mainWindow.restore();
       this.mainWindow.focus();
       return this.mainWindow;
     }
-    const accessToken = storeTableClass.getAccessToken(windowId);
     initOsData();
 
-    this.isAuthenticated = !!accessToken;
+    this.initAccessToken(windowId);
 
     const otherOptions = this.isAuthenticated ? this.defaultWinOptions : this.authWinOptions;
+
+    const additionalArguments = [`${WINDOW_ID}=${windowId}`];
 
     // 创建窗口
     this.mainWindow = new BrowserWindow({
@@ -58,6 +60,7 @@ export class MainWindowManager {
       webPreferences: {
         preload: join(__dirname, '../preload/index.js'),
         sandbox: false,
+        additionalArguments,
       },
     });
 
@@ -66,8 +69,9 @@ export class MainWindowManager {
       this.mainWindow!.show();
       console.log('Main window ready-to-show', this.mainWindow?.id);
 
-      accessToken && this.autoSignIn(accessToken);
+      // accessToken && this.autoSignIn(accessToken);
 
+      console.log('this.mainWindow?.webContents.id', this.mainWindow?.webContents.id);
       // 开发环境自动打开 DevTools
       if (env.isDev) {
         this.mainWindow!.webContents.openDevTools({ mode: 'detach' });
@@ -99,8 +103,16 @@ export class MainWindowManager {
     return this.mainWindow;
   }
 
-  public getWindow(): BrowserWindow | null {
+  getWindow(): BrowserWindow | null {
     return this.mainWindow;
+  }
+
+  /** 初始化token相关的 */
+  initAccessToken(windowId: number) {
+    const accessToken = storeTableClass.getAccessToken(windowId);
+    if (accessToken) {
+      ApiClient.instance.setAuthHeader(accessToken);
+    }
   }
 
   public applyAuthState(loggedIn: boolean): void {
@@ -124,14 +136,24 @@ export class MainWindowManager {
     }
   }
   /** 自动登录 */
-  autoSignIn(accessToken: string) {
-    if (!!accessToken) {
-      ApiClient.instance.setAuthHeader(accessToken);
-      /** 初始化socket连接 */
+  // autoSignIn(accessToken: string) {
+  //   if (!!accessToken) {
+  //     ApiClient.instance.setAuthHeader(accessToken);
+  //     /** 初始化socket连接 */
 
-      if (this.mainWindow) {
-        socketService.init(this.mainWindow, accessToken);
-      }
+  //     if (this.mainWindow) {
+  //       socketService.init(this.mainWindow, accessToken);
+  //     }
+  //   }
+  // }
+
+  static sendWebContentEvent(
+    channel: keyof WebContentEvents,
+    ...args: Parameters<WebContentEvents[keyof WebContentEvents]>
+  ) {
+    const mainWindow = MainWindowManager.getInstance().mainWindow;
+    if (mainWindow) {
+      mainWindow.webContents.send(channel, ...args);
     }
   }
 }

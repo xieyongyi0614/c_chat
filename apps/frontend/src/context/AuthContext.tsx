@@ -8,9 +8,11 @@ export const AuthProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
   const navigate = useNavigate();
   const location = useLocation();
 
-  const { isSignedIn } = useUserStore();
+  const { isSignedIn, autoSignIn } = useUserStore();
 
-  useEffect(() => {
+  const checkAuth = async () => {
+    await autoSignIn();
+
     const path = location.pathname;
     const isAuthPage = path.startsWith('/auth/');
 
@@ -22,11 +24,9 @@ export const AuthProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
     if (isSignedIn() && isAuthPage) {
       navigate('/', { replace: true });
     }
-  }, []);
+  };
   useEffect(() => {
-    window.socketAPI.on('socket-connected', () => {
-      console.log('socket connected');
-    });
+    checkAuth();
   }, []);
 
   return <AuthContext.Provider value={null}>{children}</AuthContext.Provider>;

@@ -31,6 +31,18 @@
     "paths": {
       "@c_chat/frontend/*": [
         "./src/*"
+      ],
+      "@c_chat/ui": [
+        "../../packages/chat_ui/src/index.ts"
+      ],
+      "@c_chat/shared-utils": [
+        "../../packages/shared-utils/src/index.ts"
+      ],
+      "@c_chat/shared-types": [
+        "../../packages/shared-types/src/index.ts"
+      ],
+      "@c_chat/shared-config": [
+        "../../packages/shared-config/src/index.ts"
       ]
     }
   },

@@ -7,8 +7,9 @@ import { SocketService } from '../utils/socket-io-client';
 import '../ipc';
 import { initActions } from '../ipc/util';
 import '../db';
+import { storeTableClass } from '../db';
 ApiClient.init();
-let mainWindowManager: MainWindowManager;
+// let mainWindowManager: MainWindowManager;
 
 // const testLogin = async (mainWindow: BrowserWindow | null) => {
 //   const res = await ApiClient.auth.login({ email: '1796709584@qq.com', password: '123456' });
@@ -20,7 +21,7 @@ let mainWindowManager: MainWindowManager;
 app.setName('c_chat');
 app.whenReady().then(() => {
   electronApp.setAppUserModelId('com.c_chat.desktop');
-  mainWindowManager = MainWindowManager.getInstance();
+  const mainWindowManager = MainWindowManager.getInstance();
 
   initActions();
 

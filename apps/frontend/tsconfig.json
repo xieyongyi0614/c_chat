@@ -18,6 +18,12 @@
       ],
       "@c_chat/shared-utils": [
         "../../packages/shared-utils/src/index.ts"
+      ],
+      "@c_chat/shared-types": [
+        "../../packages/shared-types/src/index.ts"
+      ],
+      "@c_chat/shared-config": [
+        "../../packages/shared-config/src/index.ts"
       ]
     },
   }

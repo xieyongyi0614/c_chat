@@ -1,4 +1,4 @@
-import { IPC_CONFIG } from '@c_chat/shared-config';
+import { db, IPC_CONFIG } from '@c_chat/shared-config';
 import { IpcMessage, IpcResponse, IpcTypes } from '@c_chat/shared-types';
 import { ipcMain } from 'electron';
 import { isPlainObject } from 'lodash';
@@ -6,8 +6,8 @@ import { isPlainObject } from 'lodash';
 // action注入的上下文类型
 export type ActionCtx = {
   // event: Electron.IpcMainInvokeEvent;
-  // windowId: number;
-  // webContentId?: number;
+  windowId: number;
+  webContentId?: number;
 };
 
 // 需要适配的参数类型有哪些？
@@ -22,32 +22,33 @@ enum ParamType {
 type IsPlainObject<T> =
   T extends Record<string, any> ? (T extends readonly any[] ? false : true) : false;
 
+// type ActionHandler<K extends keyof IpcTypes> = (
+//   params: Parameters<IpcTypes[K]>[0] & ActionCtx,
+// ) => ReturnType<IpcTypes[K]>;
+
 // 参数处理策略
-// type ParamStrategy<P extends readonly any[]> = P['length'] extends 0
-//   ? ParamType.NoParams
-//   : P['length'] extends 1
-//     ? IsPlainObject<P[0]> extends true
-//       ? ParamType.SingleObject
-//       : ParamType.SingleValue
-//     : ParamType.MultipleParams;
+type ParamStrategy<P extends readonly any[]> = P['length'] extends 0
+  ? ParamType.NoParams
+  : P['length'] extends 1
+    ? IsPlainObject<P[0]> extends true
+      ? ParamType.SingleObject
+      : ParamType.SingleValue
+    : ParamType.MultipleParams;
 
 // 主要的ActionHandler类型
-// type ActionHandler<K extends keyof IpcTypes> = {
-//   // [ParamType.NoParams]: (actionCtx: ActionCtx) => ExtractReturn<IpcTypes[K]>;
-//   [ParamType.SingleObject]: (
-//     params: ExtractParams<IpcTypes[K]>[0] & ActionCtx,
-//   ) => ExtractReturn<IpcTypes[K]>;
-//   // [ParamType.SingleValue]: (
-//   //   param: ExtractParams<IpcTypes[K]>[0],
-//   //   actionCtx: ActionCtx,
-//   // ) => ExtractReturn<IpcTypes[K]>;
-//   // [ParamType.MultipleParams]: (
-//   //   ...params: [...ExtractParams<IpcTypes[K]>, ActionCtx]
-//   // ) => ExtractReturn<IpcTypes[K]>;
-// }[ParamStrategy<ExtractParams<IpcTypes[K]>>];
-type ActionHandler<K extends keyof IpcTypes> = (
-  params: Parameters<IpcTypes[K]>[0] & ActionCtx,
-) => ReturnType<IpcTypes[K]>;
+type ActionHandler<K extends keyof IpcTypes> = {
+  [ParamType.NoParams]: (actionCtx: ActionCtx) => ReturnType<IpcTypes[K]>;
+  [ParamType.SingleObject]: (
+    params: Parameters<IpcTypes[K]>[0] & ActionCtx,
+  ) => ReturnType<IpcTypes[K]>;
+  [ParamType.SingleValue]: (
+    param: Parameters<IpcTypes[K]>[0],
+    actionCtx: ActionCtx,
+  ) => ReturnType<IpcTypes[K]>;
+  [ParamType.MultipleParams]: (
+    ...params: [...Parameters<IpcTypes[K]>, ActionCtx]
+  ) => ReturnType<IpcTypes[K]>;
+}[ParamStrategy<Parameters<IpcTypes[K]>>];
 
 type AddActionHandlerType = <K extends keyof IpcTypes>(name: K, handler: ActionHandler<K>) => void;
 
@@ -76,11 +77,11 @@ export const initActions = () => {
           error: 'No arguments',
         };
       }
-      // const { windowId, webContentId } = message;
+      const { windowId = db.GLOBAL_WINDOW_ID, webContentId } = message;
       const actionCtx: ActionCtx = {
         // event, // 有序列化问题， 后续需要再加上
-        // windowId,
-        // webContentId,
+        windowId,
+        webContentId,
       };
       const call = actions[message.method];
       console.log('ipc handle', message);
@@ -88,14 +89,14 @@ export const initActions = () => {
       switch (typeof call) {
         case 'function': {
           const params = message.params;
-          const result = await call(params[0] as never);
+          const result = await call({ ...actionCtx, ...params[0] } as any);
           // let result;
           // // 如果无参数
           // if (!params?.length) {
-          //   result = await call(actionCtx);
+          //   result = await call(actionCtx as any);
           //   // 如果是单个对象
           // } else if (params?.length === 1 && isPlainObject(params?.[0])) {
-          //   result = await call({ ...actionCtx, ...params[0] });
+          //   result = await call({ ...actionCtx, ...params[0] } as any);
           // } else {
           //   result = await call(...params, actionCtx);
           // }
@@ -125,4 +126,9 @@ export const initActions = () => {
       return { id: message.id, error };
     }
   });
+};
+
+export const omitActionCtx = <T extends ActionCtx = ActionCtx>(params: T) => {
+  const { windowId, webContentId, ...rest } = params;
+  return rest;
 };
