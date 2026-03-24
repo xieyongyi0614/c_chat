@@ -31,7 +31,7 @@ export class AuthService extends BaseService {
     );
     if (err) {
       console.error('登录失败:', err.message);
-      throw err;
+      return;
     }
     return response.data.data;
   }
@@ -45,7 +45,7 @@ export class AuthService extends BaseService {
     );
     if (err) {
       console.error('注册失败:', err.message);
-      throw err;
+      return;
     }
     return response.data.data;
   }
@@ -59,7 +59,7 @@ export class AuthService extends BaseService {
     );
     if (err) {
       console.error('获取用户信息失败:', err.message);
-      throw err;
+      return;
     }
     return response.data.data;
   }

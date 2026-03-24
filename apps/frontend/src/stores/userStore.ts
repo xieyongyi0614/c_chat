@@ -6,13 +6,20 @@ type UserState = {
   userInfo: AuthTypes.GetUserInfoResponse | null;
   setUserInfo: (userInfo: AuthTypes.GetUserInfoResponse | null) => void;
   isSignedIn: () => boolean;
-  refreshUserInfo: () => Promise<AuthTypes.GetUserInfoResponse>;
+  autoSignIn: () => Promise<AuthTypes.GetUserInfoResponse | undefined>;
+  refreshUserInfo: () => Promise<AuthTypes.GetUserInfoResponse | undefined>;
   logout: () => void;
 };
 
 export const useUserStore = create<UserState>((set, get) => ({
   userInfo: null,
   isSignedIn: () => !!get().userInfo?.id,
+
+  autoSignIn: async () => {
+    const userInfo = await ipc.AutoSignIn();
+    userInfo && set({ userInfo });
+    return userInfo;
+  },
 
   setUserInfo: async (userInfo) => {
     set({ userInfo });

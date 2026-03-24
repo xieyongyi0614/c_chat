@@ -7,6 +7,9 @@ import axios, {
 import * as https from 'https';
 import { HttpsProxyAgent } from 'https-proxy-agent';
 import { app } from 'electron';
+import { safeJsonStringify } from '@c_chat/shared-utils';
+import { MainWindowManager } from '@c_chat/electron_client/main/windows/mainWindow';
+import { ELECTRON_TO_CLIENT_CHANNELS } from '@c_chat/shared-config';
 
 interface HttpClientOptions {
   baseURL?: string;
@@ -122,6 +125,20 @@ export class HttpClient {
     } else {
       // 其他错误
       console.error('[HTTP] General Error:', error.message);
+    }
+    /** 处理错误toast提示 */
+    if (error.response.status === 401) {
+      MainWindowManager.sendWebContentEvent(
+        ELECTRON_TO_CLIENT_CHANNELS.TOAST,
+        'error',
+        '登录已过期，请重新登录！',
+      );
+    } else {
+      MainWindowManager.sendWebContentEvent(
+        ELECTRON_TO_CLIENT_CHANNELS.TOAST,
+        'error',
+        error.message,
+      );
     }
 
     return Promise.reject(error);

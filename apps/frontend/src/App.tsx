@@ -294,6 +294,9 @@
 
 import AppRouter from './router';
 import { TitleBar } from './components/system/TitleBar';
+import { useEffect } from 'react';
+import { ELECTRON_TO_CLIENT_CHANNELS } from '@c_chat/shared-config';
+import { toast, Toaster } from 'sonner';
 const App = () => {
   // const init = useAuthStore((s) => s.init);
   // const status = useAuthStore((s) => s.status);
@@ -301,6 +304,22 @@ const App = () => {
   // React.useEffect(() => {
   //   if (status === 'unknown') init();
   // }, [init, status]);
+  useEffect(() => {
+    window.c_chat.on(ELECTRON_TO_CLIENT_CHANNELS.TOAST, (type, message) => {
+      console.log(type, message, 'TOAST data');
+      const toastFn = toast[type as keyof typeof toast];
+      if (typeof toastFn === 'function') {
+        // const options: ExternalToast = {
+        //   duration: type === 'loading' ? 5000 : 30000,
+        //   style: { top: '30px' },
+        // };
+        toastFn(message as any);
+      } else {
+        console.warn(`未知type: ${type}, 使用默认`);
+        toast(message);
+      }
+    });
+  }, []);
 
   return (
     <div className="flex flex-col h-screen w-full overflow-hidden">
@@ -308,6 +327,7 @@ const App = () => {
       <div className="pt-10 overflow-y-auto">
         <AppRouter />
       </div>
+      <Toaster position="top-center" style={{ top: '45px' }} duration={3000} />
     </div>
   );
 };
