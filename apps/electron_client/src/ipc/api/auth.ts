@@ -2,6 +2,7 @@ import { MainWindowManager } from '@c_chat/electron_client/main/windows/mainWind
 import { storeTableClass } from '../../db';
 import { ApiClient } from '../../utils/axios/service/apiService';
 import { addActionHandler, omitActionCtx } from '../util';
+import { socketService } from '@c_chat/electron_client/utils/socket-io-client';
 
 /** 登录 */
 addActionHandler('SignIn', async (params) => {
@@ -28,7 +29,20 @@ addActionHandler('AutoSignIn', async (params) => {
   if (userInfo) {
     MainWindowManager.getInstance().applyAuthState(true);
   }
-  return userInfo;
+
+  const mainWindow = MainWindowManager.getInstance().getWindow();
+  if (!mainWindow) {
+    return;
+  }
+
+  socketService.init(mainWindow, accessToken);
+  // const [err, res] = await to();
+
+  // if (err) {
+  //   console.log('登录失败',err);
+  //   return;
+  // }
+  // return userInfo;
 });
 
 /** 注册 */

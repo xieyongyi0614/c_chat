@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+
+message UserInfo {
+  string id = 1;
+  string email = 2;
+  optional string nickname = 3; 
+  optional string avatar_url = 4; 
+  int32 state = 5;
+  int64 update_time = 6;
+}

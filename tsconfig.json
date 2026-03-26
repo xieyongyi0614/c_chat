@@ -1,7 +1,31 @@
 {
-  "extends": "./packages/shared-config/tsconfig.base.json",
-  "exclude": [
-    "apps/*",
-    "packages/*"
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ESNext",
+    "lib": [
+      "ES2020"
+    ],
+    "declaration": true,
+    "declarationMap": true,
+    "allowJs": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "noImplicitAny": true,
+    "sourceMap": true,
+    "baseUrl": ".",
+    "outDir": "dist",
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "strict": true,
+    "forceConsistentCasingInFileNames": true
+  },
+  "include": [
+    "src",
+    "eslint.config.mts",
+    "packages/**/*",
+    "apps/**/*"
   ],
+  "exclude": [
+    "node_modules"
+  ]
 }

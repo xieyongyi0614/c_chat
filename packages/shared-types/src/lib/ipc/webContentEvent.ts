@@ -7,9 +7,9 @@ export interface WebContentEventType {
   off: (channel: string, callback: (data: any) => void) => void;
 }
 
-const { CONNECTED, TOAST } = ELECTRON_TO_CLIENT_CHANNELS;
+const { SocketConnSuccess, Toast } = ELECTRON_TO_CLIENT_CHANNELS;
 
 export interface WebContentEvents {
-  [CONNECTED]: (data: AuthTypes.GetUserInfoResponse) => void;
-  [TOAST]: (type: 'success' | 'error' | 'info' | 'warning' | 'loading', message: string) => void;
+  [SocketConnSuccess]: (data: AuthTypes.GetUserInfoResponse) => void;
+  [Toast]: (type: 'success' | 'error' | 'info' | 'warning' | 'loading', message: string) => void;
 }

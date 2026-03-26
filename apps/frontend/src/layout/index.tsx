@@ -9,7 +9,6 @@ import type {
 } from '@c_chat/frontend/types/chat';
 import { LeftSidebar } from './widgets/LeftSidebar';
 import { ContactsPanel } from './widgets/ContactsPanel';
-import { Sidebar } from './widgets/Sidebar';
 import { AddFriendModal } from '@c_chat/frontend/components/modal/AddFriendModal';
 import { FriendRequestNotification } from '@c_chat/frontend/components/notification/FriendRequestNotification';
 
@@ -55,14 +54,14 @@ const Layout: React.FC = () => {
   };
 
   return (
-    <div className="flex h-screen max-h-screen overflow-hidden bg-gradient-to-br from-surface-900 via-surface-900 to-surface-800 text-surface-50">
+    <div className="flex flex-1 overflow-hidden bg-gradient-to-br from-surface-900 via-surface-900 to-surface-800 text-surface-50">
       {/* 左侧操作栏 */}
       <LeftSidebar activeTab={activeTab} onTabChange={setActiveTab} />
 
       {/* 中间面板 - 根据选中的标签显示不同内容 */}
-      {activeTab === 'message' && (
+      {/* {activeTab === 'message' && (
         <Sidebar chats={chats} activeId={activeId} onSelectChat={setActiveId} />
-      )}
+      )} */}
 
       {activeTab === 'contacts' && (
         <ContactsPanel
@@ -76,7 +75,7 @@ const Layout: React.FC = () => {
       )}
 
       {/* 右侧聊天区域 - 路由出口 */}
-      <main className="flex flex-1 flex-col">
+      <main className="flex flex-1 flex-col overflow-hidden">
         <Outlet />
       </main>
 

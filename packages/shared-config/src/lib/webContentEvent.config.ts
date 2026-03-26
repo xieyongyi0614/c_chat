@@ -1,4 +1,6 @@
 export const ELECTRON_TO_CLIENT_CHANNELS = {
-  CONNECTED: 'socket-connected',
-  TOAST: 'toast',
+  /** socket 相关channel */
+  SocketConnSuccess: 'socketConnSuccess',
+  /** toast 相关channel */
+  Toast: 'toast',
 } as const;

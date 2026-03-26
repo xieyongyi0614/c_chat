@@ -3,21 +3,12 @@ import { electronApp } from '@electron-toolkit/utils';
 
 import { ApiClient } from '../utils/axios/service/apiService';
 import { MainWindowManager } from './windows/mainWindow';
-import { SocketService } from '../utils/socket-io-client';
 import '../ipc';
 import { initActions } from '../ipc/util';
 import '../db';
-import { storeTableClass } from '../db';
 ApiClient.init();
 // let mainWindowManager: MainWindowManager;
 
-// const testLogin = async (mainWindow: BrowserWindow | null) => {
-//   const res = await ApiClient.auth.login({ email: '1796709584@qq.com', password: '123456' });
-//   const socketService = SocketService.getInstance();
-//   if (mainWindow) {
-//     socketService.init(mainWindow, res.access_token);
-//   }
-// };
 app.setName('c_chat');
 app.whenReady().then(() => {
   electronApp.setAppUserModelId('com.c_chat.desktop');

@@ -1,9 +1,9 @@
 import React from 'react';
 import { RouterProvider, Navigate, createHashRouter, Outlet } from 'react-router-dom';
 import Layout from '@c_chat/frontend/layout';
-import Chat from '@c_chat/frontend/pages/chat';
 import AuthForm from '@c_chat/frontend/components/auth/AuthForm';
 import { AuthProvider } from '@c_chat/frontend/context/AuthContext';
+import { Chats } from '../pages/chats';
 
 const router = createHashRouter([
   {
@@ -36,7 +36,7 @@ const router = createHashRouter([
           },
           {
             path: 'chat',
-            element: <Chat />,
+            element: <Chats />,
           },
         ],
       },
