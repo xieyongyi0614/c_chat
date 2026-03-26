@@ -588,4 +588,363 @@ $root.Result = (function() {
     return Result;
 })();
 
+$root.UserInfo = (function() {
+
+    /**
+     * Properties of a UserInfo.
+     * @exports IUserInfo
+     * @interface IUserInfo
+     * @property {string|null} [id] UserInfo id
+     * @property {string|null} [email] UserInfo email
+     * @property {string|null} [nickname] UserInfo nickname
+     * @property {string|null} [avatarUrl] UserInfo avatarUrl
+     * @property {number|null} [state] UserInfo state
+     * @property {number|Long|null} [updateTime] UserInfo updateTime
+     */
+
+    /**
+     * Constructs a new UserInfo.
+     * @exports UserInfo
+     * @classdesc Represents a UserInfo.
+     * @implements IUserInfo
+     * @constructor
+     * @param {IUserInfo=} [properties] Properties to set
+     */
+    function UserInfo(properties) {
+        if (properties)
+            for (var keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                if (properties[keys[i]] != null)
+                    this[keys[i]] = properties[keys[i]];
+    }
+
+    /**
+     * UserInfo id.
+     * @member {string} id
+     * @memberof UserInfo
+     * @instance
+     */
+    UserInfo.prototype.id = "";
+
+    /**
+     * UserInfo email.
+     * @member {string} email
+     * @memberof UserInfo
+     * @instance
+     */
+    UserInfo.prototype.email = "";
+
+    /**
+     * UserInfo nickname.
+     * @member {string|null|undefined} nickname
+     * @memberof UserInfo
+     * @instance
+     */
+    UserInfo.prototype.nickname = null;
+
+    /**
+     * UserInfo avatarUrl.
+     * @member {string|null|undefined} avatarUrl
+     * @memberof UserInfo
+     * @instance
+     */
+    UserInfo.prototype.avatarUrl = null;
+
+    /**
+     * UserInfo state.
+     * @member {number} state
+     * @memberof UserInfo
+     * @instance
+     */
+    UserInfo.prototype.state = 0;
+
+    /**
+     * UserInfo updateTime.
+     * @member {number|Long} updateTime
+     * @memberof UserInfo
+     * @instance
+     */
+    UserInfo.prototype.updateTime = $util.Long ? $util.Long.fromBits(0,0,false) : 0;
+
+    // OneOf field names bound to virtual getters and setters
+    var $oneOfFields;
+
+    // Virtual OneOf for proto3 optional field
+    Object.defineProperty(UserInfo.prototype, "_nickname", {
+        get: $util.oneOfGetter($oneOfFields = ["nickname"]),
+        set: $util.oneOfSetter($oneOfFields)
+    });
+
+    // Virtual OneOf for proto3 optional field
+    Object.defineProperty(UserInfo.prototype, "_avatarUrl", {
+        get: $util.oneOfGetter($oneOfFields = ["avatarUrl"]),
+        set: $util.oneOfSetter($oneOfFields)
+    });
+
+    /**
+     * Creates a new UserInfo instance using the specified properties.
+     * @function create
+     * @memberof UserInfo
+     * @static
+     * @param {IUserInfo=} [properties] Properties to set
+     * @returns {UserInfo} UserInfo instance
+     */
+    UserInfo.create = function create(properties) {
+        return new UserInfo(properties);
+    };
+
+    /**
+     * Encodes the specified UserInfo message. Does not implicitly {@link UserInfo.verify|verify} messages.
+     * @function encode
+     * @memberof UserInfo
+     * @static
+     * @param {IUserInfo} message UserInfo message or plain object to encode
+     * @param {$protobuf.Writer} [writer] Writer to encode to
+     * @returns {$protobuf.Writer} Writer
+     */
+    UserInfo.encode = function encode(message, writer) {
+        if (!writer)
+            writer = $Writer.create();
+        if (message.id != null && Object.hasOwnProperty.call(message, "id"))
+            writer.uint32(/* id 1, wireType 2 =*/10).string(message.id);
+        if (message.email != null && Object.hasOwnProperty.call(message, "email"))
+            writer.uint32(/* id 2, wireType 2 =*/18).string(message.email);
+        if (message.nickname != null && Object.hasOwnProperty.call(message, "nickname"))
+            writer.uint32(/* id 3, wireType 2 =*/26).string(message.nickname);
+        if (message.avatarUrl != null && Object.hasOwnProperty.call(message, "avatarUrl"))
+            writer.uint32(/* id 4, wireType 2 =*/34).string(message.avatarUrl);
+        if (message.state != null && Object.hasOwnProperty.call(message, "state"))
+            writer.uint32(/* id 5, wireType 0 =*/40).int32(message.state);
+        if (message.updateTime != null && Object.hasOwnProperty.call(message, "updateTime"))
+            writer.uint32(/* id 6, wireType 0 =*/48).int64(message.updateTime);
+        return writer;
+    };
+
+    /**
+     * Encodes the specified UserInfo message, length delimited. Does not implicitly {@link UserInfo.verify|verify} messages.
+     * @function encodeDelimited
+     * @memberof UserInfo
+     * @static
+     * @param {IUserInfo} message UserInfo message or plain object to encode
+     * @param {$protobuf.Writer} [writer] Writer to encode to
+     * @returns {$protobuf.Writer} Writer
+     */
+    UserInfo.encodeDelimited = function encodeDelimited(message, writer) {
+        return this.encode(message, writer).ldelim();
+    };
+
+    /**
+     * Decodes a UserInfo message from the specified reader or buffer.
+     * @function decode
+     * @memberof UserInfo
+     * @static
+     * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+     * @param {number} [length] Message length if known beforehand
+     * @returns {UserInfo} UserInfo
+     * @throws {Error} If the payload is not a reader or valid buffer
+     * @throws {$protobuf.util.ProtocolError} If required fields are missing
+     */
+    UserInfo.decode = function decode(reader, length, error) {
+        if (!(reader instanceof $Reader))
+            reader = $Reader.create(reader);
+        var end = length === undefined ? reader.len : reader.pos + length, message = new $root.UserInfo();
+        while (reader.pos < end) {
+            var tag = reader.uint32();
+            if (tag === error)
+                break;
+            switch (tag >>> 3) {
+            case 1: {
+                    message.id = reader.string();
+                    break;
+                }
+            case 2: {
+                    message.email = reader.string();
+                    break;
+                }
+            case 3: {
+                    message.nickname = reader.string();
+                    break;
+                }
+            case 4: {
+                    message.avatarUrl = reader.string();
+                    break;
+                }
+            case 5: {
+                    message.state = reader.int32();
+                    break;
+                }
+            case 6: {
+                    message.updateTime = reader.int64();
+                    break;
+                }
+            default:
+                reader.skipType(tag & 7);
+                break;
+            }
+        }
+        return message;
+    };
+
+    /**
+     * Decodes a UserInfo message from the specified reader or buffer, length delimited.
+     * @function decodeDelimited
+     * @memberof UserInfo
+     * @static
+     * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+     * @returns {UserInfo} UserInfo
+     * @throws {Error} If the payload is not a reader or valid buffer
+     * @throws {$protobuf.util.ProtocolError} If required fields are missing
+     */
+    UserInfo.decodeDelimited = function decodeDelimited(reader) {
+        if (!(reader instanceof $Reader))
+            reader = new $Reader(reader);
+        return this.decode(reader, reader.uint32());
+    };
+
+    /**
+     * Verifies a UserInfo message.
+     * @function verify
+     * @memberof UserInfo
+     * @static
+     * @param {Object.<string,*>} message Plain object to verify
+     * @returns {string|null} `null` if valid, otherwise the reason why it is not
+     */
+    UserInfo.verify = function verify(message) {
+        if (typeof message !== "object" || message === null)
+            return "object expected";
+        var properties = {};
+        if (message.id != null && message.hasOwnProperty("id"))
+            if (!$util.isString(message.id))
+                return "id: string expected";
+        if (message.email != null && message.hasOwnProperty("email"))
+            if (!$util.isString(message.email))
+                return "email: string expected";
+        if (message.nickname != null && message.hasOwnProperty("nickname")) {
+            properties._nickname = 1;
+            if (!$util.isString(message.nickname))
+                return "nickname: string expected";
+        }
+        if (message.avatarUrl != null && message.hasOwnProperty("avatarUrl")) {
+            properties._avatarUrl = 1;
+            if (!$util.isString(message.avatarUrl))
+                return "avatarUrl: string expected";
+        }
+        if (message.state != null && message.hasOwnProperty("state"))
+            if (!$util.isInteger(message.state))
+                return "state: integer expected";
+        if (message.updateTime != null && message.hasOwnProperty("updateTime"))
+            if (!$util.isInteger(message.updateTime) && !(message.updateTime && $util.isInteger(message.updateTime.low) && $util.isInteger(message.updateTime.high)))
+                return "updateTime: integer|Long expected";
+        return null;
+    };
+
+    /**
+     * Creates a UserInfo message from a plain object. Also converts values to their respective internal types.
+     * @function fromObject
+     * @memberof UserInfo
+     * @static
+     * @param {Object.<string,*>} object Plain object
+     * @returns {UserInfo} UserInfo
+     */
+    UserInfo.fromObject = function fromObject(object) {
+        if (object instanceof $root.UserInfo)
+            return object;
+        var message = new $root.UserInfo();
+        if (object.id != null)
+            message.id = String(object.id);
+        if (object.email != null)
+            message.email = String(object.email);
+        if (object.nickname != null)
+            message.nickname = String(object.nickname);
+        if (object.avatarUrl != null)
+            message.avatarUrl = String(object.avatarUrl);
+        if (object.state != null)
+            message.state = object.state | 0;
+        if (object.updateTime != null)
+            if ($util.Long)
+                (message.updateTime = $util.Long.fromValue(object.updateTime)).unsigned = false;
+            else if (typeof object.updateTime === "string")
+                message.updateTime = parseInt(object.updateTime, 10);
+            else if (typeof object.updateTime === "number")
+                message.updateTime = object.updateTime;
+            else if (typeof object.updateTime === "object")
+                message.updateTime = new $util.LongBits(object.updateTime.low >>> 0, object.updateTime.high >>> 0).toNumber();
+        return message;
+    };
+
+    /**
+     * Creates a plain object from a UserInfo message. Also converts values to other types if specified.
+     * @function toObject
+     * @memberof UserInfo
+     * @static
+     * @param {UserInfo} message UserInfo
+     * @param {$protobuf.IConversionOptions} [options] Conversion options
+     * @returns {Object.<string,*>} Plain object
+     */
+    UserInfo.toObject = function toObject(message, options) {
+        if (!options)
+            options = {};
+        var object = {};
+        if (options.defaults) {
+            object.id = "";
+            object.email = "";
+            object.state = 0;
+            if ($util.Long) {
+                var long = new $util.Long(0, 0, false);
+                object.updateTime = options.longs === String ? long.toString() : options.longs === Number ? long.toNumber() : long;
+            } else
+                object.updateTime = options.longs === String ? "0" : 0;
+        }
+        if (message.id != null && message.hasOwnProperty("id"))
+            object.id = message.id;
+        if (message.email != null && message.hasOwnProperty("email"))
+            object.email = message.email;
+        if (message.nickname != null && message.hasOwnProperty("nickname")) {
+            object.nickname = message.nickname;
+            if (options.oneofs)
+                object._nickname = "nickname";
+        }
+        if (message.avatarUrl != null && message.hasOwnProperty("avatarUrl")) {
+            object.avatarUrl = message.avatarUrl;
+            if (options.oneofs)
+                object._avatarUrl = "avatarUrl";
+        }
+        if (message.state != null && message.hasOwnProperty("state"))
+            object.state = message.state;
+        if (message.updateTime != null && message.hasOwnProperty("updateTime"))
+            if (typeof message.updateTime === "number")
+                object.updateTime = options.longs === String ? String(message.updateTime) : message.updateTime;
+            else
+                object.updateTime = options.longs === String ? $util.Long.prototype.toString.call(message.updateTime) : options.longs === Number ? new $util.LongBits(message.updateTime.low >>> 0, message.updateTime.high >>> 0).toNumber() : message.updateTime;
+        return object;
+    };
+
+    /**
+     * Converts this UserInfo to JSON.
+     * @function toJSON
+     * @memberof UserInfo
+     * @instance
+     * @returns {Object.<string,*>} JSON object
+     */
+    UserInfo.prototype.toJSON = function toJSON() {
+        return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+    };
+
+    /**
+     * Gets the default type url for UserInfo
+     * @function getTypeUrl
+     * @memberof UserInfo
+     * @static
+     * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+     * @returns {string} The default type url
+     */
+    UserInfo.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+        if (typeUrlPrefix === undefined) {
+            typeUrlPrefix = "type.googleapis.com";
+        }
+        return typeUrlPrefix + "/UserInfo";
+    };
+
+    return UserInfo;
+})();
+
 module.exports = $root;

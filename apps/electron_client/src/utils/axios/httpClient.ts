@@ -71,7 +71,7 @@ export class HttpClient {
    * 处理请求
    */
   private handleRequest(config: InternalAxiosRequestConfig): InternalAxiosRequestConfig {
-    console.log(`[HTTP] ${config.method?.toUpperCase()} ${config.url}`, {
+    console.log(`[HTTP Request] ${config.method?.toUpperCase()} ${config.url}`, {
       params: config.params,
       data: config.data
         ? typeof config.data === 'string'
@@ -94,7 +94,7 @@ export class HttpClient {
     const requestTime = Date.now() - (response.config as any)._requestTime;
 
     console.log(
-      `[HTTP] ${response.status} ${response.config.method?.toUpperCase()} ${response.config.url} - ${requestTime}ms`,
+      `[HTTP Response] ${response.status} ${response.config.method?.toUpperCase()} ${response.config.url} - ${requestTime}ms`,
       {
         status: response.status,
         data: response.data,
@@ -129,13 +129,13 @@ export class HttpClient {
     /** 处理错误toast提示 */
     if (error.response.status === 401) {
       MainWindowManager.sendWebContentEvent(
-        ELECTRON_TO_CLIENT_CHANNELS.TOAST,
+        ELECTRON_TO_CLIENT_CHANNELS.Toast,
         'error',
         '登录已过期，请重新登录！',
       );
     } else {
       MainWindowManager.sendWebContentEvent(
-        ELECTRON_TO_CLIENT_CHANNELS.TOAST,
+        ELECTRON_TO_CLIENT_CHANNELS.Toast,
         'error',
         error.message,
       );

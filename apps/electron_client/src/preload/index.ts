@@ -2,7 +2,6 @@ import { contextBridge, ipcRenderer } from 'electron';
 import { electronAPI } from '@electron-toolkit/preload';
 import { db, IPC_CONFIG, WINDOW_ID } from '@c_chat/shared-config';
 import { IpcMessage } from '@c_chat/shared-types';
-import './webContentEventPreload';
 import { webContentEventApi } from './webContentEventPreload';
 
 function getArgValue(key: string): string | undefined {

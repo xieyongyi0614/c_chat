@@ -3,9 +3,9 @@ import { BrowserWindow } from 'electron';
 import logger from '../logger';
 import { storeTableClass } from '@c_chat/electron_client/db';
 import initOsData from '../osData';
-import { db } from '@c_chat/shared-config';
+import { db, ELECTRON_TO_CLIENT_CHANNELS } from '@c_chat/shared-config';
 import { Command } from './proto';
-import { protoMap, ProtoMapKey } from './proto/protoMap';
+import { PROTO_MAP_KEY, protoMap, ProtoMapKey } from './proto/protoMap';
 
 // ==================== 类型定义 ====================
 export interface ServerToClientEvents {
@@ -67,51 +67,50 @@ export class SocketService {
     return SocketService.instance;
   }
 
-  public init(mainWindow: BrowserWindow, accessToken: string): void {
+  async init(mainWindow: BrowserWindow, accessToken: string) {
     this.mainWindow = mainWindow;
     this.accessToken = accessToken;
     const socketUrl = process.env.SOCKET_URL || 'http://localhost:3001/chat';
     this.connect(socketUrl);
   }
 
-  private connect(url: string): void {
+  async connect(url: string) {
     this.destroy();
     logger.info(`[Socket] Connecting to ${url}`);
     this.socket = io(url, {
-      transports: ['websocket'], // 强制使用 WS
-      auth: { token: this.accessToken }, // 传递认证令牌
-      reconnection: false, // 自定义重连逻辑
+      transports: ['websocket'],
+      auth: { token: this.accessToken },
+      reconnection: false,
       timeout: 10000,
     });
-
-    this.setupSocketListeners();
 
     // 连接超时保护
     const timeout = setTimeout(() => {
       if (this.socket && !this.socket.connected) {
         logger.error('[Socket] Initial connection timeout');
-        this.handleConnectError(new Error('Connection timeout'));
+        const error = new Error('Connection timeout');
+        this.handleConnectError(error);
+        return;
       }
     }, this.AUTH_TIMEOUT);
 
-    this.socket.once('connect', () => clearTimeout(timeout));
-  }
-
-  private setupSocketListeners(): void {
-    if (!this.socket) return;
-
     /** 连接成功 */
     this.socket.on('connect', () => {
+      timeout && clearTimeout(timeout);
       this.reconnectAttempts = 0;
       this.isReconnecting = false;
 
       logger.success(`[Socket] 连接成功. ID: ${this.socket?.id}`);
-      this.sendToRenderer('socket-connected');
+      this.sendToRenderer(ELECTRON_TO_CLIENT_CHANNELS.SocketConnSuccess);
 
       this.setupPingTimer();
 
-      this.subscribeToEvent(101, 'ping', () => {
+      this.subscribeToEvent(PROTO_MAP_KEY.NULL, 'ping', () => {
         this.cancelPendingReconnect();
+      });
+      this.subscribeToEvent(PROTO_MAP_KEY.RESULT, 'getUserInfo', (data) => {
+        // this.cancelPendingReconnect();
+        console.log('getUserInfo', data);
       });
     });
 
@@ -129,13 +128,12 @@ export class SocketService {
     /** 连接错误 */
     this.socket.on('connect_error', (error) => {
       logger.error(`[Socket] Connect error: ${error.message}`);
-
       this.isReconnecting = false;
       this.handleConnectError(error);
     });
 
-    // 业务事件监听（类型安全）
-    this.registerBusinessEvents();
+    /** 接收到protobuf消息 */
+    this.socket.on('message', this.handleProtobufMessage.bind(this));
   }
 
   /** 设置ping定时器 */
@@ -169,6 +167,16 @@ export class SocketService {
       }, this.PING_TIMEOUT);
     }, this.PING_INTERVAL);
   }
+  sendMessage(type: number) {
+    const osData = initOsData();
+    const userInfo = storeTableClass.getUserInfo(this.windowId);
+    const command = Command.create({
+      type,
+      userId: userInfo?.id,
+      client: osData.machineId,
+    });
+    this.emitEvent(command);
+  }
 
   /** 处理ping超时 */
   private handlePingTimeout() {
@@ -188,16 +196,10 @@ export class SocketService {
     }, this.RECONNECT_DELAY);
   }
 
-  private registerBusinessEvents(): void {
-    if (!this.socket) return;
-
-    this.socket.on('message', this.handleProtobufMessage.bind(this));
-  }
-
   private handleProtobufMessage(data: Uint8Array | Buffer) {
     const command = Command.decode(data);
     const type = command.type as ProtoMapKey;
-    console.log(command, 'command');
+    console.log('handleProtobufMessage command', command);
 
     // 处理其他事件
     const listener = this.eventListeners.get(type);
@@ -209,6 +211,7 @@ export class SocketService {
           try {
             const clazz = protoMap[type];
             const decodedResult = clazz?.decode(command.body[0]);
+            console.log(decodedResult, 'decodedResult');
             callback(decodedResult);
           } catch (err) {
             console.error(`[客户端 ${this.windowId}] 处理事件出错:`, err);

@@ -85,7 +85,7 @@ export class MainWindowManager {
     });
 
     // 加载内容
-    const loadUrl = `http://localhost:${ELECTRON_RENDERER_PORT}`;
+    const loadUrl = `http://localhost:${ELECTRON_RENDERER_PORT}/#/auth/sign-in`;
 
     this.mainWindow.loadURL(loadUrl).catch((err) => {
       console.log(`加载失败: ${err.message}`);

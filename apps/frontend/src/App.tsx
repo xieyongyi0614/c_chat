@@ -305,8 +305,8 @@ const App = () => {
   //   if (status === 'unknown') init();
   // }, [init, status]);
   useEffect(() => {
-    window.c_chat.on(ELECTRON_TO_CLIENT_CHANNELS.TOAST, (type, message) => {
-      console.log(type, message, 'TOAST data');
+    window.c_chat.on(ELECTRON_TO_CLIENT_CHANNELS.Toast, (type, message) => {
+      console.log(type, message, 'Toast data');
       const toastFn = toast[type as keyof typeof toast];
       if (typeof toastFn === 'function') {
         // const options: ExternalToast = {
@@ -322,9 +322,9 @@ const App = () => {
   }, []);
 
   return (
-    <div className="flex flex-col h-screen w-full overflow-hidden">
+    <div className="flex flex-col h-screen w-full overflow-hidden h-screen">
       <TitleBar />
-      <div className="pt-10 overflow-y-auto">
+      <div className="flex flex-1 mt-10 overflow-hidden">
         <AppRouter />
       </div>
       <Toaster position="top-center" style={{ top: '45px' }} duration={3000} />
