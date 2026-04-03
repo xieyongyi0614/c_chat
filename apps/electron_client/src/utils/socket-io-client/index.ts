@@ -5,11 +5,18 @@ import { storeTableClass } from '@c_chat/electron_client/db';
 import initOsData from '../osData';
 import { db, ELECTRON_TO_CLIENT_CHANNELS } from '@c_chat/shared-config';
 import { Command } from './proto';
-import { PROTO_MAP_KEY, protoMap, ProtoMapKey } from './proto/protoMap';
+import {
+  protoMap,
+  SocketProtoEventType,
+  SOCKET_PROTO_EVENT,
+  SocketProtoEventData,
+} from './proto/protoMap';
+import { MainWindowManager } from '@c_chat/electron_client/main/windows/mainWindow';
 
 // ==================== 类型定义 ====================
 export interface ServerToClientEvents {
   message: (data: Uint8Array | Buffer) => void;
+  auth_error: (data: { message: string; timestamp: string }) => void;
 }
 
 export interface ClientToServerEvents {
@@ -23,7 +30,7 @@ export interface SocketError {
 }
 
 interface QueuedEvent {
-  event: number;
+  event: SocketProtoEventType;
   data: Command;
 }
 
@@ -34,7 +41,17 @@ export class SocketService {
   private socket: Socket<ServerToClientEvents, ClientToServerEvents> | null = null;
   private sendQueue: QueuedEvent[] = [];
 
-  private eventListeners: Map<ProtoMapKey, Map<string, (data: any) => void>> = new Map();
+  /**
+   * 事件监听器注册表
+   *
+   * 结构说明:
+   * - 外层 Map Key (ProtoMapKey 事件名)
+   * - 内层 Map (EventListenerMap): 该事件类型下所有订阅者的集合
+   *   - Key: 订阅者的唯一标识 (用于精确取消订阅，默认是外层Map Key)
+   *   - Value: 具体的回调函数
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private eventListeners: Map<SocketProtoEventType, Map<string, (data: any) => void>> = new Map();
 
   private mainWindow: BrowserWindow | null = null;
   private reconnectAttempts = 0;
@@ -67,9 +84,9 @@ export class SocketService {
     return SocketService.instance;
   }
 
-  async init(mainWindow: BrowserWindow, accessToken: string) {
+  async init(mainWindow: BrowserWindow) {
     this.mainWindow = mainWindow;
-    this.accessToken = accessToken;
+
     const socketUrl = process.env.SOCKET_URL || 'http://localhost:3001/chat';
     this.connect(socketUrl);
   }
@@ -77,6 +94,12 @@ export class SocketService {
   async connect(url: string) {
     this.destroy();
     logger.info(`[Socket] Connecting to ${url}`);
+    if (!this.accessToken) {
+      const accessToken = storeTableClass.getAccessToken(this.windowId);
+      if (!accessToken) return;
+      this.accessToken = accessToken;
+    }
+
     this.socket = io(url, {
       transports: ['websocket'],
       auth: { token: this.accessToken },
@@ -96,22 +119,12 @@ export class SocketService {
 
     /** 连接成功 */
     this.socket.on('connect', () => {
-      timeout && clearTimeout(timeout);
+      if (timeout) clearTimeout(timeout);
       this.reconnectAttempts = 0;
       this.isReconnecting = false;
-
       logger.success(`[Socket] 连接成功. ID: ${this.socket?.id}`);
-      this.sendToRenderer(ELECTRON_TO_CLIENT_CHANNELS.SocketConnSuccess);
-
       this.setupPingTimer();
-
-      this.subscribeToEvent(PROTO_MAP_KEY.NULL, 'ping', () => {
-        this.cancelPendingReconnect();
-      });
-      this.subscribeToEvent(PROTO_MAP_KEY.RESULT, 'getUserInfo', (data) => {
-        // this.cancelPendingReconnect();
-        console.log('getUserInfo', data);
-      });
+      this._setupSubscribeToEvent();
     });
 
     /** 断开连接 */
@@ -134,6 +147,28 @@ export class SocketService {
 
     /** 接收到protobuf消息 */
     this.socket.on('message', this.handleProtobufMessage.bind(this));
+
+    /** 连接socket认证失败 */
+    this.socket.on('auth_error', (data) => {
+      console.log('auth_error', data);
+      MainWindowManager.showToast('error', data.message);
+      this.socket?.disconnect();
+    });
+  }
+  private _setupSubscribeToEvent() {
+    this.subscribeToEvent(SOCKET_PROTO_EVENT.ping, () => {
+      console.log(`[客户端 ${this.windowId}] 收到 ${SOCKET_PROTO_EVENT.ping}`);
+      this.cancelPendingReconnect();
+    });
+    this.subscribeToEvent(SOCKET_PROTO_EVENT.getUserInfo, (data) => {
+      if (data.id) {
+        this.sendToRenderer(ELECTRON_TO_CLIENT_CHANNELS.SocketConnSuccess, data);
+        MainWindowManager.getInstance().applyAuthState(true);
+      } else {
+        MainWindowManager.showToast('error', '登录失败，请检查用户名和密码');
+        this.socket?.disconnect();
+      }
+    });
   }
 
   /** 设置ping定时器 */
@@ -153,7 +188,7 @@ export class SocketService {
       }
 
       const pingCommand = Command.create({
-        type: 101,
+        event: SOCKET_PROTO_EVENT.ping,
         userId: userInfo?.id,
         client: osData.machineId,
       });
@@ -167,11 +202,11 @@ export class SocketService {
       }, this.PING_TIMEOUT);
     }, this.PING_INTERVAL);
   }
-  sendMessage(type: number) {
+  sendMessage(event: SocketProtoEventType) {
     const osData = initOsData();
     const userInfo = storeTableClass.getUserInfo(this.windowId);
     const command = Command.create({
-      type,
+      event,
       userId: userInfo?.id,
       client: osData.machineId,
     });
@@ -198,20 +233,27 @@ export class SocketService {
 
   private handleProtobufMessage(data: Uint8Array | Buffer) {
     const command = Command.decode(data);
-    const type = command.type as ProtoMapKey;
-    console.log('handleProtobufMessage command', command);
+    const event = command.event as SocketProtoEventType;
 
     // 处理其他事件
-    const listener = this.eventListeners.get(type);
-
+    const listener = this.eventListeners.get(event);
     if (listener) {
       if (listener instanceof Map) {
         // 多订阅广播
         listener?.forEach((callback) => {
           try {
-            const clazz = protoMap[type];
+            const clazz = protoMap[event];
             const decodedResult = clazz?.decode(command.body[0]);
-            console.log(decodedResult, 'decodedResult');
+            if (decodedResult) {
+              console.log(
+                '============================处理订阅广播========================================',
+              );
+              console.log(`收到消息：Event=${event}`);
+              console.log(decodedResult);
+              console.log(
+                '============================处理订阅广播========================================',
+              );
+            }
             callback(decodedResult);
           } catch (err) {
             console.error(`[客户端 ${this.windowId}] 处理事件出错:`, err);
@@ -221,21 +263,21 @@ export class SocketService {
     }
   }
 
-  subscribeToEvent<T extends ProtoMapKey>(
-    type: T,
-    comIdentification: string,
-    callback: (data: any) => void,
+  subscribeToEvent<T extends SocketProtoEventType>(
+    event: T,
+    callback: SocketProtoEventData[T],
+    comIdentification?: string,
   ) {
     if (!this.eventListeners) this.eventListeners = new Map();
-    if (!this.eventListeners.has(type)) {
-      this.eventListeners.set(type, new Map());
+    if (!this.eventListeners.has(event)) {
+      this.eventListeners.set(event, new Map());
     }
-    const listeners = this.eventListeners.get(type);
-    listeners?.set(comIdentification, callback);
+    const listeners = this.eventListeners.get(event);
+    listeners?.set(comIdentification ?? String(event), callback);
     return this.subscribeToEvent;
   }
 
-  unsubscribeFromEvent(type: ProtoMapKey, comIdentification?: string): void {
+  unsubscribeFromEvent(type: SocketProtoEventType, comIdentification?: string): void {
     if (!this.eventListeners) return;
     const listeners = this.eventListeners.get(type);
     if (!listeners) return;
@@ -247,14 +289,14 @@ export class SocketService {
   }
 
   emitEvent(command: Command) {
-    const event = command.type;
+    const event = command.event;
     const data = Command.encode(command).finish();
     if (this.socket && this.socket.connected) {
       try {
         this.socket.emit('message', data);
         console.log(`[客户端 ${this.windowId}] 发送事件: ${event}`);
       } catch (error) {
-        console.error(`[客户端 ${this.windowId}] 发送数据出错:`);
+        console.error(`[客户端 ${this.windowId}] 发送数据出错:`, error);
         this._queueMessage(command);
       }
     } else {
@@ -264,7 +306,7 @@ export class SocketService {
 
   /** 发送消息队列 */
   private _queueMessage(command: Command) {
-    const event = command.type;
+    const event = command.event as SocketProtoEventType;
     const existingIndex = this.sendQueue.findIndex((q) => q.event === event);
     if (existingIndex > -1) {
       this.sendQueue[existingIndex] = { event, data: command };
@@ -330,7 +372,7 @@ export class SocketService {
     }
   }
 
-  private sendToRenderer(channel: string, data?: any): void {
+  private sendToRenderer(channel: string, data?: unknown): void {
     if (!this.mainWindow?.webContents || this.mainWindow.isDestroyed()) {
       logger.warn('[Socket] Cannot send to renderer: window not available');
       return;

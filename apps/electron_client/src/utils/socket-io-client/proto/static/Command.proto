@@ -2,7 +2,7 @@ syntax = "proto3";
 
 // 命令
 message Command {
-  uint32 type = 1;          // 描述指令类型(用于定位不同的业务场景)
+  string event = 1;         // 事件名称
   string userId = 2;        // 用户ID
   string client = 3;        // 标识发送端设备类型
   repeated bytes body = 4;  // 根据不同的业务场景封装具体数据结构
