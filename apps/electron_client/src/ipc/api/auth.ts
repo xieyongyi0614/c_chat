@@ -19,30 +19,12 @@ addActionHandler('SignIn', async (params) => {
   return userInfo;
 });
 
-addActionHandler('AutoSignIn', async (params) => {
-  const { windowId } = params;
-  const accessToken = storeTableClass.getAccessToken(windowId);
-  if (!accessToken) {
-    throw new Error(`自动登录失败,不存在窗口${windowId}token`);
-  }
-  const userInfo = await ApiClient.auth.getUserInfo();
-  if (userInfo) {
-    MainWindowManager.getInstance().applyAuthState(true);
-  }
-
+addActionHandler('AutoSignIn', async () => {
   const mainWindow = MainWindowManager.getInstance().getWindow();
   if (!mainWindow) {
     return;
   }
-
-  socketService.init(mainWindow, accessToken);
-  // const [err, res] = await to();
-
-  // if (err) {
-  //   console.log('登录失败',err);
-  //   return;
-  // }
-  // return userInfo;
+  socketService.init(mainWindow);
 });
 
 /** 注册 */

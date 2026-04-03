@@ -8,8 +8,14 @@ import reactRefresh from 'eslint-plugin-react-refresh';
 
 export default defineConfig([
   {
+    ignores: [
+      'apps/electron_client/src/utils/socket-io-client/proto/index.d.ts',
+      'apps/electron_client/src/utils/socket-io-client/proto/index.js',
+    ],
+  },
+  {
     files: ['**/*.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
-    plugins: { js, 'react-hooks': reactHooks, react: pluginReact },
+    plugins: { js, react: pluginReact, 'react-hooks': reactHooks },
     extends: [
       js.configs.recommended,
       pluginReact.configs.flat.recommended,
@@ -22,9 +28,6 @@ export default defineConfig([
         project: './tsconfig.json',
       },
     },
-  },
-  tseslint.configs.recommended,
-  {
     rules: {
       '@typescript-eslint/no-unused-vars': 'warn',
       'react/react-in-jsx-scope': 'off',
@@ -32,6 +35,14 @@ export default defineConfig([
       'react-hooks/exhaustive-deps': 'warn',
       'react-hooks/rules-of-hooks': 'error',
       'react/display-name': 'off',
+      '@typescript-eslint/no-explicit-any': 'off',
     },
   },
+  tseslint.configs.recommended,
+  // {
+  //   // 重要：在 flat config 中，规则所属配置块必须声明对应插件
+  //   // 否则会出现「Could not find plugin 'react-hooks'」之类的错误。
+  //   plugins: { react: pluginReact, 'react-hooks': reactHooks },
+
+  // },
 ]);

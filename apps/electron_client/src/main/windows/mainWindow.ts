@@ -1,10 +1,14 @@
-import { ELECTRON_RENDERER_PORT, WEB_CONTENT_ID, WINDOW_ID, db } from '@c_chat/shared-config';
+import {
+  ELECTRON_RENDERER_PORT,
+  ELECTRON_TO_CLIENT_CHANNELS,
+  WINDOW_ID,
+  db,
+} from '@c_chat/shared-config';
 import { BrowserWindow, BrowserWindowConstructorOptions, shell } from 'electron';
 import { join } from 'path';
 import { env } from '../../utils/env';
 import { storeTableClass } from '@c_chat/electron_client/db';
 import { ApiClient } from '@c_chat/electron_client/utils/axios/service/apiService';
-import { socketService, SocketService } from '@c_chat/electron_client/utils/socket-io-client';
 import initOsData from '@c_chat/electron_client/utils/osData';
 import { WebContentEvents } from '@c_chat/shared-types';
 
@@ -155,5 +159,8 @@ export class MainWindowManager {
     if (mainWindow) {
       mainWindow.webContents.send(channel, ...args);
     }
+  }
+  static showToast(...args: Parameters<WebContentEvents['toast']>) {
+    MainWindowManager.sendWebContentEvent(ELECTRON_TO_CLIENT_CHANNELS.Toast, ...args);
   }
 }

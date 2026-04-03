@@ -51,7 +51,7 @@ export function NewChat({ users, onOpenChange, open }: NewChatProps) {
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
-          <DialogTitle>New message</DialogTitle>
+          <DialogTitle>新消息</DialogTitle>
         </DialogHeader>
         <div className="flex flex-col gap-4">
           <div className="flex flex-wrap items-baseline-last gap-2">

@@ -5,7 +5,8 @@
   "main": "./dist/main/index.js",
   "scripts": {
     "dev": "pnpm run rebuild && electron-vite dev -w",
-    "rebuild": "electron-rebuild -f -w better-sqlite3"
+    "rebuild": "electron-rebuild -f -w better-sqlite3",
+    "lint": "eslint ./src --ext .ts"
   },
   "keywords": [],
   "author": "",
@@ -32,10 +33,13 @@
     "@types/better-sqlite3": "^7.6.13",
     "@types/lodash": "^4.17.24",
     "@types/node": "^24.10.0",
+    "@typescript-eslint/eslint-plugin": "^8.46.2",
+    "@typescript-eslint/parser": "^8.46.2",
     "electron": "^40.2.1",
     "electron-builder": "^26.7.0",
     "electron-rebuild": "^3.2.9",
     "electron-vite": "^5.0.0",
+    "eslint": "^9.39.1",
     "protobufjs-cli": "^2.0.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3",

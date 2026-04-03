@@ -6,4 +6,5 @@ message Result {
   string errorCode = 2;     // 异常码
   string errorMessage = 3;  // 异常内容
   bytes data = 4;           // 返回数据
+  string type = 5;          // 返回data的类型
 }
