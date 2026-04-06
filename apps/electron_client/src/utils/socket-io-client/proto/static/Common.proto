@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package Common; 
+
+// 通用分页请求
+message PaginationRequest {
+  int32 page = 1;
+  int32 pageSize = 2; 
+}
+
+message PaginationResponse {
+  int32 total = 1;
+  int32 page = 2;
+  int32 pageSize = 3;
+  int32 totalPage = 4;
+}
+

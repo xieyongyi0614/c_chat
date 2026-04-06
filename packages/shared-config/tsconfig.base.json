@@ -16,4 +16,7 @@
     "emitDeclarationOnly": true,
     "baseUrl": ".",
   },
+  "include": [
+    "../shared-types/src/lib/types.typing.d.ts"
+  ]
 }

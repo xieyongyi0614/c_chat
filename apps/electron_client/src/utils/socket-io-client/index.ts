@@ -2,16 +2,12 @@ import { io, Socket } from 'socket.io-client';
 import { BrowserWindow } from 'electron';
 import logger from '../logger';
 import { storeTableClass } from '@c_chat/electron_client/db';
-import initOsData from '../osData';
-import { db, ELECTRON_TO_CLIENT_CHANNELS } from '@c_chat/shared-config';
-import { Command } from './proto';
-import {
-  protoMap,
-  SocketProtoEventType,
-  SOCKET_PROTO_EVENT,
-  SocketProtoEventData,
-} from './proto/protoMap';
+import { db } from '@c_chat/shared-config';
+import type { UserTypes } from '@c_chat/shared-types';
+import { GetUserList, GetUserListResponse } from './proto';
+import { SocketProtoEventType, SOCKET_PROTO_EVENT } from './proto/protoMap';
 import { MainWindowManager } from '@c_chat/electron_client/main/windows/mainWindow';
+import { MessageHandler } from './message.handler';
 
 // ==================== 类型定义 ====================
 export interface ServerToClientEvents {
@@ -29,29 +25,19 @@ export interface SocketError {
   timestamp: number;
 }
 
-interface QueuedEvent {
-  event: SocketProtoEventType;
-  data: Command;
-}
+export type CChatSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 
+type GetUserListWaitEntry = {
+  resolve: (v: any) => void;
+  reject: (e: Error) => void;
+  timer: NodeJS.Timeout;
+};
 // ==================== 核心服务 ====================
-export class SocketService {
-  private windowId = db.DEFAULT_WINDOW_ID;
-  private static instance: SocketService;
-  private socket: Socket<ServerToClientEvents, ClientToServerEvents> | null = null;
-  private sendQueue: QueuedEvent[] = [];
 
-  /**
-   * 事件监听器注册表
-   *
-   * 结构说明:
-   * - 外层 Map Key (ProtoMapKey 事件名)
-   * - 内层 Map (EventListenerMap): 该事件类型下所有订阅者的集合
-   *   - Key: 订阅者的唯一标识 (用于精确取消订阅，默认是外层Map Key)
-   *   - Value: 具体的回调函数
-   */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private eventListeners: Map<SocketProtoEventType, Map<string, (data: any) => void>> = new Map();
+export class SocketService extends MessageHandler {
+  protected windowId = db.DEFAULT_WINDOW_ID;
+  private static instance: SocketService;
+  private socket: CChatSocket | null = null;
 
   private mainWindow: BrowserWindow | null = null;
   private reconnectAttempts = 0;
@@ -71,8 +57,14 @@ export class SocketService {
   // 固定重连延迟 5秒
   private readonly RECONNECT_DELAY = 5000;
 
+  /** IPC 等与 getUserList 响应按 FIFO 配对（服务端需按请求顺序回包） */
+  // private requestWaitQueue: GetUserListWaitEntry[] = [];
+  // private static readonly GET_USER_LIST_TIMEOUT_MS = 20_000;
+
   // 单例模式
   private constructor(windowId = db.DEFAULT_WINDOW_ID) {
+    super(windowId);
+
     this.windowId = windowId;
     this.setupIpcHandlers();
   }
@@ -124,11 +116,19 @@ export class SocketService {
       this.isReconnecting = false;
       logger.success(`[Socket] 连接成功. ID: ${this.socket?.id}`);
       this.setupPingTimer();
-      this._setupSubscribeToEvent();
+
+      this.subscribeToEvent(SOCKET_PROTO_EVENT.ping, () => {
+        console.log(`[客户端 ${this.windowId}] 收到 ${SOCKET_PROTO_EVENT.ping}`);
+        this.cancelPendingReconnect();
+      });
+      if (this.socket) {
+        this._setupSubscribeToEvent(this.socket, this.mainWindow);
+      }
     });
 
     /** 断开连接 */
     this.socket.on('disconnect', (reason) => {
+      this.rejectAllWaiters(new Error(`Socket 断开: ${reason}`));
       logger.warn(`[Socket] Disconnected: ${reason}`);
       this.sendToRenderer('socket-disconnected', reason);
 
@@ -146,7 +146,7 @@ export class SocketService {
     });
 
     /** 接收到protobuf消息 */
-    this.socket.on('message', this.handleProtobufMessage.bind(this));
+    this.socket.on('message', this.dispatch.bind(this));
 
     /** 连接socket认证失败 */
     this.socket.on('auth_error', (data) => {
@@ -155,45 +155,15 @@ export class SocketService {
       this.socket?.disconnect();
     });
   }
-  private _setupSubscribeToEvent() {
-    this.subscribeToEvent(SOCKET_PROTO_EVENT.ping, () => {
-      console.log(`[客户端 ${this.windowId}] 收到 ${SOCKET_PROTO_EVENT.ping}`);
-      this.cancelPendingReconnect();
-    });
-    this.subscribeToEvent(SOCKET_PROTO_EVENT.getUserInfo, (data) => {
-      if (data.id) {
-        this.sendToRenderer(ELECTRON_TO_CLIENT_CHANNELS.SocketConnSuccess, data);
-        MainWindowManager.getInstance().applyAuthState(true);
-      } else {
-        MainWindowManager.showToast('error', '登录失败，请检查用户名和密码');
-        this.socket?.disconnect();
-      }
-    });
-  }
 
   /** 设置ping定时器 */
   private setupPingTimer() {
-    // 清除现有定时器
-    if (this.pingTimerId) {
-      clearInterval(this.pingTimerId);
-    }
+    if (this.pingTimerId) clearInterval(this.pingTimerId);
 
-    const osData = initOsData();
-    const userInfo = storeTableClass.getUserInfo(this.windowId);
-
-    // 设置 ping 定时器
     this.pingTimerId = setInterval(() => {
-      if (!this.socket?.connected) {
-        return;
-      }
+      if (!this.socket?.connected) return;
 
-      const pingCommand = Command.create({
-        event: SOCKET_PROTO_EVENT.ping,
-        userId: userInfo?.id,
-        client: osData.machineId,
-      });
-
-      this.emitEvent(pingCommand);
+      this._sendMessageToService(SOCKET_PROTO_EVENT.ping);
 
       this.cancelPendingReconnect();
 
@@ -202,18 +172,7 @@ export class SocketService {
       }, this.PING_TIMEOUT);
     }, this.PING_INTERVAL);
   }
-  sendMessage(event: SocketProtoEventType) {
-    const osData = initOsData();
-    const userInfo = storeTableClass.getUserInfo(this.windowId);
-    const command = Command.create({
-      event,
-      userId: userInfo?.id,
-      client: osData.machineId,
-    });
-    this.emitEvent(command);
-  }
 
-  /** 处理ping超时 */
   private handlePingTimeout() {
     if (this.pingTimerId) {
       clearInterval(this.pingTimerId);
@@ -229,90 +188,6 @@ export class SocketService {
       logger.info(`[客户端 ${this.windowId}] 开始Ping失败重连`);
       this.scheduleReconnect();
     }, this.RECONNECT_DELAY);
-  }
-
-  private handleProtobufMessage(data: Uint8Array | Buffer) {
-    const command = Command.decode(data);
-    const event = command.event as SocketProtoEventType;
-
-    // 处理其他事件
-    const listener = this.eventListeners.get(event);
-    if (listener) {
-      if (listener instanceof Map) {
-        // 多订阅广播
-        listener?.forEach((callback) => {
-          try {
-            const clazz = protoMap[event];
-            const decodedResult = clazz?.decode(command.body[0]);
-            if (decodedResult) {
-              console.log(
-                '============================处理订阅广播========================================',
-              );
-              console.log(`收到消息：Event=${event}`);
-              console.log(decodedResult);
-              console.log(
-                '============================处理订阅广播========================================',
-              );
-            }
-            callback(decodedResult);
-          } catch (err) {
-            console.error(`[客户端 ${this.windowId}] 处理事件出错:`, err);
-          }
-        });
-      }
-    }
-  }
-
-  subscribeToEvent<T extends SocketProtoEventType>(
-    event: T,
-    callback: SocketProtoEventData[T],
-    comIdentification?: string,
-  ) {
-    if (!this.eventListeners) this.eventListeners = new Map();
-    if (!this.eventListeners.has(event)) {
-      this.eventListeners.set(event, new Map());
-    }
-    const listeners = this.eventListeners.get(event);
-    listeners?.set(comIdentification ?? String(event), callback);
-    return this.subscribeToEvent;
-  }
-
-  unsubscribeFromEvent(type: SocketProtoEventType, comIdentification?: string): void {
-    if (!this.eventListeners) return;
-    const listeners = this.eventListeners.get(type);
-    if (!listeners) return;
-    if (comIdentification) {
-      listeners.delete(comIdentification);
-    } else {
-      this.eventListeners.delete(type);
-    }
-  }
-
-  emitEvent(command: Command) {
-    const event = command.event;
-    const data = Command.encode(command).finish();
-    if (this.socket && this.socket.connected) {
-      try {
-        this.socket.emit('message', data);
-        console.log(`[客户端 ${this.windowId}] 发送事件: ${event}`);
-      } catch (error) {
-        console.error(`[客户端 ${this.windowId}] 发送数据出错:`, error);
-        this._queueMessage(command);
-      }
-    } else {
-      this._queueMessage(command);
-    }
-  }
-
-  /** 发送消息队列 */
-  private _queueMessage(command: Command) {
-    const event = command.event as SocketProtoEventType;
-    const existingIndex = this.sendQueue.findIndex((q) => q.event === event);
-    if (existingIndex > -1) {
-      this.sendQueue[existingIndex] = { event, data: command };
-    } else {
-      this.sendQueue.push({ event, data: command });
-    }
   }
 
   /** 取消计划中的重连 */
@@ -372,14 +247,6 @@ export class SocketService {
     }
   }
 
-  private sendToRenderer(channel: string, data?: unknown): void {
-    if (!this.mainWindow?.webContents || this.mainWindow.isDestroyed()) {
-      logger.warn('[Socket] Cannot send to renderer: window not available');
-      return;
-    }
-    this.mainWindow.webContents.send(channel, data);
-  }
-
   // ==================== IPC 通信 ====================
   private setupIpcHandlers(): void {
     // 渲染进程请求发送事件
@@ -427,6 +294,7 @@ export class SocketService {
    * 彻底销毁（窗口关闭时调用）
    */
   public destroy(): void {
+    this.rejectAllWaiters(new Error('Socket 已销毁'));
     if (!this.socket) return;
 
     this.disconnect();
@@ -444,6 +312,36 @@ export class SocketService {
     this.mainWindow = null;
     this.accessToken = null;
     logger.info('[Socket] Service destroyed');
+  }
+
+  protected getSocket() {
+    return this.socket;
+  }
+  /** 服务端通信中转 */
+  // sendMessageToService(event: SocketProtoEventType, payload?: Uint8Array | Uint8Array[]) {
+  //   if (!this.socket) {
+  //     return;
+  //   }
+  //   this._sendMessageToService(event, payload);
+  // }
+
+  // protected override _setupSubscribeToEvent(
+  //   socket: CChatSocket,
+  //   mainWindow: BrowserWindow | null,
+  // ): void {
+  //   super._setupSubscribeToEvent(socket, mainWindow);
+  //   // this.subscribeToEvent(
+  //   //   SOCKET_PROTO_EVENT.getUserList,
+  //   //   (data) => {
+  //   //     this.flushNextGetUserListWaiter(data);
+  //   //   },
+  //   //   '__ipc_getUserList',
+  //   // );
+  // }
+
+  /** 渲染进程通信中转 */
+  sendToRenderer(channel: string, data?: unknown) {
+    this._sendToRenderer(this.mainWindow, channel, data);
   }
 }
 

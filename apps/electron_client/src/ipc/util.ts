@@ -11,44 +11,48 @@ export type ActionCtx = {
 };
 
 // 需要适配的参数类型有哪些？
-enum ParamType {
-  NoParams, // 无参数
-  SingleObject, // 单个json对象
-  SingleValue, // 单个值
-  MultipleParams, // 多个参数
-}
+// enum ParamType {
+//   NoParams, // 无参数
+//   SingleObject, // 单个json对象
+//   SingleValue, // 单个值
+//   MultipleParams, // 多个参数
+// }
 
-// 辅助类型：更精确的对象检查
-type IsPlainObject<T> =
-  T extends Record<string, any> ? (T extends readonly any[] ? false : true) : false;
+// // 辅助类型：更精确的对象检查
+// type IsPlainObject<T> =
+//   T extends Record<string, any> ? (T extends readonly any[] ? false : true) : false;
 
 // type ActionHandler<K extends keyof IpcTypes> = (
 //   params: Parameters<IpcTypes[K]>[0] & ActionCtx,
 // ) => ReturnType<IpcTypes[K]>;
 
 // 参数处理策略
-type ParamStrategy<P extends readonly any[]> = P['length'] extends 0
-  ? ParamType.NoParams
-  : P['length'] extends 1
-    ? IsPlainObject<P[0]> extends true
-      ? ParamType.SingleObject
-      : ParamType.SingleValue
-    : ParamType.MultipleParams;
+// type ParamStrategy<P extends readonly any[]> = P['length'] extends 0
+//   ? ParamType.NoParams
+//   : P['length'] extends 1
+//     ? IsPlainObject<P[0]> extends true
+//       ? ParamType.SingleObject
+//       : ParamType.SingleValue
+//     : ParamType.MultipleParams;
 
 // 主要的ActionHandler类型
-type ActionHandler<K extends keyof IpcTypes> = {
-  [ParamType.NoParams]: (actionCtx: ActionCtx) => ReturnType<IpcTypes[K]>;
-  [ParamType.SingleObject]: (
-    params: Parameters<IpcTypes[K]>[0] & ActionCtx,
-  ) => ReturnType<IpcTypes[K]>;
-  [ParamType.SingleValue]: (
-    param: Parameters<IpcTypes[K]>[0],
-    actionCtx: ActionCtx,
-  ) => ReturnType<IpcTypes[K]>;
-  [ParamType.MultipleParams]: (
-    ...params: [...Parameters<IpcTypes[K]>, ActionCtx]
-  ) => ReturnType<IpcTypes[K]>;
-}[ParamStrategy<Parameters<IpcTypes[K]>>];
+// type ActionHandler<K extends keyof IpcTypes> = {
+//   [ParamType.NoParams]: (actionCtx: ActionCtx) => ReturnType<IpcTypes[K]>;
+//   [ParamType.SingleObject]: (
+//     params: Parameters<IpcTypes[K]>[0] & ActionCtx,
+//   ) => ReturnType<IpcTypes[K]>;
+//   [ParamType.SingleValue]: (
+//     param: Parameters<IpcTypes[K]>[0],
+//     actionCtx: ActionCtx,
+//   ) => ReturnType<IpcTypes[K]>;
+//   [ParamType.MultipleParams]: (
+//     ...params: [...Parameters<IpcTypes[K]>, ActionCtx]
+//   ) => ReturnType<IpcTypes[K]>;
+// }[ParamStrategy<Parameters<IpcTypes[K]>>];
+
+type ActionHandler<K extends keyof IpcTypes> = (
+  params: Parameters<IpcTypes[K]>[0] & ActionCtx,
+) => ReturnType<IpcTypes[K]>;
 
 type AddActionHandlerType = <K extends keyof IpcTypes>(name: K, handler: ActionHandler<K>) => void;
 
@@ -89,7 +93,7 @@ export const initActions = () => {
       switch (typeof call) {
         case 'function': {
           const params = message.params;
-          const result = await call({ ...actionCtx, ...params[0] } as any);
+          const result = await call({ ...actionCtx, ...params[0] } as never);
           // let result;
           // // 如果无参数
           // if (!params?.length) {
@@ -129,6 +133,7 @@ export const initActions = () => {
 };
 
 export const omitActionCtx = <T extends ActionCtx = ActionCtx>(params: T) => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { windowId, webContentId, ...rest } = params;
   return rest;
 };

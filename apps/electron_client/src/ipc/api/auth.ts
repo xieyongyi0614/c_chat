@@ -3,6 +3,8 @@ import { storeTableClass } from '../../db';
 import { ApiClient } from '../../utils/axios/service/apiService';
 import { addActionHandler, omitActionCtx } from '../util';
 import { socketService } from '@c_chat/electron_client/utils/socket-io-client';
+import { SOCKET_PROTO_EVENT } from '@c_chat/electron_client/utils/socket-io-client/proto/protoMap';
+import { GetUserList } from '@c_chat/electron_client/utils/socket-io-client/proto';
 
 /** 登录 */
 addActionHandler('SignIn', async (params) => {
@@ -35,4 +37,20 @@ addActionHandler('SignUp', (params) => {
 /** 获取用户信息 */
 addActionHandler('GetUserInfo', () => {
   return ApiClient.auth.getUserInfo();
+});
+
+/** 获取用户列表 */
+addActionHandler('GetUserList', async (data) => {
+  // socketService.sendMessageToService(
+  //   SOCKET_PROTO_EVENT.getUserList,
+  //   GetUserList.encode(
+  //     GetUserList.create({ pagination: { page: 1, pageSize: 10 }, word: '' }),
+  //   ).finish(),
+  // );
+  const params = { pagination: { page: 1, pageSize: 10 }, word: '' };
+  console.log(params, 'params');
+  return socketService.genericRequest(
+    SOCKET_PROTO_EVENT.getUserList,
+    GetUserList.encode(GetUserList.create(params)).finish(),
+  );
 });

@@ -5,5 +5,6 @@ message Command {
   string event = 1;         // 事件名称
   string userId = 2;        // 用户ID
   string client = 3;        // 标识发送端设备类型
-  repeated bytes body = 4;  // 根据不同的业务场景封装具体数据结构
+  string requestId = 4;
+  repeated bytes payload = 5;  // 根据不同的业务场景封装具体数据结构
 }

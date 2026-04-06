@@ -20,6 +20,7 @@ export default defineConfig([
       js.configs.recommended,
       pluginReact.configs.flat.recommended,
       reactRefresh.configs.vite,
+      ...tseslint.configs.recommended,
     ],
     languageOptions: {
       globals: globals.browser,
@@ -36,9 +37,9 @@ export default defineConfig([
       'react-hooks/rules-of-hooks': 'error',
       'react/display-name': 'off',
       '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/no-namespace': 'off',
     },
   },
-  tseslint.configs.recommended,
   // {
   //   // 重要：在 flat config 中，规则所属配置块必须声明对应插件
   //   // 否则会出现「Could not find plugin 'react-hooks'」之类的错误。
