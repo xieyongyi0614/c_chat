@@ -26,6 +26,7 @@ export const AuthProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
         if (isSignedIn() && isAuthPage) {
           navigate('/', { replace: true });
         }
+        console.log('socketConnSuccess', data);
       }
     },
     [isSignedIn, location.pathname, navigate, setUserInfo],
@@ -37,6 +38,7 @@ export const AuthProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
 
   useEffect(() => {
     window.c_chat.on(ELECTRON_TO_CLIENT_CHANNELS.SocketConnSuccess, handleSocketConnSuccess);
+    console.log('socketConnSuccess');
     return () => {
       window.c_chat.off(ELECTRON_TO_CLIENT_CHANNELS.SocketConnSuccess, handleSocketConnSuccess);
     };

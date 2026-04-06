@@ -1,5 +1,6 @@
 syntax = "proto3";
 
+import "Common.proto";
 
 message UserInfo {
   string id = 1;
@@ -8,4 +9,14 @@ message UserInfo {
   optional string avatar_url = 4; 
   int32 state = 5;
   int64 update_time = 6;
+}
+
+message GetUserList {
+  Common.PaginationRequest pagination = 1;
+  string word = 2;
+}
+
+message GetUserListResponse{
+  Common.PaginationResponse pagination = 1;
+  repeated UserInfo list = 2;
 }

@@ -1,3 +1,4 @@
+import { SocketTypes } from '../../socket.types';
 export namespace AuthTypes {
   export interface PostSignInParams {
     email: string;
@@ -25,5 +26,26 @@ export namespace AuthTypes {
     nickname: string | null;
     avatar_url: string | null;
     state: number;
+  }
+}
+
+export namespace UserTypes {
+  export interface GetUserListParams extends SocketTypes.RequestPagination {
+    word?: string;
+  }
+  export interface UserListItem {
+    id: string;
+    email: string;
+    phone: string | null;
+    nickname: string | null;
+    avatar_url: string | null;
+    gender: number;
+    state: number;
+    birthday: Date | null;
+    signature: string | null;
+    location: string | null;
+    background_wall: string | null;
+    update_time: Date;
+    create_time: Date;
   }
 }

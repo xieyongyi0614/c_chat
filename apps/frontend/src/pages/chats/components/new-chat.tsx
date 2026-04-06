@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Check, X } from 'lucide-react';
 
 import {
@@ -16,6 +16,8 @@ import {
   DialogTitle,
 } from '@c_chat/ui';
 import { type ChatUser } from '../data/chat-types';
+import { ipc } from '@c_chat/shared-utils';
+import type { SocketTypes, UserTypes } from '@c_chat/shared-types';
 
 type User = Omit<ChatUser, 'messages'>;
 
@@ -26,7 +28,18 @@ type NewChatProps = {
 };
 export function NewChat({ users, onOpenChange, open }: NewChatProps) {
   const [selectedUsers, setSelectedUsers] = useState<User[]>([]);
+  const [userList, setUserList] = useState<SocketTypes.ResponseList<UserTypes.UserListItem>>();
+  useEffect(() => {
+    if (open) {
+      getUserList();
+    }
+  }, [open]);
 
+  const getUserList = async () => {
+    const res = await ipc.GetUserList({ word: '' });
+    console.log(res, 'userList');
+    setUserList(res);
+  };
   const handleSelectUser = (user: User) => {
     if (!selectedUsers.find((u) => u.id === user.id)) {
       setSelectedUsers([...selectedUsers, user]);
@@ -74,25 +87,25 @@ export function NewChat({ users, onOpenChange, open }: NewChatProps) {
             ))}
           </div>
           <Command className="rounded-lg border">
-            <CommandInput placeholder="Search people..." className="text-foreground" />
+            <CommandInput placeholder="搜索账号..." className="text-foreground" />
             <CommandList>
-              <CommandEmpty>No people found.</CommandEmpty>
+              <CommandEmpty>未找到账号。</CommandEmpty>
               <CommandGroup>
-                {users.map((user) => (
+                {userList?.list.map((user) => (
                   <CommandItem
                     key={user.id}
-                    onSelect={() => handleSelectUser(user)}
+                    // onSelect={() => handleSelectUser(user)}
                     className="flex items-center justify-between gap-2 hover:bg-accent hover:text-accent-foreground"
                   >
                     <div className="flex items-center gap-2">
                       <img
-                        src={user.profile || '/placeholder.svg'}
-                        alt={user.fullName}
+                        src={user.avatar_url || '/placeholder.svg'}
+                        alt={user.nickname || user.email}
                         className="h-8 w-8 rounded-full"
                       />
                       <div className="flex flex-col">
-                        <span className="text-sm font-medium">{user.fullName}</span>
-                        <span className="text-xs text-accent-foreground/70">{user.username}</span>
+                        <span className="text-sm font-medium">{user.nickname}</span>
+                        <span className="text-xs text-accent-foreground/70">{user.email}</span>
                       </div>
                     </div>
 
