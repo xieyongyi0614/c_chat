@@ -8,10 +8,7 @@ import reactRefresh from 'eslint-plugin-react-refresh';
 
 export default defineConfig([
   {
-    ignores: [
-      'apps/electron_client/src/utils/socket-io-client/proto/index.d.ts',
-      'apps/electron_client/src/utils/socket-io-client/proto/index.js',
-    ],
+    ignores: ['packages/shared-protobuf/src/index*'],
   },
   {
     files: ['**/*.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],

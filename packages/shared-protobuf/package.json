@@ -1,0 +1,40 @@
+{
+  "name": "@c_chat/shared-protobuf",
+  "version": "1.0.0",
+  "description": "",
+  "main": "./dist/index.cjs.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.es.js",
+      "require": "./dist/index.cjs.js"
+    },
+    "./protoMap": {
+      "types": "./dist/protoMap.d.ts",
+      "import": "./dist/protoMap.es.js",
+      "require": "./dist/protoMap.cjs.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "dev": "vite build --watch",
+    "build": "vite build"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@c_chat/shared-config": "workspace:^",
+    "@c_chat/shared-types": "workspace:^",
+    "protobufjs": "^8.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.5.0",
+    "protobufjs-cli": "^2.0.0",
+    "vite": "^8.0.1",
+    "vite-plugin-dts": "^4.5.4"
+  }
+}

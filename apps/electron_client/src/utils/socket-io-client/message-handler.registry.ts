@@ -1,12 +1,12 @@
 import { storeTableClass } from '@c_chat/electron_client/db';
 import initOsData from '../osData';
-import { Command } from './proto';
 import {
   clientDecodeProtoMap,
   SOCKET_PROTO_EVENT,
   SocketProtoEventData,
   SocketProtoEventType,
-} from './proto/protoMap';
+} from '@c_chat/shared-protobuf/protoMap';
+import { Command } from '@c_chat/shared-protobuf';
 import { Socket } from 'socket.io-client';
 import { ClientToServerEvents, ServerToClientEvents } from '.';
 import { v4 as uuidv4 } from 'uuid';
@@ -52,7 +52,7 @@ export abstract class MessageHandlerRegistry {
     // 处理其他事件
     const listener = this.handlers.get(event);
     if (isIgnoreConsoleEvent(event)) {
-      console.log(`收到消息：Event=${event}`);
+      console.log(`收到消息：Event=${event},requestId=${command.requestId}`);
     }
     if (listener) {
       if (listener instanceof Map) {
@@ -67,8 +67,8 @@ export abstract class MessageHandlerRegistry {
               console.log(
                 '============================处理订阅广播========================================',
               );
-              console.log('反序列化结果：' + command.requestId);
-              console.log(decodedResult);
+              console.log(`反序列化结果`);
+              console.log(decodedResult?.toJSON());
               console.log(
                 '==========================    end    ========================================',
               );
@@ -196,7 +196,7 @@ export abstract class MessageHandlerRegistry {
   }
 
   rejectAllWaiters(reason: Error): void {
-    for (const [requestId, entry] of this.pendingRequests.entries()) {
+    for (const entry of this.pendingRequests.values()) {
       clearTimeout(entry.timer);
       entry.reject(reason);
     }

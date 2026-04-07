@@ -3,8 +3,8 @@ import { storeTableClass } from '../../db';
 import { ApiClient } from '../../utils/axios/service/apiService';
 import { addActionHandler, omitActionCtx } from '../util';
 import { socketService } from '@c_chat/electron_client/utils/socket-io-client';
-import { SOCKET_PROTO_EVENT } from '@c_chat/electron_client/utils/socket-io-client/proto/protoMap';
-import { GetUserList } from '@c_chat/electron_client/utils/socket-io-client/proto';
+import { GetUserList } from '@c_chat/shared-protobuf';
+import { SOCKET_PROTO_EVENT } from '@c_chat/shared-protobuf/protoMap';
 
 /** 登录 */
 addActionHandler('SignIn', async (params) => {
