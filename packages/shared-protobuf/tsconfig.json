@@ -1,0 +1,11 @@
+{
+  "extends": "@c_chat/shared-config/baseTsConfig",
+  "compilerOptions": {
+    "declaration": true,
+    "declarationMap": true,
+    "outDir": "./dist",
+    "noEmit": true
+  },
+  "include": ["src", "plugin/vite-plugin-proto.ts", "./vite.config.ts"],
+  "exclude": ["node_modules", "dist"]
+}

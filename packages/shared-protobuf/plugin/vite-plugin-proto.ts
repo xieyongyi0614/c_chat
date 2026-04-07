@@ -6,12 +6,12 @@ import { Plugin } from 'vite';
 export interface ProtoMergePluginOptions {
   /**
    * 包含 .proto 文件的目录列表（相对项目根目录）
-   * 例如:['src/utils/socket-io-client/proto/static']
+   * 例如:['src/static']
    */
   directories: string[];
   /**
    * 输出的 JavaScript 文件路径（相对项目根目录）
-   * 例如: 'src/utils/socket-io-client/proto/index.js'
+   * 例如: 'src/protobuf.js'
    */
   output: string;
 }
@@ -29,9 +29,6 @@ export function protoMergePlugin(options: ProtoMergePluginOptions): Plugin {
   return {
     name: 'vite-plugin-proto-merge',
 
-    /**
-     * 在 Vite 构建开始前执行（开发和生产构建都会触发）
-     */
     async buildStart() {
       try {
         // 1. 收集所有 .proto 文件

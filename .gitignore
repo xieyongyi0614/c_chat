@@ -36,3 +36,6 @@ yarn-error.log*
 # Misc
 .DS_Store
 *.pem
+
+# 运行时自动生成
+packages/shared-protobuf/src/index*

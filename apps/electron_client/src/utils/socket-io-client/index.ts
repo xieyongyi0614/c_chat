@@ -3,13 +3,10 @@ import { BrowserWindow } from 'electron';
 import logger from '../logger';
 import { storeTableClass } from '@c_chat/electron_client/db';
 import { db } from '@c_chat/shared-config';
-import type { UserTypes } from '@c_chat/shared-types';
-import { GetUserList, GetUserListResponse } from './proto';
-import { SocketProtoEventType, SOCKET_PROTO_EVENT } from './proto/protoMap';
 import { MainWindowManager } from '@c_chat/electron_client/main/windows/mainWindow';
 import { MessageHandler } from './message.handler';
+import { SOCKET_PROTO_EVENT } from '@c_chat/shared-protobuf/protoMap';
 
-// ==================== 类型定义 ====================
 export interface ServerToClientEvents {
   message: (data: Uint8Array | Buffer) => void;
   auth_error: (data: { message: string; timestamp: string }) => void;
@@ -26,13 +23,6 @@ export interface SocketError {
 }
 
 export type CChatSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
-
-type GetUserListWaitEntry = {
-  resolve: (v: any) => void;
-  reject: (e: Error) => void;
-  timer: NodeJS.Timeout;
-};
-// ==================== 核心服务 ====================
 
 export class SocketService extends MessageHandler {
   protected windowId = db.DEFAULT_WINDOW_ID;
@@ -57,11 +47,6 @@ export class SocketService extends MessageHandler {
   // 固定重连延迟 5秒
   private readonly RECONNECT_DELAY = 5000;
 
-  /** IPC 等与 getUserList 响应按 FIFO 配对（服务端需按请求顺序回包） */
-  // private requestWaitQueue: GetUserListWaitEntry[] = [];
-  // private static readonly GET_USER_LIST_TIMEOUT_MS = 20_000;
-
-  // 单例模式
   private constructor(windowId = db.DEFAULT_WINDOW_ID) {
     super(windowId);
 
@@ -317,27 +302,6 @@ export class SocketService extends MessageHandler {
   protected getSocket() {
     return this.socket;
   }
-  /** 服务端通信中转 */
-  // sendMessageToService(event: SocketProtoEventType, payload?: Uint8Array | Uint8Array[]) {
-  //   if (!this.socket) {
-  //     return;
-  //   }
-  //   this._sendMessageToService(event, payload);
-  // }
-
-  // protected override _setupSubscribeToEvent(
-  //   socket: CChatSocket,
-  //   mainWindow: BrowserWindow | null,
-  // ): void {
-  //   super._setupSubscribeToEvent(socket, mainWindow);
-  //   // this.subscribeToEvent(
-  //   //   SOCKET_PROTO_EVENT.getUserList,
-  //   //   (data) => {
-  //   //     this.flushNextGetUserListWaiter(data);
-  //   //   },
-  //   //   '__ipc_getUserList',
-  //   // );
-  // }
 
   /** 渲染进程通信中转 */
   sendToRenderer(channel: string, data?: unknown) {

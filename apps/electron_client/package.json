@@ -15,6 +15,7 @@
     "@c_chat/shared-config": "workspace:*",
     "@c_chat/shared-types": "workspace:*",
     "@c_chat/shared-utils": "workspace:^",
+    "@c_chat/shared-protobuf": "workspace:^",
     "@electron-toolkit/preload": "^3.0.2",
     "@electron-toolkit/utils": "^4.0.0",
     "@types/uuid": "^11.0.0",
