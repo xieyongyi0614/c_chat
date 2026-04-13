@@ -20,7 +20,8 @@
   "license": "ISC",
   "dependencies": {
     "@c_chat/shared-config": "workspace:^",
-    "@c_chat/shared-types": "workspace:^"
+    "@c_chat/shared-types": "workspace:^",
+    "await-to-js": "^3.0.0"
   },
   "devDependencies": {
     "@types/node": "^25.5.0",

@@ -18,15 +18,15 @@ import {
 import { type ChatUser } from '../data/chat-types';
 import { ipc } from '@c_chat/shared-utils';
 import type { SocketTypes, UserTypes } from '@c_chat/shared-types';
+import { randomUserAvatar } from '@c_chat/frontend/utils/randomUserAvatar';
 
 type User = Omit<ChatUser, 'messages'>;
 
 type NewChatProps = {
-  users: User[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
 };
-export function NewChat({ users, onOpenChange, open }: NewChatProps) {
+export function NewChat({ onOpenChange, open }: NewChatProps) {
   const [selectedUsers, setSelectedUsers] = useState<User[]>([]);
   const [userList, setUserList] = useState<SocketTypes.ResponseList<UserTypes.UserListItem>>();
   useEffect(() => {
@@ -40,11 +40,14 @@ export function NewChat({ users, onOpenChange, open }: NewChatProps) {
     console.log(res, 'userList');
     setUserList(res);
   };
-  const handleSelectUser = (user: User) => {
-    if (!selectedUsers.find((u) => u.id === user.id)) {
-      setSelectedUsers([...selectedUsers, user]);
-    } else {
-      handleRemoveUser(user.id);
+  const handleSelectUser = async (user: UserTypes.UserListItem) => {
+    try {
+      const res = await ipc.CreateConversation({ targetId: user.id });
+      console.log('Created conversation:', res);
+      onOpenChange(false);
+      // TODO: Navigate to the new conversation or update the chat list
+    } catch (error) {
+      console.error('Failed to create conversation:', error);
     }
   };
 
@@ -94,12 +97,12 @@ export function NewChat({ users, onOpenChange, open }: NewChatProps) {
                 {userList?.list.map((user) => (
                   <CommandItem
                     key={user.id}
-                    // onSelect={() => handleSelectUser(user)}
-                    className="flex items-center justify-between gap-2 hover:bg-accent hover:text-accent-foreground"
+                    onSelect={() => handleSelectUser(user)}
+                    className="flex items-center justify-between gap-2 hover:bg-accent hover:text-accent-foreground cursor-pointer"
                   >
                     <div className="flex items-center gap-2">
                       <img
-                        src={user.avatar_url || '/placeholder.svg'}
+                        src={user.avatar_url || randomUserAvatar(user.gender)}
                         alt={user.nickname || user.email}
                         className="h-8 w-8 rounded-full"
                       />

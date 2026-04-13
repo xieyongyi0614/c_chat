@@ -1,0 +1,63 @@
+syntax = "proto3";
+
+import "Common.proto";
+import "User.proto";
+
+// 创建会话请求 (私聊)
+message CreateConversationRequest {
+  string target_id = 1;
+}
+
+// 会话信息
+message ConversationInfo {
+  string id = 1;
+  int32 type = 2; // 1: 私聊, 2: 群聊
+  string target_id = 3;
+  optional string last_msg_content = 4;
+  optional int64 last_msg_time = 5;
+  int64 update_time = 6;
+  int64 create_time = 7;
+}
+
+// 发送消息请求
+message SendMessageRequest {
+  string conversation_id = 1;
+  string content = 2;
+  int32 type = 3; // 0:文本, 1:图片, 2:文件, 3:音频, 4:视频
+}
+
+// 消息信息
+message MessageInfo {
+  string id = 1;
+  string sender_id = 2;
+  string conversation_id = 3;
+  string content = 4;
+  int32 type = 5;
+  bool is_read = 6;
+  int32 state = 7;
+  int64 create_time = 8;
+  int64 update_time = 9;
+}
+
+// 获取会话列表请求
+message GetConversationListRequest {
+  Common.PaginationRequest pagination = 1;
+}
+
+// 获取会话列表响应
+message GetConversationListResponse {
+  Common.PaginationResponse pagination = 1;
+  repeated ConversationInfo list = 2;
+}
+
+// 获取消息历史请求
+message GetMessageHistoryRequest {
+  string conversation_id = 1;
+  Common.PaginationRequest pagination = 2;
+}
+
+// 获取消息历史响应
+message GetMessageHistoryResponse {
+  Common.PaginationResponse pagination = 1;
+  repeated MessageInfo list = 2;
+}

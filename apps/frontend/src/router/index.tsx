@@ -2,15 +2,15 @@ import React from 'react';
 import { RouterProvider, Navigate, createHashRouter, Outlet } from 'react-router-dom';
 import Layout from '@c_chat/frontend/layout';
 import AuthForm from '@c_chat/frontend/components/auth/AuthForm';
-import { AuthProvider } from '@c_chat/frontend/context/AuthContext';
 import { Chats } from '../pages/chats';
+import { CheckAuth } from '../components/auth/CheckAuth';
 
 const router = createHashRouter([
   {
     element: (
-      <AuthProvider>
+      <CheckAuth>
         <Outlet />
-      </AuthProvider>
+      </CheckAuth>
     ),
     children: [
       {

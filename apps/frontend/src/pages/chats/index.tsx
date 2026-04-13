@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Fragment } from 'react/jsx-runtime';
 import dayjs from 'dayjs';
 import {
@@ -16,46 +16,88 @@ import {
 } from 'lucide-react';
 
 import { NewChat } from './components/new-chat';
-import { type ChatUser, type Convo } from './data/chat-types';
-// Fake Data
-import { conversations } from './data/convo.json';
-import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-  Button,
-  cn,
-  Main,
-  ScrollArea,
-  Separator,
-} from '@c_chat/ui';
+import { Avatar, AvatarFallback, Button, cn, Main, ScrollArea, Separator } from '@c_chat/ui';
+import { ipc, to } from '@c_chat/shared-utils';
+import { useUserStore } from '@c_chat/frontend/stores/userStore';
+import ProtobufRoot from '@c_chat/shared-protobuf';
 
+type ConversationInfo = ProtobufRoot.ConversationInfo;
+type MessageInfo = ProtobufRoot.MessageInfo;
 export function Chats() {
   const [search, setSearch] = useState('');
-  const [selectedUser, setSelectedUser] = useState<ChatUser | null>(null);
-  const [mobileSelectedUser, setMobileSelectedUser] = useState<ChatUser | null>(null);
+  const [selectedConversation, setSelectedConversation] = useState<ConversationInfo | null>(null);
+  const [mobileSelectedConversation, setMobileSelectedConversation] =
+    useState<ConversationInfo | null>(null);
   const [createConversationDialogOpened, setCreateConversationDialog] = useState(false);
+  const [conversationList, setConversationList] = useState<ConversationInfo[]>([]);
+  const [messages, setMessages] = useState<MessageInfo[]>([]);
+  const [inputMessage, setInputMessage] = useState('');
+  const { userInfo } = useUserStore();
+
+  useEffect(() => {
+    if (userInfo?.id) fetchConversationList();
+  }, [userInfo?.id]);
+
+  useEffect(() => {
+    if (selectedConversation) {
+      fetchMessageHistory(selectedConversation.id);
+    }
+  }, [selectedConversation]);
+
+  const fetchConversationList = async () => {
+    const [err, res] = await to(ipc.GetConversationList({ pagination: { page: 1, pageSize: 50 } }));
+    if (err) {
+      console.error('Failed to fetch conversation list:', err);
+      return;
+    }
+    setConversationList(res.list);
+    console.log(res, 'fetchConversationList');
+  };
+
+  const fetchMessageHistory = async (conversationId: string) => {
+    try {
+      const res = await ipc.GetMessageHistory({
+        conversation_id: conversationId,
+        pagination: { page: 1, pageSize: 50 },
+      });
+      setMessages(res.list);
+    } catch (error) {
+      console.error('Failed to fetch message history:', error);
+    }
+  };
+
+  const handleSendMessage = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    if (!selectedConversation || !inputMessage.trim()) return;
+
+    try {
+      const res = await ipc.SendMessage({
+        conversation_id: selectedConversation.id,
+        content: inputMessage,
+        type: 0, // Text
+      });
+      console.log('Sent message:', res);
+      setInputMessage('');
+      // Optionally update local messages if not handled by real-time push
+      setMessages((prev) => [...prev, res]);
+    } catch (error) {
+      console.error('Failed to send message:', error);
+    }
+  };
 
   // Filtered data based on the search query
-  const filteredChatList = conversations.filter(({ fullName }) =>
-    fullName.toLowerCase().includes(search.trim().toLowerCase()),
+  const filteredChatList = conversationList.filter(({ id }) =>
+    id.toLowerCase().includes(search.trim().toLowerCase()),
   );
 
-  const currentMessage = selectedUser?.messages.reduce((acc: Record<string, Convo[]>, obj) => {
-    const key = dayjs(obj.timestamp).format('D MMM, YYYY');
-
-    // Create an array for the category if it doesn't exist
+  const groupedMessages = messages.reduce((acc: Record<string, MessageInfo[]>, obj) => {
+    const key = dayjs(Number(obj.createTime)).format('D MMM, YYYY');
     if (!acc[key]) {
       acc[key] = [];
     }
-
-    // Push the current object to the array
     acc[key].push(obj);
-
     return acc;
   }, {});
-
-  const users = conversations.map(({ messages, ...user }) => user);
 
   return (
     <Main fixed className="px-4 py-4 ">
@@ -98,11 +140,8 @@ export function Chats() {
           </div>
 
           <ScrollArea className="-mx-3 h-full overflow-auto p-3" type="auto">
-            {filteredChatList.map((chatUsr) => {
-              const { id, profile, username, messages, fullName } = chatUsr;
-              const lastConvo = messages[0];
-              const lastMsg =
-                lastConvo.sender === 'You' ? `You: ${lastConvo.message}` : lastConvo.message;
+            {filteredChatList.map((convo) => {
+              const { id, lastMsgContent, lastMsgTime, targetId } = convo;
               return (
                 <Fragment key={id}>
                   <button
@@ -110,22 +149,21 @@ export function Chats() {
                     className={cn(
                       'group hover:bg-accent hover:text-accent-foreground',
                       `flex w-full rounded-md px-2 py-2 text-start text-sm`,
-                      selectedUser?.id === id && 'sm:bg-muted',
+                      selectedConversation?.id === id && 'sm:bg-muted',
                     )}
                     onClick={() => {
-                      setSelectedUser(chatUsr);
-                      setMobileSelectedUser(chatUsr);
+                      setSelectedConversation(convo);
+                      setMobileSelectedConversation(convo);
                     }}
                   >
                     <div className="flex gap-2">
                       <Avatar>
-                        <AvatarImage src={profile} alt={username} />
-                        <AvatarFallback>{username}</AvatarFallback>
+                        <AvatarFallback>{targetId.slice(0, 2)}</AvatarFallback>
                       </Avatar>
                       <div>
-                        <span className="col-start-2 row-span-2 font-medium">{fullName}</span>
+                        <span className="col-start-2 row-span-2 font-medium">{lastMsgTime}</span>
                         <span className="col-start-2 row-span-2 row-start-2 line-clamp-2 text-ellipsis text-muted-foreground group-hover:text-accent-foreground/90">
-                          {lastMsg}
+                          {lastMsgContent || 'No messages'}
                         </span>
                       </div>
                     </div>
@@ -138,11 +176,11 @@ export function Chats() {
         </div>
 
         {/* Right Side */}
-        {selectedUser ? (
+        {selectedConversation ? (
           <div
             className={cn(
               'absolute inset-0 start-full z-50 hidden w-full flex-1 flex-col border bg-background shadow-xs sm:static sm:z-auto sm:flex sm:rounded-md',
-              mobileSelectedUser && 'start-0 flex',
+              mobileSelectedConversation && 'start-0 flex',
             )}
           >
             {/* Top Part */}
@@ -153,21 +191,17 @@ export function Chats() {
                   size="icon"
                   variant="ghost"
                   className="-ms-2 h-full sm:hidden"
-                  onClick={() => setMobileSelectedUser(null)}
+                  onClick={() => setMobileSelectedConversation(null)}
                 >
                   <ArrowLeft className="rtl:rotate-180" />
                 </Button>
                 <div className="flex items-center gap-2 lg:gap-4">
                   <Avatar className="size-9 lg:size-11">
-                    <AvatarImage src={selectedUser.profile} alt={selectedUser.username} />
-                    <AvatarFallback>{selectedUser.username}</AvatarFallback>
+                    <AvatarFallback>{selectedConversation.targetId.slice(0, 2)}</AvatarFallback>
                   </Avatar>
                   <div>
                     <span className="col-start-2 row-span-2 text-sm font-medium lg:text-base">
-                      {selectedUser.fullName}
-                    </span>
-                    <span className="col-start-2 row-span-2 row-start-2 line-clamp-1 block max-w-32 text-xs text-nowrap text-ellipsis text-muted-foreground lg:max-w-none lg:text-sm">
-                      {selectedUser.title}
+                      {selectedConversation.targetId}
                     </span>
                   </div>
                 </div>
@@ -204,27 +238,28 @@ export function Chats() {
               <div className="flex size-full flex-1">
                 <div className="chat-text-container relative -me-4 flex flex-1 flex-col overflow-y-hidden">
                   <div className="chat-flex flex h-40 w-full grow flex-col-reverse justify-start gap-4 overflow-y-auto py-2 pe-4 pb-4">
-                    {currentMessage &&
-                      Object.keys(currentMessage).map((key) => (
+                    {groupedMessages &&
+                      Object.keys(groupedMessages).map((key) => (
                         <Fragment key={key}>
-                          {currentMessage[key].map((msg, index) => (
+                          {groupedMessages[key].map((msg, index) => (
                             <div
-                              key={`${msg.sender}-${msg.timestamp}-${index}`}
+                              key={`${msg.senderId}-${msg.createTime}-${index}`}
                               className={cn(
                                 'chat-box max-w-72 px-3 py-2 wrap-break-word shadow-lg',
-                                msg.sender === 'You'
+                                msg.senderId === userInfo?.id
                                   ? 'self-end rounded-[16px_16px_0_16px] bg-primary/90 text-primary-foreground/75'
                                   : 'self-start rounded-[16px_16px_16px_0] bg-muted',
                               )}
                             >
-                              {msg.message}{' '}
+                              {msg.content}{' '}
                               <span
                                 className={cn(
                                   'mt-1 block text-xs font-light text-foreground/75 italic',
-                                  msg.sender === 'You' && 'text-end text-primary-foreground/85',
+                                  msg.senderId === userInfo?.id &&
+                                    'text-end text-primary-foreground/85',
                                 )}
                               >
-                                {dayjs(msg.timestamp).format('h:mm A')}
+                                {dayjs(Number(msg.createTime)).format('h:mm A')}
                               </span>
                             </div>
                           ))}
@@ -234,7 +269,7 @@ export function Chats() {
                   </div>
                 </div>
               </div>
-              <form className="flex w-full flex-none gap-2">
+              <form className="flex w-full flex-none gap-2" onSubmit={handleSendMessage}>
                 <div className="flex flex-1 items-center gap-2 rounded-md border border-input bg-card px-2 py-1 focus-within:ring-1 focus-within:ring-ring focus-within:outline-hidden lg:gap-4">
                   <div className="space-x-1">
                     <Button size="icon" type="button" variant="ghost" className="h-8 rounded-md">
@@ -263,13 +298,20 @@ export function Chats() {
                       type="text"
                       placeholder="Type your messages..."
                       className="h-8 w-full bg-inherit focus-visible:outline-hidden"
+                      value={inputMessage}
+                      onChange={(e) => setInputMessage(e.target.value)}
                     />
                   </label>
-                  <Button variant="ghost" size="icon" className="hidden sm:inline-flex">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="hidden sm:inline-flex"
+                    type="submit"
+                  >
                     <Send size={20} />
                   </Button>
                 </div>
-                <Button className="h-full sm:hidden">
+                <Button className="h-full sm:hidden" type="submit">
                   <Send size={18} /> Send
                 </Button>
               </form>
@@ -294,11 +336,7 @@ export function Chats() {
           </div>
         )}
       </section>
-      <NewChat
-        users={users}
-        onOpenChange={setCreateConversationDialog}
-        open={createConversationDialogOpened}
-      />
+      <NewChat onOpenChange={setCreateConversationDialog} open={createConversationDialogOpened} />
     </Main>
   );
 }

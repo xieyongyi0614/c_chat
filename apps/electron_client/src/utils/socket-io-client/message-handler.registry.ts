@@ -73,9 +73,13 @@ export abstract class MessageHandlerRegistry {
                 '==========================    end    ========================================',
               );
             }
-            this.resolveOrRejectWaiter(command.requestId, decodedResult, null);
+            this.resolveOrRejectWaiter(
+              command.requestId,
+              decodedResult?.toJSON() || decodedResult,
+              null,
+            );
 
-            callback(decodedResult);
+            callback(decodedResult?.toJSON() || decodedResult);
           } catch (err) {
             console.error(`[客户端 ${this.windowId}] 处理事件${event}出错:`, err);
             console.log(command);

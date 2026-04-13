@@ -1,15 +1,35 @@
-import { GetUserList, GetUserListResponse, UserInfo } from '.';
+import {
+  GetUserList,
+  GetUserListResponse,
+  UserInfo,
+  CreateConversationRequest,
+  ConversationInfo,
+  SendMessageRequest,
+  MessageInfo,
+  GetConversationListRequest,
+  GetConversationListResponse,
+  GetMessageHistoryRequest,
+  GetMessageHistoryResponse,
+} from '.';
 
 export const SOCKET_PROTO_EVENT = {
   ping: 'ping',
   getUserInfo: 'getUserInfo',
   getUserList: 'getUserList',
+  createConversation: 'createConversation',
+  sendMessage: 'sendMessage',
+  getConversationList: 'getConversationList',
+  getMessageHistory: 'getMessageHistory',
 } as const;
 
 export const clientDecodeProtoMap = {
   [SOCKET_PROTO_EVENT.getUserInfo]: UserInfo,
   [SOCKET_PROTO_EVENT.ping]: null,
   [SOCKET_PROTO_EVENT.getUserList]: GetUserListResponse,
+  [SOCKET_PROTO_EVENT.createConversation]: ConversationInfo,
+  [SOCKET_PROTO_EVENT.sendMessage]: MessageInfo,
+  [SOCKET_PROTO_EVENT.getConversationList]: GetConversationListResponse,
+  [SOCKET_PROTO_EVENT.getMessageHistory]: GetMessageHistoryResponse,
 };
 
 export type SocketProtoEventType = keyof typeof clientDecodeProtoMap;
@@ -18,6 +38,10 @@ export type SocketProtoEventData = {
   [SOCKET_PROTO_EVENT.getUserInfo]: (data: UserInfo) => void;
   [SOCKET_PROTO_EVENT.ping]: () => void;
   [SOCKET_PROTO_EVENT.getUserList]: (data: GetUserListResponse) => void;
+  [SOCKET_PROTO_EVENT.createConversation]: (data: ConversationInfo) => void;
+  [SOCKET_PROTO_EVENT.sendMessage]: (data: MessageInfo) => void;
+  [SOCKET_PROTO_EVENT.getConversationList]: (data: GetConversationListResponse) => void;
+  [SOCKET_PROTO_EVENT.getMessageHistory]: (data: GetMessageHistoryResponse) => void;
 };
 // export const PROTO_MAP_KEY = {
 //   PING: 101,
@@ -40,4 +64,8 @@ export const serviceDecodeProtoMap = {
   [SOCKET_PROTO_EVENT.getUserInfo]: UserInfo,
   [SOCKET_PROTO_EVENT.ping]: null,
   [SOCKET_PROTO_EVENT.getUserList]: GetUserList,
+  [SOCKET_PROTO_EVENT.createConversation]: CreateConversationRequest,
+  [SOCKET_PROTO_EVENT.sendMessage]: SendMessageRequest,
+  [SOCKET_PROTO_EVENT.getConversationList]: GetConversationListRequest,
+  [SOCKET_PROTO_EVENT.getMessageHistory]: GetMessageHistoryRequest,
 };
