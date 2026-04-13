@@ -34,6 +34,21 @@ export class MessageHandler extends MessageHandlerRegistry {
     }
   }
 
+  /** 处理队列中的消息 */
+  protected _processQueue(socket: CChatSocket) {
+    if (this.sendQueue.length === 0) return;
+
+    console.log(`[Socket] Processing ${this.sendQueue.length} queued messages`);
+    while (this.sendQueue.length > 0) {
+      const queued = this.sendQueue.shift();
+      if (queued) {
+        const data = Command.encode(queued.data).finish();
+        socket.emit('message', data);
+        console.log(`[Socket] Sent queued event: ${queued.event}`);
+      }
+    }
+  }
+
   /** 渲染进程通信 */
   protected _sendToRenderer(
     mainWindow: BrowserWindow | null,
@@ -42,6 +57,12 @@ export class MessageHandler extends MessageHandlerRegistry {
   ): void {
     if (!mainWindow?.webContents || mainWindow.isDestroyed()) {
       console.log('[Socket] Cannot send to renderer: window not available');
+      console.log(
+        mainWindow?.isDestroyed(),
+        !mainWindow?.webContents,
+        channel,
+        'connect mainWindow333',
+      );
       return;
     }
     mainWindow.webContents.send(channel, data);
@@ -60,6 +81,12 @@ export class MessageHandler extends MessageHandlerRegistry {
     });
     this.subscribeToEvent(SOCKET_PROTO_EVENT.getUserList, (data) => {
       console.log('subscribeToEvent getUserList', data);
+    });
+    this.subscribeToEvent(SOCKET_PROTO_EVENT.createConversation, (data) => {
+      console.log('createConversation response', data);
+    });
+    this.subscribeToEvent(SOCKET_PROTO_EVENT.getConversationList, (data) => {
+      console.log('getConversationList response', data);
     });
   }
 }

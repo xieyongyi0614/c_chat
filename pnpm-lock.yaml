@@ -211,6 +211,9 @@ importers:
       '@c_chat/shared-config':
         specifier: workspace:*
         version: link:../../packages/shared-config
+      '@c_chat/shared-protobuf':
+        specifier: workspace:*
+        version: link:../../packages/shared-protobuf
       '@c_chat/shared-types':
         specifier: workspace:*
         version: link:../../packages/shared-types
@@ -429,6 +432,9 @@ importers:
       '@c_chat/shared-types':
         specifier: workspace:^
         version: link:../shared-types
+      await-to-js:
+        specifier: ^3.0.0
+        version: 3.0.0
     devDependencies:
       '@types/node':
         specifier: ^25.5.0

@@ -297,7 +297,10 @@ import { TitleBar } from './components/system/TitleBar';
 import { useEffect } from 'react';
 import { ELECTRON_TO_CLIENT_CHANNELS } from '@c_chat/shared-config';
 import { toast, Toaster } from 'sonner';
+import { BackDropLoading } from '@c_chat/ui';
+import { useGlobalStore } from './stores';
 const App = () => {
+  const { backdropLoading, backdropLoadingText } = useGlobalStore();
   // const init = useAuthStore((s) => s.init);
   // const status = useAuthStore((s) => s.status);
 
@@ -307,13 +310,9 @@ const App = () => {
   useEffect(() => {
     window.c_chat.on(ELECTRON_TO_CLIENT_CHANNELS.Toast, (type, message) => {
       console.log(type, message, 'Toast data');
-      const toastFn = toast[type as keyof typeof toast];
+      const toastFn = toast[type];
       if (typeof toastFn === 'function') {
-        // const options: ExternalToast = {
-        //   duration: type === 'loading' ? 5000 : 30000,
-        //   style: { top: '30px' },
-        // };
-        toastFn(message as any);
+        toastFn(message);
       } else {
         console.warn(`未知type: ${type}, 使用默认`);
         toast(message);
@@ -324,8 +323,10 @@ const App = () => {
   return (
     <div className="flex flex-col h-screen w-full overflow-hidden h-screen">
       <TitleBar />
-      <div className="flex flex-1 mt-10 overflow-hidden">
+
+      <div className="flex flex-1 mt-10 overflow-hidden relative">
         <AppRouter />
+        <BackDropLoading isLoading={backdropLoading} text={backdropLoadingText} />
       </div>
       <Toaster position="top-center" style={{ top: '45px' }} duration={3000} />
     </div>

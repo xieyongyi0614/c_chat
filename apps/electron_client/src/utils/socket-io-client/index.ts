@@ -2,10 +2,11 @@ import { io, Socket } from 'socket.io-client';
 import { BrowserWindow } from 'electron';
 import logger from '../logger';
 import { storeTableClass } from '@c_chat/electron_client/db';
-import { db } from '@c_chat/shared-config';
+import { db, ELECTRON_TO_CLIENT_CHANNELS } from '@c_chat/shared-config';
 import { MainWindowManager } from '@c_chat/electron_client/main/windows/mainWindow';
 import { MessageHandler } from './message.handler';
 import { SOCKET_PROTO_EVENT } from '@c_chat/shared-protobuf/protoMap';
+import { WebContentEvents } from '@c_chat/shared-types';
 
 export interface ServerToClientEvents {
   message: (data: Uint8Array | Buffer) => void;
@@ -16,11 +17,11 @@ export interface ClientToServerEvents {
   message: (data: Uint8Array<ArrayBufferLike>) => void;
 }
 
-export interface SocketError {
-  code: string;
-  message: string;
-  timestamp: number;
-}
+// export interface SocketError {
+//   code: string;
+//   message: string;
+//   timestamp: number;
+// }
 
 export type CChatSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 
@@ -63,12 +64,11 @@ export class SocketService extends MessageHandler {
 
   async init(mainWindow: BrowserWindow) {
     this.mainWindow = mainWindow;
-
     const socketUrl = process.env.SOCKET_URL || 'http://localhost:3001/chat';
-    this.connect(socketUrl);
+    this.connect(socketUrl, mainWindow);
   }
 
-  async connect(url: string) {
+  async connect(url: string, mainWindow: BrowserWindow | null = null) {
     this.destroy();
     logger.info(`[Socket] Connecting to ${url}`);
     if (!this.accessToken) {
@@ -107,7 +107,8 @@ export class SocketService extends MessageHandler {
         this.cancelPendingReconnect();
       });
       if (this.socket) {
-        this._setupSubscribeToEvent(this.socket, this.mainWindow);
+        this._setupSubscribeToEvent(this.socket, mainWindow);
+        this._processQueue(this.socket);
       }
     });
 
@@ -115,7 +116,7 @@ export class SocketService extends MessageHandler {
     this.socket.on('disconnect', (reason) => {
       this.rejectAllWaiters(new Error(`Socket 断开: ${reason}`));
       logger.warn(`[Socket] Disconnected: ${reason}`);
-      this.sendToRenderer('socket-disconnected', reason);
+      this.sendToRenderer(ELECTRON_TO_CLIENT_CHANNELS.SocketDisconnected, reason);
 
       /** 非主动断开时尝试重连 */
       if (reason !== 'io client disconnect') {
@@ -189,11 +190,11 @@ export class SocketService extends MessageHandler {
 
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
       logger.error('[Socket] Max reconnection attempts reached. Giving up.');
-      this.sendToRenderer('socket-error', {
+      this.sendToRenderer(ELECTRON_TO_CLIENT_CHANNELS.SocketError, {
         code: 'MAX_RECONNECT',
         message: 'Failed to reconnect after multiple attempts',
         timestamp: Date.now(),
-      } as SocketError);
+      });
       return;
     }
     this.isReconnecting = true;
@@ -204,7 +205,7 @@ export class SocketService extends MessageHandler {
     logger.info(
       `[Socket] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`,
     );
-    this.sendToRenderer('socket-reconnecting', {
+    this.sendToRenderer(ELECTRON_TO_CLIENT_CHANNELS.SocketReconnecting, {
       attempt: this.reconnectAttempts,
       maxAttempts: this.maxReconnectAttempts,
       delay,
@@ -219,13 +220,13 @@ export class SocketService extends MessageHandler {
   }
 
   private handleConnectError(error: Error): void {
-    const socketError: SocketError = {
+    const socketError = {
       code: error.name || 'CONNECTION_ERROR',
       message: error.message,
       timestamp: Date.now(),
     };
 
-    this.sendToRenderer('socket-error', socketError);
+    this.sendToRenderer(ELECTRON_TO_CLIENT_CHANNELS.SocketError, socketError);
 
     if (this.reconnectAttempts < this.maxReconnectAttempts) {
       this.scheduleReconnect();
@@ -304,7 +305,10 @@ export class SocketService extends MessageHandler {
   }
 
   /** 渲染进程通信中转 */
-  sendToRenderer(channel: string, data?: unknown) {
+  sendToRenderer<T extends keyof WebContentEvents>(
+    channel: T,
+    data?: Parameters<WebContentEvents[T]>[0],
+  ) {
     this._sendToRenderer(this.mainWindow, channel, data);
   }
 }
