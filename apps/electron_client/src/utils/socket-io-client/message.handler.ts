@@ -5,10 +5,10 @@ import { MainWindowManager } from '@c_chat/electron_client/main/windows/mainWind
 import { BrowserWindow } from 'electron';
 import { Socket } from 'socket.io-client';
 import { Command } from '@c_chat/shared-protobuf';
-import { SOCKET_PROTO_EVENT, SocketProtoEventType } from '@c_chat/shared-protobuf/protoMap';
+import { SOCKET_PROTO_EVENT, ClientDecodeProtoMapKey } from '@c_chat/shared-protobuf/protoMap';
 
 interface QueuedEvent {
-  event: SocketProtoEventType;
+  event: ClientDecodeProtoMapKey;
   data: Command;
 }
 
@@ -25,7 +25,7 @@ export class MessageHandler extends MessageHandlerRegistry {
 
   /** 发送消息队列 */
   protected _queueMessage(command: Command) {
-    const event = command.event as SocketProtoEventType;
+    const event = command.event as ClientDecodeProtoMapKey;
     const existingIndex = this.sendQueue.findIndex((q) => q.event === event);
     if (existingIndex > -1) {
       this.sendQueue[existingIndex] = { event, data: command };

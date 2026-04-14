@@ -25,8 +25,9 @@ type User = Omit<ChatUser, 'messages'>;
 type NewChatProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onSelectUser: (user: UserTypes.UserListItem) => void;
 };
-export function NewChat({ onOpenChange, open }: NewChatProps) {
+export function NewChat({ onOpenChange, open, onSelectUser }: NewChatProps) {
   const [selectedUsers, setSelectedUsers] = useState<User[]>([]);
   const [userList, setUserList] = useState<SocketTypes.ResponseList<UserTypes.UserListItem>>();
   useEffect(() => {
@@ -41,14 +42,8 @@ export function NewChat({ onOpenChange, open }: NewChatProps) {
     setUserList(res);
   };
   const handleSelectUser = async (user: UserTypes.UserListItem) => {
-    try {
-      const res = await ipc.CreateConversation({ targetId: user.id });
-      console.log('Created conversation:', res);
-      onOpenChange(false);
-      // TODO: Navigate to the new conversation or update the chat list
-    } catch (error) {
-      console.error('Failed to create conversation:', error);
-    }
+    onSelectUser(user);
+    onOpenChange(false);
   };
 
   const handleRemoveUser = (userId: string) => {

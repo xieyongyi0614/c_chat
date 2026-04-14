@@ -3,8 +3,8 @@ import initOsData from '../osData';
 import {
   clientDecodeProtoMap,
   SOCKET_PROTO_EVENT,
-  SocketProtoEventData,
-  SocketProtoEventType,
+  ClientDecodeProtoMapKey,
+  ClientDecodeProtoCallback,
 } from '@c_chat/shared-protobuf/protoMap';
 import { Command } from '@c_chat/shared-protobuf';
 import { Socket } from 'socket.io-client';
@@ -13,7 +13,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 type Deferred<T = any> = {
   timer: NodeJS.Timeout;
-  event: SocketProtoEventType;
+  event: ClientDecodeProtoMapKey;
   resolve: (value: T | PromiseLike<T>) => void;
   reject: (reason?: any) => void;
 };
@@ -30,8 +30,8 @@ export abstract class MessageHandlerRegistry {
    *   - Value: 具体的回调函数
    */
   protected readonly handlers = new Map<
-    SocketProtoEventType,
-    Map<string, (payload: any) => void | Promise<void>>
+    ClientDecodeProtoMapKey,
+    Map<string, (data: any) => void | Promise<void>>
   >();
 
   /** 待处理的请求队列 */
@@ -47,7 +47,7 @@ export abstract class MessageHandlerRegistry {
 
   public dispatch(data: Uint8Array | Buffer) {
     const command = Command.decode(data);
-    const event = command.event as SocketProtoEventType;
+    const event = command.event as ClientDecodeProtoMapKey;
 
     // 处理其他事件
     const listener = this.handlers.get(event);
@@ -91,7 +91,7 @@ export abstract class MessageHandlerRegistry {
 
   /** 主动发送消息 */
   protected _sendMessageToService(
-    event: SocketProtoEventType,
+    event: ClientDecodeProtoMapKey,
     payload?: Uint8Array | Uint8Array[],
     requestId?: string,
   ) {
@@ -122,9 +122,9 @@ export abstract class MessageHandlerRegistry {
   }
 
   /** 订阅事件 */
-  subscribeToEvent<T extends SocketProtoEventType>(
+  subscribeToEvent<T extends ClientDecodeProtoMapKey>(
     event: T,
-    callback: SocketProtoEventData[T],
+    callback: ClientDecodeProtoCallback[T],
     comIdentification?: string,
   ) {
     if (!this.handlers.has(event)) {
@@ -136,7 +136,7 @@ export abstract class MessageHandlerRegistry {
   }
 
   /** 取消订阅事件 */
-  unsubscribeFromEvent(type: SocketProtoEventType, comIdentification?: string): void {
+  unsubscribeFromEvent(type: ClientDecodeProtoMapKey, comIdentification?: string): void {
     const listeners = this.handlers.get(type);
     if (!listeners) return;
     if (comIdentification) {
@@ -147,12 +147,12 @@ export abstract class MessageHandlerRegistry {
   }
 
   /** 请求处理 */
-  async genericRequest<TResponse>(
-    event: SocketProtoEventType,
+  async genericRequest<T extends ClientDecodeProtoMapKey>(
+    event: T,
     encodedData: Uint8Array,
     requestId: string = uuidv4(),
-  ): Promise<TResponse> {
-    return new Promise<TResponse>((resolve, reject) => {
+  ) {
+    return new Promise<Parameters<ClientDecodeProtoCallback[T]>[0]>((resolve, reject) => {
       // 创建超时定时器
       const timer = setTimeout(() => {
         const entry = this.pendingRequests.get(requestId);
@@ -163,7 +163,12 @@ export abstract class MessageHandlerRegistry {
         }
       }, MessageHandlerRegistry.DEFAULT_WAIT_TIMEOUT_MS);
 
-      const entry: Deferred<TResponse> = { resolve, reject, timer, event };
+      const entry: Deferred<Parameters<ClientDecodeProtoCallback[T]>[0]> = {
+        resolve,
+        reject,
+        timer,
+        event,
+      };
       this.pendingRequests.set(requestId, entry);
 
       try {
@@ -209,7 +214,7 @@ export abstract class MessageHandlerRegistry {
 }
 
 /** 排除掉一些事件的打印 */
-const isIgnoreConsoleEvent = (event: SocketProtoEventType) => {
-  const ignoreEvents: SocketProtoEventType[] = [SOCKET_PROTO_EVENT.ping];
+const isIgnoreConsoleEvent = (event: ClientDecodeProtoMapKey) => {
+  const ignoreEvents: ClientDecodeProtoMapKey[] = [SOCKET_PROTO_EVENT.ping];
   return !ignoreEvents.includes(event);
 };

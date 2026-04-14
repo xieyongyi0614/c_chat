@@ -20,12 +20,16 @@ import { Avatar, AvatarFallback, Button, cn, Main, ScrollArea, Separator } from 
 import { ipc, to } from '@c_chat/shared-utils';
 import { useUserStore } from '@c_chat/frontend/stores/userStore';
 import ProtobufRoot from '@c_chat/shared-protobuf';
+import type { UserTypes } from '@c_chat/shared-types';
 
 type ConversationInfo = ProtobufRoot.ConversationInfo;
 type MessageInfo = ProtobufRoot.MessageInfo;
 export function Chats() {
   const [search, setSearch] = useState('');
   const [selectedConversation, setSelectedConversation] = useState<ConversationInfo | null>(null);
+  const [selectedUserForDraft, setSelectedUserForDraft] = useState<UserTypes.UserListItem | null>(
+    null,
+  );
   const [mobileSelectedConversation, setMobileSelectedConversation] =
     useState<ConversationInfo | null>(null);
   const [createConversationDialogOpened, setCreateConversationDialog] = useState(false);
@@ -35,14 +39,26 @@ export function Chats() {
   const { userInfo } = useUserStore();
 
   useEffect(() => {
-    if (userInfo?.id) fetchConversationList();
+    if (userInfo?.id) {
+      fetchLocalConversationList();
+      fetchConversationList();
+    }
   }, [userInfo?.id]);
 
   useEffect(() => {
     if (selectedConversation) {
+      fetchLocalMessageHistory(selectedConversation.id);
       fetchMessageHistory(selectedConversation.id);
+      setSelectedUserForDraft(null);
+    } else if (!selectedUserForDraft) {
+      setMessages([]);
     }
-  }, [selectedConversation]);
+  }, [selectedConversation, selectedUserForDraft]);
+
+  const fetchLocalConversationList = async () => {
+    const res = await ipc.GetLocalConversationList();
+    if (res && res.list) setConversationList(res.list);
+  };
 
   const fetchConversationList = async () => {
     const [err, res] = await to(ipc.GetConversationList({ pagination: { page: 1, pageSize: 50 } }));
@@ -52,6 +68,11 @@ export function Chats() {
     }
     setConversationList(res.list);
     console.log(res, 'fetchConversationList');
+  };
+
+  const fetchLocalMessageHistory = async (conversationId: string) => {
+    const res = await ipc.GetLocalMessageHistory({ conversation_id: conversationId });
+    if (res && res.list) setMessages(res.list);
   };
 
   const fetchMessageHistory = async (conversationId: string) => {
@@ -66,19 +87,46 @@ export function Chats() {
     }
   };
 
+  const handleSelectUserFromNewChat = (user: UserTypes.UserListItem) => {
+    const existingConvo = conversationList.find((c) => c.targetId === user.id);
+    if (existingConvo) {
+      setSelectedConversation(existingConvo);
+      setSelectedUserForDraft(null);
+    } else {
+      setSelectedConversation(null);
+      setSelectedUserForDraft(user);
+      setMessages([]);
+    }
+  };
+
   const handleSendMessage = async (e?: React.FormEvent) => {
     e?.preventDefault();
-    if (!selectedConversation || !inputMessage.trim()) return;
+    if ((!selectedConversation && !selectedUserForDraft) || !inputMessage.trim()) return;
+
+    let convoId = selectedConversation?.id;
+
+    // 如果是临时会话，先创建
+    if (!convoId && selectedUserForDraft) {
+      try {
+        const newConvo = await ipc.CreateConversation({ targetId: selectedUserForDraft.id });
+        convoId = newConvo.id;
+        setSelectedConversation(newConvo);
+        setSelectedUserForDraft(null);
+        fetchConversationList();
+      } catch (error) {
+        console.error('Failed to create conversation on first message:', error);
+        return;
+      }
+    }
 
     try {
       const res = await ipc.SendMessage({
-        conversation_id: selectedConversation.id,
+        conversation_id: convoId!,
         content: inputMessage,
         type: 0, // Text
       });
       console.log('Sent message:', res);
       setInputMessage('');
-      // Optionally update local messages if not handled by real-time push
       setMessages((prev) => [...prev, res]);
     } catch (error) {
       console.error('Failed to send message:', error);
@@ -86,8 +134,8 @@ export function Chats() {
   };
 
   // Filtered data based on the search query
-  const filteredChatList = conversationList.filter(({ id }) =>
-    id.toLowerCase().includes(search.trim().toLowerCase()),
+  const filteredChatList = conversationList.filter(({ targetId }) =>
+    targetId?.toLowerCase().includes(search.trim().toLowerCase()),
   );
 
   const groupedMessages = messages.reduce((acc: Record<string, MessageInfo[]>, obj) => {
@@ -98,6 +146,9 @@ export function Chats() {
     acc[key].push(obj);
     return acc;
   }, {});
+
+  const activeTargetId = selectedConversation?.targetId || selectedUserForDraft?.id || '';
+  const activeTitle = selectedConversation?.targetId || selectedUserForDraft?.nickname || 'Chat';
 
   return (
     <Main fixed className="px-4 py-4 ">
@@ -154,14 +205,15 @@ export function Chats() {
                     onClick={() => {
                       setSelectedConversation(convo);
                       setMobileSelectedConversation(convo);
+                      setSelectedUserForDraft(null);
                     }}
                   >
                     <div className="flex gap-2">
                       <Avatar>
-                        <AvatarFallback>{targetId.slice(0, 2)}</AvatarFallback>
+                        <AvatarFallback>{targetId?.slice(0, 2)}</AvatarFallback>
                       </Avatar>
                       <div>
-                        <span className="col-start-2 row-span-2 font-medium">{lastMsgTime}</span>
+                        <span className="col-start-2 row-span-2 font-medium">{targetId}</span>
                         <span className="col-start-2 row-span-2 row-start-2 line-clamp-2 text-ellipsis text-muted-foreground group-hover:text-accent-foreground/90">
                           {lastMsgContent || 'No messages'}
                         </span>
@@ -176,11 +228,11 @@ export function Chats() {
         </div>
 
         {/* Right Side */}
-        {selectedConversation ? (
+        {selectedConversation || selectedUserForDraft ? (
           <div
             className={cn(
               'absolute inset-0 start-full z-50 hidden w-full flex-1 flex-col border bg-background shadow-xs sm:static sm:z-auto sm:flex sm:rounded-md',
-              mobileSelectedConversation && 'start-0 flex',
+              (mobileSelectedConversation || selectedUserForDraft) && 'start-0 flex',
             )}
           >
             {/* Top Part */}
@@ -191,17 +243,20 @@ export function Chats() {
                   size="icon"
                   variant="ghost"
                   className="-ms-2 h-full sm:hidden"
-                  onClick={() => setMobileSelectedConversation(null)}
+                  onClick={() => {
+                    setMobileSelectedConversation(null);
+                    setSelectedUserForDraft(null);
+                  }}
                 >
                   <ArrowLeft className="rtl:rotate-180" />
                 </Button>
                 <div className="flex items-center gap-2 lg:gap-4">
                   <Avatar className="size-9 lg:size-11">
-                    <AvatarFallback>{selectedConversation.targetId.slice(0, 2)}</AvatarFallback>
+                    <AvatarFallback>{activeTargetId.slice(0, 2)}</AvatarFallback>
                   </Avatar>
                   <div>
                     <span className="col-start-2 row-span-2 text-sm font-medium lg:text-base">
-                      {selectedConversation.targetId}
+                      {activeTitle}
                     </span>
                   </div>
                 </div>
@@ -336,7 +391,11 @@ export function Chats() {
           </div>
         )}
       </section>
-      <NewChat onOpenChange={setCreateConversationDialog} open={createConversationDialogOpened} />
+      <NewChat
+        onSelectUser={handleSelectUserFromNewChat}
+        onOpenChange={setCreateConversationDialog}
+        open={createConversationDialogOpened}
+      />
     </Main>
   );
 }
