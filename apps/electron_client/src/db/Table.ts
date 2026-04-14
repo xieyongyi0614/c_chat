@@ -27,7 +27,6 @@ export abstract class TableConnection {
   /**
    * 迁移数据表
    */
-  // eslint-disable-next-line @typescript-eslint/no-empty-function
   migrate(_oldVersion: number, _newVersion: number): void {}
 
   /**
@@ -92,7 +91,6 @@ export abstract class TableConnection {
   `;
     const columns = this.all(columnExistsQuery);
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const columnExists = columns.some((col: any) => col.name === columnName);
     if (!columnExists) {
       const alterTableSQL = `ALTER TABLE ${this.TABLE_NAME} ADD COLUMN ${columnName} ${columnDefinition}`;

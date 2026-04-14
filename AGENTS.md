@@ -8,6 +8,7 @@
 - **私聊:** 两个用户之间的通信。其 `Conversation` 的 `target_id` 指向对方用户 ID。
 - **群聊:** 多个用户之间的通信。其 `Conversation` 的 `target_id` 指向群组 ID。
 - **消息:** 具体的聊天内容，归属于某个 `Conversation`。
+- **本地缓存:** 客户端使用 SQLite 存储会话和消息，以实现秒开体验和离线查看。
 
 ---
 
@@ -15,50 +16,63 @@
 
 <!-- **前提条件:** 用户 A 和用户 B 互为好友（或系统允许陌生人发起会话）。 -->
 
-### 1. 发起会话
+### 1. 发起会话 (延迟创建)
 
-当用户 A 在联系人列表中点击用户 B 时，系统需要确保 A 和 B 之间存在唯一的会话通道。
+当用户 A 在联系人列表中点击用户 B 时，系统采用**延迟创建**策略。
 
-**1.1 生成会话 ID:**
-为了保证 A 找 B 和 B 找 A 是同一个会话，使用确定性算法生成 ID：
+**1.1 生成确定性 ID:**
+客户端根据双方 ID 生成唯一的 `conversation_id`：
+`ID = md5(sort([A.id, B.id]).join('_'))`
 
-```
-ID = md5(sort([A.id, B.id]).join('_'))
-```
+**1.2 开启临时会话:**
 
-或者简单的字符串拼接：`private_{sorted_id_1}_{sorted_id_2}`。
+- 客户端首先在本地数据库查询该 ID。
+- 如果存在，加载历史消息。
+- 如果不存在，UI 进入"临时会话"状态，不立即调用后端创建接口。
 
-**1.2 查找或创建会话:**
+### 2. 发送消息 (触发创建)
 
-- 后端查询 `Conversation` 表，条件为 `id = 生成的ID`。
-- **情况 A（会话存在）:** 直接返回该会话信息。
-- **情况 B（会话不存在）:**
-  - 在 `Conversation` 表创建一条新记录：
-    - `id`: 生成的确定性 ID
-    - `type`: `1` (私聊)
-    - `target_id`: B 的 ID (或者 A 的 ID，取决于约定，通常存对方 ID)
-  - 在 `ConversationParticipant` 表创建两条记录（分别给 A 和 B）：
-    - 记录 A 的参与状态（`is_deleted: false`）
-    - 记录 B 的参与状态（`is_deleted: false`）
+用户 A 发送第一条消息时，正式触发会话创建。
 
-### 2. 发送消息
+**2.1 客户端处理:**
 
-用户 A 在聊天窗口输入文本并发送。
+- 客户端将消息存入本地 SQLite，状态设为 `sending`。
+- 调用 `SendMessage` IPC 接口。
 
-**2.1 客户端请求:** A 的客户端发送 `{ content: "Hello", type: 0, conversationId: "..." }` 给后端。
+**2.2 后端处理 (自动创建):**
 
-**2.2 后端处理:**
+- 后端收到消息请求，首先检查 `conversation_id` 是否已存在。
+- 如果不存在：
+  - 在 `Conversation` 表创建新记录。
+  - 在 `ConversationParticipant` 表为双方创建关联。
+- 保存消息至 `MessageHistory` 表。
+- 返回成功响应及完整的会话/消息对象。
 
-- **保存消息:** 在 `MessageHistory` 表插入记录：
-  - `sender_id`: A 的 ID
-  - `conversation_id`: 会话 ID
-  - `content`: "Hello"
-  - `state`: `0` (正常)
-- **更新会话快照:** 更新 `Conversation` 表对应记录：
-  - `last_msg_content`: "Hello"
-  - `last_msg_time`: 当前时间
-  - `update_time`: 当前时间
-- **实时推送:** 后端通过 WebSocket 向该 `conversation_id` 下的所有在线参与者（主要是 B）推送新消息。
+**2.3 状态同步:**
+
+- 客户端收到响应，更新本地消息状态为 `success`。
+- 如果是首条消息，将临时会话转为正式会话。
+
+---
+
+## 💾 本地数据同步策略
+
+为了保证性能与数据一致性，采用以下同步方案：
+
+### 1. 列表加载 (先本地后线上)
+
+1. **加载本地:** UI 启动时，立即从本地 SQLite 读取 `Conversation` 列表并展示。
+2. **异步对齐:** 客户端调用后端 `GetConversationList` 接口。
+3. **增量更新:**
+   - 遍历后端返回的列表，对比 `update_time`。
+   - 如果线上 `update_time > 本地 update_time`，则更新本地记录并通知 UI 刷新。
+
+### 2. 消息同步
+
+- 进入具体聊天窗口时，先展示本地 `MessageHistory`。
+- 向后端请求该会话的最新消息（带上本地最后一条消息的时间戳）。
+- 后端返回该时间戳之后的增量数据。
+- 客户端存入本地并更新 UI。
 
 ### 3. 接收与展示
 
@@ -170,8 +184,158 @@ ID = md5(sort([A.id, B.id]).join('_'))
 
 ---
 
-## 🚀 总结
+# 针对基于 Electron + Better-SQLite3 的 IM 语聊系统，设计“本地+服务端”双端缓存与同步机制，核心原则是：**“本地优先渲染，后台静默同步，增量更新，冲突以服务端为准”**。
 
-本设计通过引入 `Conversation` 表统一管理私聊和群聊，解决了传统设计中私聊与群聊处理逻辑不一致的问题。通过合理的数据冗余和索引优化，保证了聊天列表加载和消息历史查询的性能。
+以下是结合业界最佳实践（如 OpenIM、微信架构）设计的详细逻辑方案：
 
-这套方案能够很好地支持即时通讯系统的各种核心功能，并为未来的功能扩展提供了良好的架构基础。
+### 🚀 核心策略概览
+
+| 数据维度     | 本地数据库 (Better-SQLite3)                            | 服务端数据库 (mysql)                             | 同步策略                                          |
+| :----------- | :----------------------------------------------------- | :----------------------------------------------- | :------------------------------------------------ |
+| **会话列表** | 缓存最近联系人、未读数、最后一条消息摘要               | 存储全量关系链、群组信息                         | **本地加载 + 增量拉取** (基于 `last_update_time`) |
+| **聊天历史** | 仅存储当前用户可见的历史消息 (分页存储)                | 存储全量消息 (永久存储)                          | **按需加载** (滚动到底部加载) + **实时推送**      |
+| **消息状态** | 存储 `is_read` (本地已读), `status` (发送中/成功/失败) | 存储 `read_seq` (已读游标), `max_seq` (最大游标) | **读写分离** (本地乐观更新，服务端同步游标)       |
+
+---
+
+### 📂 一、会话列表 (Conversation List)
+
+会话列表要求**启动快**、**未读数准**。
+
+#### 1. 加载逻辑
+
+1.  **应用启动/登录**：
+    - **第一步（极速渲染）**：直接从 **Better-SQLite3** 读取最近的 50-100 个会话。
+      - _SQL:_ `SELECT * FROM conversations ORDER BY last_msg_time DESC LIMIT 100`
+    - **第二步（后台同步）**：建立 WebSocket 连接后，立即调用服务端接口 `syncConversationList(last_local_update_time)`。
+2.  **数据合并**：
+    - 服务端返回新增或变更的会话列表。
+    - 客户端遍历更新本地 SQLite 数据库。
+    - **UI 刷新**：利用 React/Vue 的响应式特性，数据库变动后自动刷新列表。
+
+#### 2. 同步时机
+
+- **实时推送**：当收到新消息（WebSocket 事件）时，**不要**只更新消息表，要同时**更新会话表**（更新 `last_msg_content`, `last_msg_time`, `unread_count + 1`），并将会话置顶。
+- **多端同步**：如果手机端读了消息，服务端通过 WebSocket 推送 `ConversationUpdate` 事件， Electron 收到后更新本地 SQLite 的 `unread_count` 为 0。
+
+---
+
+### 💬 二、聊天历史 (Message History)
+
+聊天历史数据量大，不能一次性拉取，采用**“懒加载 + 增量同步”**。
+
+#### 1. 进入会话时的加载 (懒加载)
+
+当用户点击某个会话（例如 `session_id = 'user_1001'`）：
+
+1.  **检查本地游标**：
+    - 读取本地记录的该会话最大消息序列号 `local_max_seq`。
+2.  **读取本地数据库**：
+    - 立即从 SQLite 加载最近 20 条消息用于渲染。
+    - _SQL:_ `SELECT * FROM messages WHERE session_id = ? ORDER BY seq DESC LIMIT 20`
+3.  **拉取服务端增量 (如有)**：
+    - 请求服务端：`GET /messages/history?session_id=user_1001&min_seq=local_max_seq`。
+    - 如果服务端返回了新消息（说明本地断连期间有消息），写入 SQLite，并追加到 UI 列表底部。
+
+#### 2. 滚动加载更多 (分页加载)
+
+当用户向上滚动（查看更早消息）：
+
+1.  **触发条件**：滚动条触顶。
+2.  **查询本地**：
+    - 先查 SQLite 是否有更早的数据（例如查当前页之前的 20 条）。
+    - 如果本地有，直接渲染（**0 延迟**）。
+3.  **请求服务端**：
+    - 如果本地数据到底了（例如本地最早一条是 `seq=100`），则请求服务端：`GET /messages/history?session_id=...&end_seq=100&limit=20`。
+    - 拿到数据后，写入 SQLite，并插入到 UI 列表顶部。
+
+---
+
+### ⚡ 三、数据同步与冲突处理
+
+#### 1. 消息发送（乐观更新）
+
+1.  **UI 层**：用户发送消息，立即在 UI 显示，状态为“发送中”。
+2.  **本地 DB 层**：
+    - 写入 SQLite，生成一个临时的 `client_msg_id`，状态 `SENDING`。
+3.  **网络层**：发送给服务端。
+4.  **回调处理**：
+    - **成功**：服务端返回真实的 `server_msg_id` 和 `seq`。更新 SQLite 状态为 `SENT`，替换临时 ID。
+    - **失败**：更新 SQLite 状态为 `FAILED`，UI 显示红色感叹号。
+
+#### 2. 消息接收（实时 + 补漏）
+
+1.  **实时推送**：
+    - WebSocket 收到新消息 -> 写入 SQLite -> 触发 UI 更新。
+2.  **断线重连（补漏机制）**：
+    - 重连成功后，客户端上报当前所有会话的 `max_seq`。
+    - 服务端返回缺失的消息包。
+    - 客户端批量写入 SQLite（注意去重，使用 `INSERT OR IGNORE`）。
+
+#### 3. 已读状态同步 (红点逻辑)
+
+这是最容易乱的，建议采用 **游标机制**：
+
+- **服务端**：维护 `Read_Seq` (用户已读到的最大序列号)。
+- **本地**：
+  - **未读数计算**：`UnreadCount = (Session_Max_Seq) - (Local_Read_Seq)`。
+  - **点击会话时**：
+    1.  更新本地 `Local_Read_Seq` = `Session_Max_Seq`。
+    2.  UI 上红点消失。
+    3.  **异步**向服务端发送“已读回执”，更新服务端的 `Read_Seq`。
+
+---
+
+### 🛠️ 四、 Electron 架构落地建议
+
+结合之前的 `Better-SQLite3` 和 `Worker` 架构：
+
+1.  **数据库层 (Worker Thread)**
+    - 封装 `MessageDAO` 和 `ConversationDAO`。
+    - 提供 `getHistory(sessionId, anchorSeq, count)` 方法。
+    - 提供 `syncMessages(messages[])` 方法（批量插入/更新）。
+
+2.  **缓存层 (Main Process)**
+    - 使用 `LRU Cache` 缓存当前打开的会话消息（例如最近 5 个会话的最近 50 条消息）。
+    - **读取逻辑**：UI 请求 -> 查 LRU -> 无则查 SQLite -> 写入 LRU -> 返回。
+
+3.  **同步管理器 (SyncManager)**
+    - 单例模式，监听 WebSocket 事件。
+    - 维护一个 `SyncQueue`，防止并发写入数据库。
+    - **防抖处理**：短时间内收到多条消息，合并写入数据库，避免频繁 I/O。
+
+### 📝 总结流程图
+
+<!-- ![总结流程图](./docs/img/会话消息缓存流程图.png) -->
+
+```mermaid
+sequenceDiagram
+    participant UI as 渲染进程 (UI)
+    participant Main as 主进程 (Node/Cache)
+    participant DB as Worker (SQLite)
+    participant Server as 服务端
+
+    %% 场景：进入会话
+    UI->>Main: 打开会话 A
+    Main->>DB: 查询本地最近 20 条
+    DB-->>Main: 返回数据
+    Main-->>UI: 渲染列表 (极速)
+
+    Main->>Server: 请求增量 (last_seq=100)
+    Server-->>Main: 返回新消息 (101, 102)
+    Main->>DB: 写入新消息
+    Main->>UI: 追加消息到底部
+
+    %% 场景：滚动加载
+    UI->>Main: 滚动触顶 (请求更早)
+    Main->>DB: 查询本地 (seq < 101)
+    alt 本地有数据
+        DB-->>Main: 返回数据
+        Main-->>UI: 渲染
+    else 本地无数据
+        Main->>Server: 请求服务端历史 (end_seq=101)
+        Server-->>Main: 返回数据
+        Main->>DB: 写入并缓存
+        Main-->>UI: 渲染
+    end
+```

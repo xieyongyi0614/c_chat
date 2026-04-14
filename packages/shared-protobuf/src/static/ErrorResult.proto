@@ -1,0 +1,7 @@
+syntax = "proto3";
+
+// 错误返回基类
+message ErrorResult {
+  string errorMessage = 1;     
+  string timestamp = 2; 
+}
