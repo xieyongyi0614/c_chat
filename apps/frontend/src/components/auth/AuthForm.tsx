@@ -81,8 +81,6 @@ const AuthForm: React.FC = () => {
         const token = result.token || result.access_token;
         if (!isSignUp && token) {
           localStorage.setItem('token', token);
-          // 通知 Electron 主进程登录成功，恢复窗口尺寸
-          // @ts-ignore
           window.api?.notifyLoggedIn?.();
           navigate('/');
         } else if (isSignUp) {

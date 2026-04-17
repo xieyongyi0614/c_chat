@@ -1,3 +1,5 @@
+import { Common } from '@c_chat/shared-protobuf';
+
 export namespace SocketTypes {
   export interface RequestPagination {
     page?: number;
@@ -7,11 +9,12 @@ export namespace SocketTypes {
     pagination?: RequestPagination;
     word?: string;
   }
+
   export interface ResponseList<T> {
-    pagination: PaginationType;
+    pagination: Omit<Common.PaginationResponse, 'toJSON'>;
     list: T[];
   }
-  interface PaginationType {
+  export interface PaginationType {
     total: number;
     totalPage: number;
     page: number;
@@ -23,11 +26,6 @@ export namespace SocketTypes {
       attempt: number;
       maxAttempts: number;
       delay: number;
-    }
-    export interface SocketErrorType {
-      code: string;
-      message: string;
-      timestamp: number;
     }
   }
 }

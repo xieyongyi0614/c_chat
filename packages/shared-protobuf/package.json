@@ -29,7 +29,6 @@
   "license": "ISC",
   "dependencies": {
     "@c_chat/shared-config": "workspace:^",
-    "@c_chat/shared-types": "workspace:^",
     "protobufjs": "^8.0.0"
   },
   "devDependencies": {

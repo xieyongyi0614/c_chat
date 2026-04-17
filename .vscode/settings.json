@@ -8,14 +8,10 @@
     "ahooks",
     "barrelsby",
     "convo",
+    "convos",
     "fullscreenable",
     "maximizable",
     "uuidv"
   ],
-  "eslint.validate": [
-    "javascript",
-    "javascriptreact",
-    "typescript",
-    "typescriptreact"
-  ]
+  "eslint.validate": ["javascript", "javascriptreact", "typescript", "typescriptreact"]
 }

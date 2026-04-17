@@ -9,9 +9,9 @@ message PaginationRequest {
 }
 
 message PaginationResponse {
-  int32 total = 1;
-  int32 page = 2;
-  int32 pageSize = 3;
-  int32 totalPage = 4;
+   int32 total = 1;
+   int32 page = 2;
+   int32 pageSize = 3;
+   int32 totalPage = 4;
 }
 

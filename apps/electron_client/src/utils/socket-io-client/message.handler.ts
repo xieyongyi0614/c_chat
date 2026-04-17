@@ -1,4 +1,4 @@
-import { ELECTRON_TO_CLIENT_CHANNELS } from '@c_chat/shared-config';
+import { ELECTRON_TO_CLIENT_CHANNELS, SOCKET_ERROR_CODE } from '@c_chat/shared-config';
 import { CChatSocket, ClientToServerEvents, ServerToClientEvents } from '.';
 import { MessageHandlerRegistry } from './message-handler.registry';
 import { MainWindowManager } from '@c_chat/electron_client/main/windows/mainWindow';
@@ -6,6 +6,9 @@ import { BrowserWindow } from 'electron';
 import { Socket } from 'socket.io-client';
 import { Command } from '@c_chat/shared-protobuf';
 import { SOCKET_PROTO_EVENT, ClientDecodeProtoMapKey } from '@c_chat/shared-protobuf/protoMap';
+
+import { conversationTableClass, messageTableClass } from '../../db';
+import { WebContentEvents } from '@c_chat/shared-types';
 
 interface QueuedEvent {
   event: ClientDecodeProtoMapKey;
@@ -65,6 +68,16 @@ export class MessageHandler extends MessageHandlerRegistry {
       );
       return;
     }
+    /** 错误消息处理 */
+    if (channel === ELECTRON_TO_CLIENT_CHANNELS.ERROR) {
+      const newData = data as Parameters<WebContentEvents['error']>[0];
+      const errData = {
+        errorCode: newData?.errorCode || SOCKET_ERROR_CODE.UNKNOWN,
+        errorMessage: newData?.errorMessage || '未知错误，请联系管理员',
+      };
+      mainWindow.webContents.send(channel, errData);
+      return;
+    }
     mainWindow.webContents.send(channel, data);
   }
 
@@ -87,6 +100,58 @@ export class MessageHandler extends MessageHandlerRegistry {
     });
     this.subscribeToEvent(SOCKET_PROTO_EVENT.getConversationList, (data) => {
       console.log('getConversationList response', data);
+    });
+    this.subscribeToEvent(SOCKET_PROTO_EVENT.getMessageHistory, (data) => {
+      console.log('getMessageHistory response', data);
+    });
+    this.subscribeToEvent(SOCKET_PROTO_EVENT.error, (data) => {
+      const { errorCode } = data;
+      const errorHandler = {
+        [SOCKET_ERROR_CODE.UNAUTHORIZED]: () => {
+          socket.disconnect();
+          MainWindowManager.getInstance().applyAuthState(false);
+        },
+      };
+      errorHandler[errorCode as keyof typeof errorHandler]?.();
+      this._sendToRenderer(mainWindow, ELECTRON_TO_CLIENT_CHANNELS.ERROR, data);
+
+      console.log('socket error', data);
+    });
+
+    // 监听实时消息推送
+    this.subscribeToEvent(SOCKET_PROTO_EVENT.sendMessage, (data) => {
+      console.log('收到实时消息推送:', data);
+      if (data) {
+        // 1. 写入本地消息表
+        messageTableClass.upsertMessages([
+          {
+            id: data.id,
+            senderId: data.senderId,
+            conversationId: data.conversationId,
+            content: data.content,
+            type: data.type,
+            state: 0,
+            createTime: Number(data.createTime),
+            updateTime: Number(data.updateTime),
+          },
+        ]);
+
+        // 2. 更新本地会话表快照
+        const convo = conversationTableClass.getConversation(data.conversationId);
+        if (convo) {
+          conversationTableClass.upsertConversations([
+            {
+              ...convo,
+              lastMsgContent: data.content,
+              lastMsgTime: Number(data.createTime),
+              updateTime: Number(data.updateTime),
+            },
+          ]);
+        }
+
+        // 3. 通知渲染进程刷新 UI (可选，通过统一通道)
+        // this._sendToRenderer(mainWindow, ELECTRON_TO_CLIENT_CHANNELS.SocketMessage, data);
+      }
     });
   }
 }

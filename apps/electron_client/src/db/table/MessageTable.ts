@@ -1,15 +1,5 @@
+import { LocalMessageListItem } from '@c_chat/shared-types';
 import { TableConnection } from '../Table';
-
-export interface MessageRecord {
-  id: string;
-  sender_id: string;
-  conversation_id: string;
-  content: string;
-  type: number;
-  state: number; // 0: success, 1: sending, 2: fail
-  create_time: number;
-  update_time: number;
-}
 
 export class MessageTable extends TableConnection {
   readonly TABLE_NAME = 'messages';
@@ -29,34 +19,53 @@ export class MessageTable extends TableConnection {
     `;
     this.run(sql);
     // 建立索引
-    this.run(`CREATE INDEX IF NOT EXISTS idx_messages_conversation_id ON ${this.TABLE_NAME} (conversation_id)`);
-    this.run(`CREATE INDEX IF NOT EXISTS idx_messages_create_time ON ${this.TABLE_NAME} (create_time)`);
+    this.run(
+      `CREATE INDEX IF NOT EXISTS idx_messages_conversation_id ON ${this.TABLE_NAME} (conversation_id)`,
+    );
+    this.run(
+      `CREATE INDEX IF NOT EXISTS idx_messages_create_time ON ${this.TABLE_NAME} (create_time)`,
+    );
   }
 
   /**
    * 获取会话的所有消息
    */
-  getMessagesByConversationId(conversationId: string, limit = 50, offset = 0): MessageRecord[] {
-    return this.all<MessageRecord>(
+  getMessagesByConversationId(conversationId: string, limit = 50, offset = 0) {
+    const rows = this.all<LocalMessageListItem>(
       `SELECT * FROM ${this.TABLE_NAME} WHERE conversation_id = ? ORDER BY create_time DESC LIMIT ? OFFSET ?`,
-      [conversationId, limit, offset]
+      [conversationId, limit, offset],
     );
+    return rows.map(this.mapRowToRecord);
+  }
+
+  /**
+   * 获取消息总数
+   */
+  getMessageCount(conversationId: string): number {
+    const row = this.get<[string], { count: number }>(
+      `SELECT COUNT(*) as count FROM ${this.TABLE_NAME} WHERE conversation_id = ?`,
+      [conversationId],
+    );
+    return row?.count ?? 0;
   }
 
   /**
    * 获取最新的一条消息
    */
-  getLastMessage(conversationId: string): MessageRecord | undefined {
-    return this.get<[string], MessageRecord>(
+  getLastMessage(conversationId: string) {
+    const row = this.get<[string], LocalMessageListItem>(
       `SELECT * FROM ${this.TABLE_NAME} WHERE conversation_id = ? ORDER BY create_time DESC LIMIT 1`,
-      [conversationId]
+      [conversationId],
     );
+    return row ? this.mapRowToRecord(row) : undefined;
   }
 
   /**
-   * 插入消息
+   * 批量更新消息
    */
-  upsertMessage(msg: MessageRecord) {
+  upsertMessages(msgs: LocalMessageListItem[]) {
+    if (msgs.length === 0) return;
+
     const sql = `
       INSERT INTO ${this.TABLE_NAME} (id, sender_id, conversation_id, content, type, state, create_time, update_time)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -65,16 +74,24 @@ export class MessageTable extends TableConnection {
         content = excluded.content,
         update_time = excluded.update_time
     `;
-    this.run(sql, [
-      msg.id,
-      msg.sender_id,
-      msg.conversation_id,
-      msg.content,
-      msg.type,
-      msg.state,
-      msg.create_time,
-      msg.update_time,
-    ]);
+
+    const stmt = this.db?.prepare(sql);
+    const transaction = this.db?.transaction((items: LocalMessageListItem[]) => {
+      for (const msg of items) {
+        stmt?.run(
+          msg.id,
+          msg.senderId,
+          msg.conversationId,
+          msg.content,
+          msg.type,
+          msg.state,
+          msg.createTime,
+          msg.updateTime,
+        );
+      }
+    });
+
+    transaction?.(msgs);
   }
 
   /**
@@ -89,5 +106,18 @@ export class MessageTable extends TableConnection {
    */
   deleteMessage(id: string) {
     this.run(`DELETE FROM ${this.TABLE_NAME} WHERE id = ?`, [id]);
+  }
+
+  private mapRowToRecord(row: any): LocalMessageListItem {
+    return {
+      id: row.id,
+      senderId: row.sender_id,
+      conversationId: row.conversation_id,
+      content: row.content,
+      type: row.type,
+      state: row.state,
+      createTime: row.create_time,
+      updateTime: row.update_time,
+    };
   }
 }

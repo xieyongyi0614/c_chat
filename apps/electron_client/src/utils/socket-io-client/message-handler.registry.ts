@@ -60,7 +60,6 @@ export abstract class MessageHandlerRegistry {
         listener?.forEach((callback) => {
           try {
             const clazz = clientDecodeProtoMap[event];
-
             const decodedResult = clazz?.decode(command.payload[0]);
 
             if (isIgnoreConsoleEvent(event)) {

@@ -1,154 +1,123 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Fragment } from 'react/jsx-runtime';
-import dayjs from 'dayjs';
-import {
-  ArrowLeft,
-  MoreVertical,
-  Edit,
-  Paperclip,
-  Phone,
-  ImagePlus,
-  Plus,
-  Search as SearchIcon,
-  Send,
-  Video,
-  MessagesSquare,
-} from 'lucide-react';
+import { Edit, Search as SearchIcon, MessagesSquare } from 'lucide-react';
 
 import { NewChat } from './components/new-chat';
-import { Avatar, AvatarFallback, Button, cn, Main, ScrollArea, Separator } from '@c_chat/ui';
-import { ipc, to } from '@c_chat/shared-utils';
-import { useUserStore } from '@c_chat/frontend/stores/userStore';
-import ProtobufRoot from '@c_chat/shared-protobuf';
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+  Button,
+  cn,
+  Main,
+  ScrollArea,
+  Separator,
+} from '@c_chat/ui';
 import type { UserTypes } from '@c_chat/shared-types';
+import { useChatsData } from './hooks/useChatsData';
+import { useChatStore } from '@c_chat/frontend/stores';
+import RightSide from './components/rightSide';
+import { transformPagination } from '@c_chat/shared-utils';
 
-type ConversationInfo = ProtobufRoot.ConversationInfo;
-type MessageInfo = ProtobufRoot.MessageInfo;
 export function Chats() {
-  const [search, setSearch] = useState('');
-  const [selectedConversation, setSelectedConversation] = useState<ConversationInfo | null>(null);
-  const [selectedUserForDraft, setSelectedUserForDraft] = useState<UserTypes.UserListItem | null>(
-    null,
-  );
-  const [mobileSelectedConversation, setMobileSelectedConversation] =
-    useState<ConversationInfo | null>(null);
+  const { selectedConversation, setSelectedConversation, setSelectedUserForDraft, setMessageData } =
+    useChatStore();
+  const { filteredChatList, search, setSearch } = useChatsData();
+
   const [createConversationDialogOpened, setCreateConversationDialog] = useState(false);
-  const [conversationList, setConversationList] = useState<ConversationInfo[]>([]);
-  const [messages, setMessages] = useState<MessageInfo[]>([]);
-  const [inputMessage, setInputMessage] = useState('');
-  const { userInfo } = useUserStore();
 
-  useEffect(() => {
-    if (userInfo?.id) {
-      fetchLocalConversationList();
-      fetchConversationList();
-    }
-  }, [userInfo?.id]);
+  // useEffect(() => {
+  //   if (userInfo?.id) {
+  //     fetchLocalConversationList();
+  //     fetchConversationList();
+  //   }
 
-  useEffect(() => {
-    if (selectedConversation) {
-      fetchLocalMessageHistory(selectedConversation.id);
-      fetchMessageHistory(selectedConversation.id);
-      setSelectedUserForDraft(null);
-    } else if (!selectedUserForDraft) {
-      setMessages([]);
-    }
-  }, [selectedConversation, selectedUserForDraft]);
+  // // 监听实时消息推送
+  // const removeListener = ipc.onSocketMessage((data: MessageInfo) => {
+  //   console.log('收到实时消息推送:', data);
+  //   // 1. 如果当前正处于该会话，追加消息
+  //   if (selectedConversation?.id === data.conversationId) {
+  //     setMessages((prev) => {
+  //       // 去重（防止重复收到）
+  //       if (prev.some((m) => m.id === data.id)) return prev;
+  //       return [...prev, data];
+  //     });
+  //   }
 
-  const fetchLocalConversationList = async () => {
-    const res = await ipc.GetLocalConversationList();
-    if (res && res.list) setConversationList(res.list);
-  };
+  //   // 2. 更新会话列表中的快照
+  //   setConversationList((prev) => {
+  //     const index = prev.findIndex((c) => c.id === data.conversationId);
+  //     if (index > -1) {
+  //       const newList = [...prev];
+  //       newList[index] = {
+  //         ...newList[index],
+  //         lastMsgContent: data.content,
+  //         lastMsgTime: data.createTime,
+  //       };
+  //       // 置顶逻辑
+  //       const [movedItem] = newList.splice(index, 1);
+  //       return [movedItem, ...newList];
+  //     }
+  //     return prev;
+  //   });
+  // });
 
-  const fetchConversationList = async () => {
-    const [err, res] = await to(ipc.GetConversationList({ pagination: { page: 1, pageSize: 50 } }));
-    if (err) {
-      console.error('Failed to fetch conversation list:', err);
-      return;
-    }
-    setConversationList(res.list);
-    console.log(res, 'fetchConversationList');
-  };
+  // return () => removeListener();
+  // }, [userInfo?.id]);
 
-  const fetchLocalMessageHistory = async (conversationId: string) => {
-    const res = await ipc.GetLocalMessageHistory({ conversation_id: conversationId });
-    if (res && res.list) setMessages(res.list);
-  };
+  // useEffect(() => {
+  //   if (selectedConversation) {
+  //     fetchLocalMessageHistory(selectedConversation.id);
+  //     fetchMessageHistory(selectedConversation.id);
+  //     setSelectedUserForDraft(null);
+  //   } else if (!selectedUserForDraft) {
+  //     setMessages([]);
+  //   }
+  // }, [selectedConversation, selectedUserForDraft]);
 
-  const fetchMessageHistory = async (conversationId: string) => {
-    try {
-      const res = await ipc.GetMessageHistory({
-        conversation_id: conversationId,
-        pagination: { page: 1, pageSize: 50 },
-      });
-      setMessages(res.list);
-    } catch (error) {
-      console.error('Failed to fetch message history:', error);
-    }
-  };
+  // const fetchLocalConversationList = async () => {
+  //   const res = await ipc.GetLocalConversationList();
+  //   if (res && res.list) setConversationList(res.list);
+  // };
+
+  // const fetchConversationList = async () => {
+  //   const [err, res] = await to(ipc.GetConversationList({ pagination: { page: 1, pageSize: 50 } }));
+  //   if (err) {
+  //     console.error('Failed to fetch conversation list:', err);
+  //     return;
+  //   }
+  //   setConversationList(res.list);
+  //   console.log(res, 'fetchConversationList');
+  // };
+
+  // const fetchLocalMessageHistory = async (conversationId: string) => {
+  //   const res = await ipc.GetLocalMessageHistory({ conversationId: conversationId });
+  //   if (res && res.list) setMessages(res.list);
+  // };
+
+  // const fetchMessageHistory = async (conversationId: string) => {
+  //   try {
+  //     const res = await ipc.GetMessageHistory({
+  //       conversationId: conversationId,
+  //       pagination: { page: 1, pageSize: 50 },
+  //     });
+  //     setMessages(res.list);
+  //   } catch (error) {
+  //     console.error('Failed to fetch message history:', error);
+  //   }
+  // };
 
   const handleSelectUserFromNewChat = (user: UserTypes.UserListItem) => {
-    const existingConvo = conversationList.find((c) => c.targetId === user.id);
+    const existingConvo = filteredChatList.find((c) => c.targetId === user.id);
     if (existingConvo) {
       setSelectedConversation(existingConvo);
       setSelectedUserForDraft(null);
     } else {
       setSelectedConversation(null);
       setSelectedUserForDraft(user);
-      setMessages([]);
+      setMessageData({ pagination: transformPagination(), list: [] });
     }
   };
-
-  const handleSendMessage = async (e?: React.FormEvent) => {
-    e?.preventDefault();
-    if ((!selectedConversation && !selectedUserForDraft) || !inputMessage.trim()) return;
-
-    let convoId = selectedConversation?.id;
-
-    // 如果是临时会话，先创建
-    if (!convoId && selectedUserForDraft) {
-      try {
-        const newConvo = await ipc.CreateConversation({ targetId: selectedUserForDraft.id });
-        convoId = newConvo.id;
-        setSelectedConversation(newConvo);
-        setSelectedUserForDraft(null);
-        fetchConversationList();
-      } catch (error) {
-        console.error('Failed to create conversation on first message:', error);
-        return;
-      }
-    }
-
-    try {
-      const res = await ipc.SendMessage({
-        conversation_id: convoId!,
-        content: inputMessage,
-        type: 0, // Text
-      });
-      console.log('Sent message:', res);
-      setInputMessage('');
-      setMessages((prev) => [...prev, res]);
-    } catch (error) {
-      console.error('Failed to send message:', error);
-    }
-  };
-
-  // Filtered data based on the search query
-  const filteredChatList = conversationList.filter(({ targetId }) =>
-    targetId?.toLowerCase().includes(search.trim().toLowerCase()),
-  );
-
-  const groupedMessages = messages.reduce((acc: Record<string, MessageInfo[]>, obj) => {
-    const key = dayjs(Number(obj.createTime)).format('D MMM, YYYY');
-    if (!acc[key]) {
-      acc[key] = [];
-    }
-    acc[key].push(obj);
-    return acc;
-  }, {});
-
-  const activeTargetId = selectedConversation?.targetId || selectedUserForDraft?.id || '';
-  const activeTitle = selectedConversation?.targetId || selectedUserForDraft?.nickname || 'Chat';
 
   return (
     <Main fixed className="px-4 py-4 ">
@@ -192,7 +161,20 @@ export function Chats() {
 
           <ScrollArea className="-mx-3 h-full overflow-auto p-3" type="auto">
             {filteredChatList.map((convo) => {
-              const { id, lastMsgContent, lastMsgTime, targetId } = convo;
+              const {
+                id,
+                lastMsgContent,
+                targetId,
+                type,
+                userNickname,
+                userAvatar,
+                groupName,
+                groupAvatar,
+              } = convo;
+              const displayName = type === 1 ? userNickname || targetId : groupName || targetId;
+              const avatarUrl = type === 1 ? userAvatar : groupAvatar;
+              const avatarFallback = displayName?.slice(0, 2).toUpperCase() || '??';
+
               return (
                 <Fragment key={id}>
                   <button
@@ -204,16 +186,16 @@ export function Chats() {
                     )}
                     onClick={() => {
                       setSelectedConversation(convo);
-                      setMobileSelectedConversation(convo);
                       setSelectedUserForDraft(null);
                     }}
                   >
                     <div className="flex gap-2">
                       <Avatar>
-                        <AvatarFallback>{targetId?.slice(0, 2)}</AvatarFallback>
+                        <AvatarImage src={avatarUrl} alt="@shadcn" className="grayscale" />
+                        <AvatarFallback>{avatarFallback}</AvatarFallback>
                       </Avatar>
                       <div>
-                        <span className="col-start-2 row-span-2 font-medium">{targetId}</span>
+                        <span className="col-start-2 row-span-2 font-medium">{displayName}</span>
                         <span className="col-start-2 row-span-2 row-start-2 line-clamp-2 text-ellipsis text-muted-foreground group-hover:text-accent-foreground/90">
                           {lastMsgContent || 'No messages'}
                         </span>
@@ -228,23 +210,21 @@ export function Chats() {
         </div>
 
         {/* Right Side */}
-        {selectedConversation || selectedUserForDraft ? (
+        <RightSide openCreateConversationDialog={setCreateConversationDialog} />
+        {/* {selectedConversation || selectedUserForDraft ? (
           <div
             className={cn(
               'absolute inset-0 start-full z-50 hidden w-full flex-1 flex-col border bg-background shadow-xs sm:static sm:z-auto sm:flex sm:rounded-md',
               (mobileSelectedConversation || selectedUserForDraft) && 'start-0 flex',
             )}
           >
-            {/* Top Part */}
             <div className="mb-1 flex flex-none justify-between bg-card p-4 shadow-lg sm:rounded-t-md">
-              {/* Left */}
               <div className="flex gap-3">
                 <Button
                   size="icon"
                   variant="ghost"
                   className="-ms-2 h-full sm:hidden"
                   onClick={() => {
-                    setMobileSelectedConversation(null);
                     setSelectedUserForDraft(null);
                   }}
                 >
@@ -252,7 +232,18 @@ export function Chats() {
                 </Button>
                 <div className="flex items-center gap-2 lg:gap-4">
                   <Avatar className="size-9 lg:size-11">
-                    <AvatarFallback>{activeTargetId.slice(0, 2)}</AvatarFallback>
+                    <AvatarImage
+                      src={
+                        selectedConversation?.type === 1
+                          ? selectedConversation?.groupAvatar
+                          : selectedConversation?.userAvatar
+                      }
+                      alt="@shadcn"
+                      className="grayscale"
+                    />
+                    <AvatarFallback>
+                      {selectedConversation?.userNickname?.slice(0, 2)}
+                    </AvatarFallback>
                   </Avatar>
                   <div>
                     <span className="col-start-2 row-span-2 text-sm font-medium lg:text-base">
@@ -262,7 +253,6 @@ export function Chats() {
                 </div>
               </div>
 
-              {/* Right */}
               <div className="-me-1 flex items-center gap-1 lg:gap-2">
                 <Button
                   size="icon"
@@ -288,7 +278,6 @@ export function Chats() {
               </div>
             </div>
 
-            {/* Conversation */}
             <div className="flex flex-1 flex-col gap-2 rounded-md px-4 pt-0 pb-4">
               <div className="flex size-full flex-1">
                 <div className="chat-text-container relative -me-4 flex flex-1 flex-col overflow-y-hidden">
@@ -389,7 +378,7 @@ export function Chats() {
               <Button onClick={() => setCreateConversationDialog(true)}>Send message</Button>
             </div>
           </div>
-        )}
+        )} */}
       </section>
       <NewChat
         onSelectUser={handleSelectUserFromNewChat}

@@ -1,5 +1,5 @@
+import { to } from '@c_chat/shared-utils';
 import { HttpClient } from '../httpClient';
-import { to } from 'await-to-js';
 
 export abstract class BaseService {
   protected httpClient: HttpClient;

@@ -4,7 +4,7 @@ import {
   WINDOW_ID,
   db,
 } from '@c_chat/shared-config';
-import { BrowserWindow, BrowserWindowConstructorOptions, shell } from 'electron';
+import { BrowserWindow, shell } from 'electron';
 import { join } from 'path';
 import { env } from '../../utils/env';
 import { storeTableClass } from '@c_chat/electron_client/db';
@@ -16,11 +16,11 @@ export class MainWindowManager {
   private static instance: MainWindowManager;
   private mainWindow: BrowserWindow | null = null;
   private isAuthenticated = false;
-  private authWinOptions: BrowserWindowConstructorOptions = {
+  private authWinOptions = {
     width: 400,
     height: 600,
   };
-  private defaultWinOptions: BrowserWindowConstructorOptions = {
+  private defaultWinOptions = {
     width: 1200,
     height: 800,
     minWidth: 800,
@@ -122,34 +122,20 @@ export class MainWindowManager {
   public applyAuthState(loggedIn: boolean): void {
     this.isAuthenticated = loggedIn;
     if (!this.mainWindow) return;
-
+    this.mainWindow.setResizable(loggedIn);
+    this.mainWindow.setMaximizable(loggedIn);
+    this.mainWindow.setFullScreenable(loggedIn);
     if (loggedIn) {
-      this.mainWindow.setResizable(true);
-      this.mainWindow.setMaximizable(true);
-      this.mainWindow.setFullScreenable(true);
-      this.mainWindow.setMinimumSize(800, 600);
-      this.mainWindow.setSize(1200, 800);
-      this.mainWindow.center();
+      this.mainWindow.setMinimumSize(
+        this.defaultWinOptions.minWidth,
+        this.defaultWinOptions.minHeight,
+      );
+      this.mainWindow.setSize(this.defaultWinOptions.width, this.defaultWinOptions.height);
     } else {
-      this.mainWindow.setResizable(false);
-      this.mainWindow.setMaximizable(false);
-      this.mainWindow.setFullScreenable(false);
-      this.mainWindow.setMinimumSize(600, 600);
-      this.mainWindow.setSize(600, 600);
-      this.mainWindow.center();
+      this.mainWindow.setSize(this.authWinOptions.width, this.authWinOptions.height);
     }
+    this.mainWindow.center();
   }
-  /** 自动登录 */
-  // autoSignIn(accessToken: string) {
-  //   if (!!accessToken) {
-  //     ApiClient.instance.setAuthHeader(accessToken);
-  //     /** 初始化socket连接 */
-
-  //     if (this.mainWindow) {
-  //       socketService.init(this.mainWindow, accessToken);
-  //     }
-  //   }
-  // }
 
   static sendWebContentEvent(
     channel: keyof WebContentEvents,
