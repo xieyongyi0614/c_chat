@@ -43,20 +43,6 @@ export function UserAuthForm({ className, redirectTo, ...props }: UserAuthFormPr
   const { setUserInfo } = useUserStore();
   const { loading, run: signInRun } = useRequest(ipc.SignIn, {
     manual: true,
-    onSuccess: async (data) => {
-      console.log('登录成功', data);
-      if (!data?.id) {
-        toast.error('登录失败');
-        return;
-      }
-      setUserInfo(data);
-      toast.success('登录成功');
-      navigate('/', { replace: true });
-    },
-    onError: (err) => {
-      console.log('登录失败', err);
-      toast.error('登录失败' + err.message);
-    },
   });
 
   // const { auth } = useAuthStore();

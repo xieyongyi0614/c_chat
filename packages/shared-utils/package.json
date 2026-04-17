@@ -21,6 +21,7 @@
   "dependencies": {
     "@c_chat/shared-config": "workspace:^",
     "@c_chat/shared-types": "workspace:^",
+    "@c_chat/shared-protobuf": "workspace:^",
     "await-to-js": "^3.0.0"
   },
   "devDependencies": {

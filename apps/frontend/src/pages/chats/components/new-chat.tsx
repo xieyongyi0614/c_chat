@@ -14,11 +14,14 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  Avatar,
+  AvatarImage,
+  AvatarFallback,
 } from '@c_chat/ui';
 import { type ChatUser } from '../data/chat-types';
-import { ipc } from '@c_chat/shared-utils';
-import type { SocketTypes, UserTypes } from '@c_chat/shared-types';
-import { randomUserAvatar } from '@c_chat/frontend/utils/randomUserAvatar';
+import { ipc, to } from '@c_chat/shared-utils';
+import type { IpcTypes, UserTypes } from '@c_chat/shared-types';
+import { toast } from 'sonner';
 
 type User = Omit<ChatUser, 'messages'>;
 
@@ -28,8 +31,8 @@ type NewChatProps = {
   onSelectUser: (user: UserTypes.UserListItem) => void;
 };
 export function NewChat({ onOpenChange, open, onSelectUser }: NewChatProps) {
-  const [selectedUsers, setSelectedUsers] = useState<User[]>([]);
-  const [userList, setUserList] = useState<SocketTypes.ResponseList<UserTypes.UserListItem>>();
+  const [userListData, setUserListData] = useState<Awaited<ReturnType<IpcTypes['GetUserList']>>>();
+  const [selectedUsers, setSelectedUsers] = useState<UserTypes.UserListItem[]>([]);
   useEffect(() => {
     if (open) {
       getUserList();
@@ -37,17 +40,23 @@ export function NewChat({ onOpenChange, open, onSelectUser }: NewChatProps) {
   }, [open]);
 
   const getUserList = async () => {
-    const res = await ipc.GetUserList({ word: '' });
-    console.log(res, 'userList');
-    setUserList(res);
+    const [err, res] = await to(ipc.GetUserList({ word: '' }));
+    if (err) {
+      toast.error('获取用户列表失败');
+      return;
+    }
+    setUserListData(res);
   };
   const handleSelectUser = async (user: UserTypes.UserListItem) => {
-    onSelectUser(user);
-    onOpenChange(false);
+    // onSelectUser(user);
+    // onOpenChange(false);
+    setSelectedUsers((p) =>
+      p.some((u) => u.id === user.id) ? p.filter((u) => u.id !== user.id) : [...p, user],
+    );
   };
 
   const handleRemoveUser = (userId: string) => {
-    setSelectedUsers(selectedUsers.filter((user) => user.id !== userId));
+    setSelectedUsers((p) => p.filter((user) => user.id !== userId));
   };
 
   const handleOpenChange = (newOpen: boolean) => {
@@ -56,6 +65,16 @@ export function NewChat({ onOpenChange, open, onSelectUser }: NewChatProps) {
     if (!newOpen) {
       setSelectedUsers([]);
     }
+  };
+  const handleSubmit = () => {
+    /** 群聊 */
+    if (selectedUsers.length > 1) {
+      toast.error('群聊暂未处理');
+    } else {
+      onSelectUser(selectedUsers[0]);
+    }
+    onOpenChange(false);
+    setSelectedUsers([]);
   };
 
   return (
@@ -68,19 +87,9 @@ export function NewChat({ onOpenChange, open, onSelectUser }: NewChatProps) {
           <div className="flex flex-wrap items-baseline-last gap-2">
             <span className="min-h-6 text-sm text-muted-foreground">To:</span>
             {selectedUsers.map((user) => (
-              <Badge key={user.id} variant="default">
-                {user.fullName}
-                <button
-                  className="ms-1 rounded-full ring-offset-background outline-hidden focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      handleRemoveUser(user.id);
-                    }
-                  }}
-                  onClick={() => handleRemoveUser(user.id)}
-                >
-                  <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
-                </button>
+              <Badge variant="default" key={user.id} onClick={() => handleRemoveUser(user.id)}>
+                {user.nickname ?? user.email}
+                <X data-icon="inline-end" />
               </Badge>
             ))}
           </div>
@@ -89,18 +98,29 @@ export function NewChat({ onOpenChange, open, onSelectUser }: NewChatProps) {
             <CommandList>
               <CommandEmpty>未找到账号。</CommandEmpty>
               <CommandGroup>
-                {userList?.list.map((user) => (
+                {userListData?.list.map((user) => (
                   <CommandItem
                     key={user.id}
                     onSelect={() => handleSelectUser(user)}
                     className="flex items-center justify-between gap-2 hover:bg-accent hover:text-accent-foreground cursor-pointer"
                   >
                     <div className="flex items-center gap-2">
-                      <img
-                        src={user.avatar_url || randomUserAvatar(user.gender)}
+                      {/* <img
+                        src={user.avatarUrl ?? ''}
                         alt={user.nickname || user.email}
                         className="h-8 w-8 rounded-full"
-                      />
+                      /> */}
+
+                      <Avatar>
+                        <AvatarImage
+                          src={user.avatarUrl ?? ''}
+                          alt="@shadcn"
+                          className="grayscale"
+                        />
+                        <AvatarFallback>
+                          {(user.nickname || user.email).slice(0, 2).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
                       <div className="flex flex-col">
                         <span className="text-sm font-medium">{user.nickname}</span>
                         <span className="text-xs text-accent-foreground/70">{user.email}</span>
@@ -113,11 +133,7 @@ export function NewChat({ onOpenChange, open, onSelectUser }: NewChatProps) {
               </CommandGroup>
             </CommandList>
           </Command>
-          <Button
-            variant={'default'}
-            // onClick={() => showSubmittedData(selectedUsers)}
-            disabled={selectedUsers.length === 0}
-          >
+          <Button variant={'default'} onClick={handleSubmit} disabled={selectedUsers.length === 0}>
             Chat
           </Button>
         </div>

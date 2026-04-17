@@ -2,6 +2,7 @@ syntax = "proto3";
 
 // 错误返回基类
 message ErrorResult {
-  string errorMessage = 1;     
-  string timestamp = 2; 
+  int32 errorCode = 1;
+  string errorMessage = 2;     
+  string timestamp = 3; 
 }

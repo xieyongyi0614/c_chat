@@ -15,6 +15,7 @@
   },
   "devDependencies": {
     "@c_chat/shared-config": "workspace:*",
+    "@c_chat/shared-protobuf": "workspace:^",
     "typescript": "latest",
     "vite": "^8.0.0",
     "vite-plugin-dts": "^4.5.4"

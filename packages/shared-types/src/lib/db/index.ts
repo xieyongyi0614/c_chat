@@ -1,4 +1,6 @@
 export * from './storeTable';
+export * from './ConversationTable';
+export * from './MessageTable';
 
 /**
  * TableConnection 定位参数类型

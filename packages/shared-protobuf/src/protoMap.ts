@@ -13,6 +13,7 @@ import {
   ErrorResult,
 } from '.';
 
+/** 通用 */
 export const SOCKET_PROTO_EVENT = {
   ping: 'ping',
   getUserInfo: 'getUserInfo',
@@ -84,3 +85,4 @@ export const serviceDecodeProtoMap = {
   [SOCKET_PROTO_EVENT.getConversationList]: GetConversationListRequest,
   [SOCKET_PROTO_EVENT.getMessageHistory]: GetMessageHistoryRequest,
 };
+export type ServiceDecodeProtoMapKey = keyof typeof serviceDecodeProtoMap;

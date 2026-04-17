@@ -2,8 +2,7 @@ import { io, Socket } from 'socket.io-client';
 import { BrowserWindow } from 'electron';
 import logger from '../logger';
 import { storeTableClass } from '@c_chat/electron_client/db';
-import { db, ELECTRON_TO_CLIENT_CHANNELS } from '@c_chat/shared-config';
-import { MainWindowManager } from '@c_chat/electron_client/main/windows/mainWindow';
+import { db, ELECTRON_TO_CLIENT_CHANNELS, SOCKET_ERROR_CODE } from '@c_chat/shared-config';
 import { MessageHandler } from './message.handler';
 import { SOCKET_PROTO_EVENT } from '@c_chat/shared-protobuf/protoMap';
 import { WebContentEvents } from '@c_chat/shared-types';
@@ -53,6 +52,10 @@ export class SocketService extends MessageHandler {
 
     this.windowId = windowId;
     this.setupIpcHandlers();
+  }
+
+  public getUserInfo() {
+    return storeTableClass.getUserInfo(this.windowId);
   }
 
   public static getInstance(): SocketService {
@@ -135,11 +138,11 @@ export class SocketService extends MessageHandler {
     this.socket.on('message', this.dispatch.bind(this));
 
     /** 连接socket认证失败 */
-    this.socket.on('auth_error', (data) => {
-      console.log('auth_error', data);
-      MainWindowManager.showToast('error', data.message);
-      this.socket?.disconnect();
-    });
+    // this.socket.on('auth_error', (data) => {
+    //   console.log('auth_error', data);
+    //   MainWindowManager.showToast('error', data.message);
+    //   this.socket?.disconnect();
+    // });
   }
 
   /** 设置ping定时器 */
@@ -190,10 +193,9 @@ export class SocketService extends MessageHandler {
 
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
       logger.error('[Socket] Max reconnection attempts reached. Giving up.');
-      this.sendToRenderer(ELECTRON_TO_CLIENT_CHANNELS.SocketError, {
-        code: 'MAX_RECONNECT',
-        message: 'Failed to reconnect after multiple attempts',
-        timestamp: Date.now(),
+      this.sendToRenderer(ELECTRON_TO_CLIENT_CHANNELS.ERROR, {
+        errorCode: SOCKET_ERROR_CODE.UNKNOWN,
+        errorMessage: 'Failed to reconnect after multiple attempts',
       });
       return;
     }
@@ -220,13 +222,10 @@ export class SocketService extends MessageHandler {
   }
 
   private handleConnectError(error: Error): void {
-    const socketError = {
-      code: error.name || 'CONNECTION_ERROR',
-      message: error.message,
-      timestamp: Date.now(),
-    };
-
-    this.sendToRenderer(ELECTRON_TO_CLIENT_CHANNELS.SocketError, socketError);
+    this.sendToRenderer(ELECTRON_TO_CLIENT_CHANNELS.ERROR, {
+      errorCode: SOCKET_ERROR_CODE.INTERNAL_ERROR,
+      errorMessage: error.message,
+    });
 
     if (this.reconnectAttempts < this.maxReconnectAttempts) {
       this.scheduleReconnect();

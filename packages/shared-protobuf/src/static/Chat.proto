@@ -17,6 +17,9 @@ message ConversationInfo {
   optional int64 last_msg_time = 5;
   int64 update_time = 6;
   int64 create_time = 7;
+  optional UserInfo user = 8; // 私聊时对方的用户信息
+  optional string group_name = 9; // 群聊时群名称
+  optional string group_avatar = 10; // 群聊时群头像
 }
 
 // 发送消息请求
@@ -24,6 +27,7 @@ message SendMessageRequest {
   string conversation_id = 1;
   string content = 2;
   int32 type = 3; // 0:文本, 1:图片, 2:文件, 3:音频, 4:视频
+  optional string target_id = 4; // 私聊可选：对方 ID，用于首条消息自动创建会话
 }
 
 // 消息信息

@@ -1,6 +1,7 @@
 import { AuthPreloadTypes } from './authPreloadTypes';
 import { ChatPreloadTypes } from './chatPreloadTypes';
 export * from './authPreloadTypes';
+export * from './chatPreloadTypes';
 
 export type IpcMethod<P = any, R = any> = (params: P) => Promise<R>;
 

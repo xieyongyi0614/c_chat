@@ -1,4 +1,5 @@
-import { SocketTypes } from '../../socket.types';
+import { UserInfo } from '@c_chat/shared-protobuf';
+
 export namespace AuthTypes {
   export interface PostSignInParams {
     email: string;
@@ -30,22 +31,20 @@ export namespace AuthTypes {
 }
 
 export namespace UserTypes {
-  export interface GetUserListParams extends SocketTypes.RequestPagination {
-    word?: string;
-  }
-  export interface UserListItem {
-    id: string;
-    email: string;
-    phone: string | null;
-    nickname: string | null;
-    avatar_url: string | null;
-    gender: number;
-    state: number;
-    birthday: Date | null;
-    signature: string | null;
-    location: string | null;
-    background_wall: string | null;
-    update_time: Date;
-    create_time: Date;
-  }
+  // export interface UserListItem {
+  //   id: string;
+  //   email: string;
+  //   phone: string | null;
+  //   nickname: string | null;
+  //   avatar_url: string | null;
+  //   gender: number;
+  //   state: number;
+  //   birthday: Date | null;
+  //   signature: string | null;
+  //   location: string | null;
+  //   background_wall: string | null;
+  //   update_time: Date;
+  //   create_time: Date;
+  // }
+  export type UserListItem = Omit<UserInfo, 'toJSON'>;
 }

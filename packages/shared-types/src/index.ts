@@ -9,3 +9,5 @@ export * from './lib/db';
 export * from './lib/ipc/webContentEvent';
 
 export * from './lib/socket.types';
+
+export * from './utils';
