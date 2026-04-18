@@ -18,12 +18,9 @@ import {
   AvatarImage,
   AvatarFallback,
 } from '@c_chat/ui';
-import { type ChatUser } from '../data/chat-types';
 import { ipc, to } from '@c_chat/shared-utils';
 import type { IpcTypes, UserTypes } from '@c_chat/shared-types';
 import { toast } from 'sonner';
-
-type User = Omit<ChatUser, 'messages'>;
 
 type NewChatProps = {
   open: boolean;

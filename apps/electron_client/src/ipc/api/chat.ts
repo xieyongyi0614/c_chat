@@ -128,15 +128,64 @@ addActionHandler('GetConversationList', async (data) => {
 addActionHandler('SendMessage', async (data) => {
   const params = omitActionCtx(data);
 
+  // 检查是否提供了有效的 conversationId
+  let conversationId = params.conversationId;
+
+  // 如果没有 conversationId 但有 targetId，则尝试创建会话
+  if (!conversationId && params.targetId) {
+    // 尝试创建新的对话
+    const [err, res] = await to(
+      socketService.genericRequest(
+        SOCKET_PROTO_EVENT.createConversation,
+        CreateConversationRequest.encode(
+          CreateConversationRequest.create({ targetId: params.targetId }),
+        ).finish(),
+      ),
+    );
+
+    if (err) {
+      console.error('创建会话失败:', err);
+      throw err;
+    }
+
+    // 更新会话ID为新创建的会话
+    conversationId = res.id;
+
+    // 将新创建的会话信息存储到本地数据库
+    const newConvo = {
+      id: res.id,
+      type: res.type,
+      targetId: res.targetId,
+      lastMsgContent: res.lastMsgContent ?? '',
+      lastMsgTime: Number(res.lastMsgContent ?? 0),
+      updateTime: Number(res.updateTime ?? 0),
+      createTime: Number(res.createTime ?? 0),
+      userNickname: res.user?.nickname ?? '',
+      userAvatar: res.user?.avatarUrl ?? '',
+      groupName: res.groupName ?? '',
+      groupAvatar: res.groupAvatar ?? '',
+    };
+    conversationTableClass.upsertConversations([newConvo]);
+  } else if (!conversationId) {
+    // 如果既没有 conversationId 也没有 targetId，则无法发送消息
+    throw new Error('No valid conversationId or targetId provided');
+  }
+
+  // 使用实际的会话ID继续发送消息
+  const actualParams = {
+    ...params,
+    conversationId,
+  };
+
   // 1. 存入本地，状态为发送中 (乐观更新)
   const tempId = `temp_${Date.now()}`;
   const senderInfo = socketService.getUserInfo();
   const tempMsg = {
     id: tempId,
     senderId: senderInfo?.id || '',
-    conversationId: params.conversationId,
-    content: params.content,
-    type: params.type || 0,
+    conversationId: actualParams.conversationId,
+    content: actualParams.content,
+    type: actualParams.type || 0,
     state: 1, // sending
     createTime: Date.now(),
     updateTime: Date.now(),
@@ -147,7 +196,7 @@ addActionHandler('SendMessage', async (data) => {
     // 2. 发送到线上
     const res = await socketService.genericRequest(
       SOCKET_PROTO_EVENT.sendMessage,
-      SendMessageRequest.encode(SendMessageRequest.create(params)).finish(),
+      SendMessageRequest.encode(SendMessageRequest.create(actualParams)).finish(),
     );
 
     // 3. 成功后删除临时消息并插入真实消息
@@ -169,14 +218,15 @@ addActionHandler('SendMessage', async (data) => {
       // 同时更新会话的最后一条消息快照
       const convo = conversationTableClass.getConversation(res.conversationId);
       if (convo) {
-        conversationTableClass.upsertConversations([
-          {
-            ...convo,
-            lastMsgContent: res.content,
-            lastMsgTime: Number(res.createTime),
-            updateTime: Number(res.updateTime),
-          },
-        ]);
+        const updatedConvo = {
+          ...convo,
+          lastMsgContent: res.content,
+          lastMsgTime: Number(res.createTime),
+          updateTime: Number(res.updateTime),
+        };
+
+        // 更新本地数据库中的会话信息
+        conversationTableClass.upsertConversations([updatedConvo]);
       }
     }
     return res;
@@ -212,6 +262,8 @@ addActionHandler('GetMessageHistory', async (data) => {
     res.list?.map((msg) => ({
       ...(msg as RequiredNonNullable<typeof msg>),
       state: 0,
+      updateTime: Number(msg.updateTime),
+      createTime: Number(msg.createTime),
     })) ?? [];
   if (records.length > 0) {
     messageTableClass.upsertMessages(records);

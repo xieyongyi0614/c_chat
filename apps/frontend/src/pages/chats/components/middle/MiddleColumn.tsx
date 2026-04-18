@@ -1,5 +1,5 @@
 import { memo, useState } from 'react';
-import EmptyConversation from './emptyConversation';
+import EmptyConversation from './EmptyConversation';
 import { useChatStore } from '@c_chat/frontend/stores';
 import { Avatar, AvatarFallback, AvatarImage, Button, cn } from '@c_chat/ui';
 import {
@@ -14,17 +14,24 @@ import {
 } from 'lucide-react';
 import { ipc, to } from '@c_chat/shared-utils';
 import { toast } from 'sonner';
-import HistoryMessageList from './HistoryMessageList';
+import HistoryMessageList from './MessageHistoryList';
+import { ConversationTypeEnum } from '@c_chat/shared-types';
 
 interface RightSideProps {
   openCreateConversationDialog: (open: boolean) => void;
 }
 
-const RightSide = (props: RightSideProps) => {
+const MiddleColumn = (props: RightSideProps) => {
   const { openCreateConversationDialog } = props;
 
-  const { selectedConversation, selectedUserForDraft, setSelectedUserForDraft, setMessageData } =
-    useChatStore();
+  const {
+    selectedConversation,
+    selectedUserForDraft,
+    setSelectedUserForDraft,
+    setMessageData,
+    setSelectedConversation,
+    setConversationData,
+  } = useChatStore();
 
   // const [messageData, setMessageData] = useState<MessageInfo[]>([]);
 
@@ -44,48 +51,82 @@ const RightSide = (props: RightSideProps) => {
   const handleSendMessage = async (e?: React.FormEvent) => {
     e?.preventDefault();
     if ((!selectedConversation && !selectedUserForDraft) || !inputMessage.trim()) return;
-    const convoId = selectedConversation?.id;
-    // 如果是临时会话，先创建
-    if (!convoId && selectedUserForDraft) {
-      try {
-        const [err, res] = await to(ipc.CreateConversation({ targetId: selectedUserForDraft.id }));
-        if (err) {
-          toast.error('Failed to create conversation');
-          return;
-        }
-        console.log(res, 'handleSendMessage CreateConversation');
-        // const newConvo: ConversationInfo = {
-        //   id: newConvoRaw.id,
-        //   type: newConvoRaw.type,
-        //   targetId: newConvoRaw.target_id,
-        //   lastMsgContent: newConvoRaw.last_msg_content ?? '',
-        //   lastMsgTime: Number(newConvoRaw.last_msg_time ?? 0),
-        //   updateTime: Number(newConvoRaw.update_time ?? 0),
-        //   createTime: Number(newConvoRaw.create_time ?? 0),
-        //   userNickname: newConvoRaw.user?.nickname,
-        //   userAvatar: newConvoRaw.user?.avatarUrl,
-        //   groupName: newConvoRaw.group_name,
-        //   groupAvatar: newConvoRaw.group_avatar,
-        // };
-        // convoId = newConvo.id;
-        // setSelectedConversation(newConvo);
-        // setSelectedUserForDraft(null);
-      } catch (error) {
-        console.error('Failed to create conversation on first message:', error);
-        return;
-      }
+    const isDraft = selectedUserForDraft && !selectedConversation;
+
+    const type = isDraft ? ConversationTypeEnum.Single : selectedConversation?.type;
+    const sendMessageParams = {
+      content: inputMessage,
+      type: type ?? ConversationTypeEnum.Single,
+      ...(isDraft
+        ? { targetId: selectedUserForDraft?.id }
+        : { conversationId: selectedConversation?.id }),
+    };
+
+    const [err, res] = await to(ipc.SendMessage(sendMessageParams));
+    console.log('Sent message:', res);
+    if (err) {
+      console.error('Failed to send message:', err);
+      toast.error('发送消息失败');
+      return;
     }
-    try {
-      const res = await ipc.SendMessage({
-        conversationId: convoId!,
-        content: inputMessage,
-        type: 0, // Text
+
+    setInputMessage('');
+
+    setMessageData((prev) => ({ ...prev, list: [...prev.list, res] }));
+
+    if (isDraft && res.conversationId) {
+      const newConvo = {
+        id: res.conversationId,
+        type: res.type ?? ConversationTypeEnum.Single,
+        targetId: selectedUserForDraft.id,
+        lastMsgContent: inputMessage,
+        lastMsgTime: Date.now(),
+        updateTime: Date.now(),
+        createTime: Date.now(),
+        userNickname: selectedUserForDraft.nickname ?? '',
+        userAvatar: selectedUserForDraft.avatarUrl ?? '',
+        groupName: undefined,
+        groupAvatar: undefined,
+      };
+
+      setSelectedConversation(newConvo);
+      setSelectedUserForDraft(null);
+
+      setConversationData((p) => {
+        const i = p.list.findIndex((c) => c.id === newConvo.id);
+        if (i === -1) {
+          return { ...p, list: [newConvo, ...p.list] };
+        } else {
+          const updateList = [...p.list];
+          updateList[i] = newConvo;
+          return { ...p, list: updateList };
+        }
       });
-      console.log('Sent message:', res);
-      setInputMessage('');
-      setMessageData((prev) => ({ ...prev, list: [...prev.list, res] }));
-    } catch (error) {
-      console.error('Failed to send message:', error);
+      return;
+    }
+
+    // 如果是现有会话发送消息，更新会话列表中的该项
+    if (selectedConversation && res.conversationId === selectedConversation.id) {
+      const updatedConvo = {
+        ...selectedConversation,
+        lastMsgContent: inputMessage,
+        lastMsgTime: res.createTime,
+        updateTime: res.createTime,
+      };
+
+      // 更新会话列表中的该项
+      setConversationData((p) => {
+        const i = p.list.findIndex((c) => c.id === updatedConvo.id);
+        if (i !== -1) {
+          const updateList = [...p.list];
+          updateList[i] = updatedConvo;
+          return { ...p, list: updateList };
+        }
+        return p;
+      });
+
+      // 同时更新选中的会话状态
+      setSelectedConversation(updatedConvo);
     }
   };
 
@@ -127,7 +168,9 @@ const RightSide = (props: RightSideProps) => {
                 alt="@shadcn"
                 className="grayscale"
               />
-              <AvatarFallback>{selectedConversation?.userNickname?.slice(0, 2)}</AvatarFallback>
+              <AvatarFallback>
+                {selectedConversation?.userNickname?.toUpperCase()?.slice(0, 2)}
+              </AvatarFallback>
             </Avatar>
             <div>
               <span className="col-start-2 row-span-2 text-sm font-medium lg:text-base">
@@ -212,4 +255,4 @@ const RightSide = (props: RightSideProps) => {
   );
 };
 
-export default memo(RightSide);
+export default memo(MiddleColumn);

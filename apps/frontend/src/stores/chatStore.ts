@@ -6,47 +6,57 @@ import type {
   UserTypes,
 } from '@c_chat/shared-types';
 import { DEFAULT_LIST_DATA } from '@c_chat/shared-config';
+type SetStateType<T> = (data?: T | ((state: T) => T)) => void;
 
-export interface ChatState {
+interface ChatStoreData {
   conversationData: SocketTypes.ResponseList<LocalConversationListItem>;
   selectedConversation: LocalConversationListItem | null;
   selectedUserForDraft: UserTypes.UserListItem | null;
   messageData: SocketTypes.ResponseList<LocalMessageListItem>;
-  setConversationData: (data: ChatState['conversationData']) => void;
-  setSelectedConversation: (data?: ChatState['selectedConversation']) => void;
-  setSelectedUserForDraft: (data?: ChatState['selectedUserForDraft']) => void;
-  setMessageData: (
-    data?:
-      | ChatState['messageData']
-      | ((state: ChatState['messageData']) => ChatState['messageData']),
-  ) => void;
 }
 
-/** 全局状态 */
-export const useChatStore = create<ChatState>((set) => ({
-  conversationData: DEFAULT_LIST_DATA,
-  messageData: DEFAULT_LIST_DATA,
-  selectedConversation: null,
-  selectedUserForDraft: null,
+export interface ChatStoreType extends ChatStoreData {
+  setConversationData: SetStateType<ChatStoreData['conversationData']>;
+  setSelectedConversation: SetStateType<ChatStoreData['selectedConversation']>;
+  setSelectedUserForDraft: SetStateType<ChatStoreData['selectedUserForDraft']>;
+  setMessageData: SetStateType<ChatStoreData['messageData']>;
+}
 
-  setConversationData(data) {
-    set({ conversationData: data });
-  },
-  setSelectedConversation(data) {
-    set({ selectedConversation: data });
-  },
-  setSelectedUserForDraft(data) {
-    set({ selectedUserForDraft: data ?? null, ...(data && { selectedConversation: null }) });
-  },
-  setMessageData(data) {
-    if (!data) {
-      set({ messageData: DEFAULT_LIST_DATA });
-      return;
-    }
+type SetData = <T extends keyof ChatStoreData>(
+  key: T,
+  data: Parameters<SetStateType<ChatStoreData[T]>>[0],
+) => void;
+
+/** 全局状态 */
+export const useChatStore = create<ChatStoreType>((set) => {
+  const setData: SetData = (key, data) => {
     if (data instanceof Function) {
-      set((state) => ({ messageData: data(state.messageData) }));
+      set((state) => ({ [key]: data(state[key]) }));
       return;
     }
-    set({ messageData: data });
-  },
-}));
+    set({ [key]: data });
+  };
+
+  return {
+    conversationData: DEFAULT_LIST_DATA,
+    messageData: DEFAULT_LIST_DATA,
+    selectedConversation: null,
+    selectedUserForDraft: null,
+
+    setConversationData(data) {
+      setData('conversationData', data);
+    },
+    setSelectedConversation(data) {
+      setData('selectedConversation', data);
+    },
+    setSelectedUserForDraft(data) {
+      setData('selectedUserForDraft', data ?? null);
+      if (data) {
+        setData('selectedConversation', null);
+      }
+    },
+    setMessageData(data = DEFAULT_LIST_DATA) {
+      setData('messageData', data);
+    },
+  };
+});

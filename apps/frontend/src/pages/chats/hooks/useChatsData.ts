@@ -1,22 +1,13 @@
 import { useChatStore, useUserStore } from '@c_chat/frontend/stores';
 import type { GetConversationListParams } from '@c_chat/shared-types';
 import { ipc, to, transformListParams } from '@c_chat/shared-utils';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect } from 'react';
 import { toast } from 'sonner';
 
 export const useChatsData = () => {
   const { userInfo } = useUserStore();
   const { conversationData, setConversationData, selectedConversation, setMessageData } =
     useChatStore();
-  const [search, setSearch] = useState('');
-
-  const filteredChatList = useMemo(() => {
-    const keyword = search.trim().toLowerCase();
-    if (!keyword) return conversationData.list;
-    return (
-      conversationData.list.filter((item) => item.targetId.toLowerCase().includes(keyword)) ?? []
-    );
-  }, [conversationData.list, search]);
 
   const fetchConversationData = async (params?: GetConversationListParams) => {
     const newParams = transformListParams(params);
@@ -40,8 +31,7 @@ export const useChatsData = () => {
       toast.error('获取本地消息失败');
       return;
     }
-    console.log(err, res, 'fetchLocalMessageHistory');
-    // if (res && res.list) setMessages(res.list);
+    console.log(err, 'fetchLocalMessageHistory');
     setMessageData(res);
   };
 
@@ -115,18 +105,12 @@ export const useChatsData = () => {
     if (selectedConversation) {
       fetchLocalMessageHistory(selectedConversation.id);
       fetchMessageHistory(selectedConversation.id);
-      // setSelectedUserForDraft(null);
     }
-    // else if (!selectedUserForDraft) {
-    //   setMessages([]);
-    // }
-  }, [selectedConversation]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedConversation?.id]);
 
   return {
     conversationData,
-    filteredChatList,
     fetchConversationData,
-    search,
-    setSearch,
   };
 };
