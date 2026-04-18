@@ -1,6 +1,11 @@
+export enum ConversationTypeEnum {
+  Single = 1,
+  Group = 2,
+}
+
 export interface LocalConversationListItem {
   id: string;
-  type: number;
+  type: ConversationTypeEnum;
   targetId: string;
   lastMsgContent: string;
   lastMsgTime: number;

@@ -9,8 +9,15 @@ export type GetConversationListParams = SocketTypes.RequestListParams;
 export type GetLocalConversationListParams = SocketTypes.RequestListParams;
 export type GetMessageHistoryParams = SocketTypes.RequestListParams & { conversationId: string };
 
+export type SendMessageParams = {
+  conversationId?: string;
+  targetId?: string;
+  content: string;
+  type: number;
+};
+
 export interface ChatPreloadTypes {
-  CreateConversation: IpcMethod<CreateConversationParams, any>;
+  CreateConversation: IpcMethod<CreateConversationParams, LocalConversationListItem>;
   GetConversationList: IpcMethod<
     GetConversationListParams,
     SocketTypes.ResponseList<LocalConversationListItem>
@@ -27,5 +34,5 @@ export interface ChatPreloadTypes {
     GetMessageHistoryParams,
     SocketTypes.ResponseList<LocalMessageListItem>
   >;
-  SendMessage: IpcMethod<any, any>;
+  SendMessage: IpcMethod<SendMessageParams, LocalMessageListItem>;
 }
