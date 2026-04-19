@@ -16,17 +16,12 @@ export interface ClientToServerEvents {
   message: (data: Uint8Array<ArrayBufferLike>) => void;
 }
 
-// export interface SocketError {
-//   code: string;
-//   message: string;
-//   timestamp: number;
-// }
-
 export type CChatSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 
+/**
+ * Socket服务类 - 每个窗口独立的socket连接
+ */
 export class SocketService extends MessageHandler {
-  protected windowId = db.DEFAULT_WINDOW_ID;
-  private static instance: SocketService;
   private socket: CChatSocket | null = null;
 
   private mainWindow: BrowserWindow | null = null;
@@ -47,22 +42,12 @@ export class SocketService extends MessageHandler {
   // 固定重连延迟 5秒
   private readonly RECONNECT_DELAY = 5000;
 
-  private constructor(windowId = db.DEFAULT_WINDOW_ID) {
+  constructor(windowId: number) {
     super(windowId);
-
-    this.windowId = windowId;
-    this.setupIpcHandlers();
   }
 
   public getUserInfo() {
     return storeTableClass.getUserInfo(this.windowId);
-  }
-
-  public static getInstance(): SocketService {
-    if (!SocketService.instance) {
-      SocketService.instance = new SocketService();
-    }
-    return SocketService.instance;
   }
 
   async init(mainWindow: BrowserWindow) {
@@ -73,10 +58,15 @@ export class SocketService extends MessageHandler {
 
   async connect(url: string, mainWindow: BrowserWindow | null = null) {
     this.destroy();
-    logger.info(`[Socket] Connecting to ${url}`);
+    logger.info(`[Socket ${this.windowId}] Connecting to ${url}`);
+
     if (!this.accessToken) {
       const accessToken = storeTableClass.getAccessToken(this.windowId);
-      if (!accessToken) return;
+      if (!accessToken) {
+        const error = new Error('No access token found');
+        logger.error(`[Socket ${this.windowId}] ${error.message}`);
+        throw error;
+      }
       this.accessToken = accessToken;
     }
 
@@ -90,7 +80,7 @@ export class SocketService extends MessageHandler {
     // 连接超时保护
     const timeout = setTimeout(() => {
       if (this.socket && !this.socket.connected) {
-        logger.error('[Socket] Initial connection timeout');
+        logger.error(`[Socket ${this.windowId}] Initial connection timeout`);
         const error = new Error('Connection timeout');
         this.handleConnectError(error);
         return;
@@ -102,7 +92,7 @@ export class SocketService extends MessageHandler {
       if (timeout) clearTimeout(timeout);
       this.reconnectAttempts = 0;
       this.isReconnecting = false;
-      logger.success(`[Socket] 连接成功. ID: ${this.socket?.id}`);
+      logger.success(`[Socket ${this.windowId}] 连接成功. ID: ${this.socket?.id}`);
       this.setupPingTimer();
 
       this.subscribeToEvent(SOCKET_PROTO_EVENT.ping, () => {
@@ -118,7 +108,7 @@ export class SocketService extends MessageHandler {
     /** 断开连接 */
     this.socket.on('disconnect', (reason) => {
       this.rejectAllWaiters(new Error(`Socket 断开: ${reason}`));
-      logger.warn(`[Socket] Disconnected: ${reason}`);
+      logger.warn(`[Socket ${this.windowId}] Disconnected: ${reason}`);
       this.sendToRenderer(ELECTRON_TO_CLIENT_CHANNELS.SocketDisconnected, reason);
 
       /** 非主动断开时尝试重连 */
@@ -129,7 +119,7 @@ export class SocketService extends MessageHandler {
 
     /** 连接错误 */
     this.socket.on('connect_error', (error) => {
-      logger.error(`[Socket] Connect error: ${error.message}`);
+      logger.error(`[Socket ${this.windowId}] Connect error: ${error.message}`);
       this.isReconnecting = false;
       this.handleConnectError(error);
     });
@@ -192,7 +182,7 @@ export class SocketService extends MessageHandler {
     if (this.isReconnecting) return;
 
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      logger.error('[Socket] Max reconnection attempts reached. Giving up.');
+      logger.error(`[Socket ${this.windowId}] Max reconnection attempts reached. Giving up.`);
       this.sendToRenderer(ELECTRON_TO_CLIENT_CHANNELS.ERROR, {
         errorCode: SOCKET_ERROR_CODE.UNKNOWN,
         errorMessage: 'Failed to reconnect after multiple attempts',
@@ -205,7 +195,7 @@ export class SocketService extends MessageHandler {
     this.reconnectAttempts++;
 
     logger.info(
-      `[Socket] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`,
+      `[Socket ${this.windowId}] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`,
     );
     this.sendToRenderer(ELECTRON_TO_CLIENT_CHANNELS.SocketReconnecting, {
       attempt: this.reconnectAttempts,
@@ -271,7 +261,7 @@ export class SocketService extends MessageHandler {
   public disconnect(): void {
     if (this.socket) {
       this.socket.disconnect();
-      logger.info('[Socket] Disconnected manually');
+      logger.info(`[Socket ${this.windowId}] Disconnected manually`);
     }
   }
 
@@ -290,13 +280,21 @@ export class SocketService extends MessageHandler {
       this.socket = null;
     }
 
-    // 清理 IPC 监听（防止内存泄漏）
-    // ipcMain.removeAllListeners('socket-emit');
-    // ipcMain.removeHandler('socket-get-state');
+    // 清理定时器
+    if (this.pingTimerId) {
+      clearInterval(this.pingTimerId);
+      this.pingTimerId = undefined;
+    }
+    if (this.reconnectTimerId) {
+      clearTimeout(this.reconnectTimerId);
+      this.reconnectTimerId = undefined;
+    }
 
     this.mainWindow = null;
     this.accessToken = null;
-    logger.info('[Socket] Service destroyed');
+    this.isReconnecting = false;
+    this.reconnectAttempts = 0;
+    logger.info(`[Socket ${this.windowId}] Service destroyed`);
   }
 
   protected getSocket() {
@@ -312,4 +310,92 @@ export class SocketService extends MessageHandler {
   }
 }
 
-export const socketService = SocketService.getInstance();
+/**
+ * Socket管理器 - 管理每个窗口的socket连接
+ */
+export class SocketManager {
+  private static instance: SocketManager;
+  private sockets: Map<number, SocketService> = new Map();
+
+  private constructor() {}
+
+  public static getInstance(): SocketManager {
+    if (!SocketManager.instance) {
+      SocketManager.instance = new SocketManager();
+    }
+    return SocketManager.instance;
+  }
+
+  /**
+   * 获取或创建指定窗口的socket服务
+   * @param windowId 窗口ID
+   */
+  public getSocketService(windowId: number): SocketService {
+    if (!this.sockets.has(windowId)) {
+      this.sockets.set(windowId, new SocketService(windowId));
+    }
+    return this.sockets.get(windowId)!;
+  }
+
+  /**
+   * 初始化指定窗口的socket连接
+   * @param windowId 窗口ID
+   * @param mainWindow 窗口实例
+   */
+  public async initSocket(windowId: number, mainWindow: BrowserWindow): Promise<void> {
+    const socketService = this.getSocketService(windowId);
+    await socketService.init(mainWindow);
+  }
+
+  /**
+   * 销毁指定窗口的socket连接
+   * @param windowId 窗口ID
+   */
+  public destroySocket(windowId: number): void {
+    const socketService = this.sockets.get(windowId);
+    if (socketService) {
+      socketService.destroy();
+      this.sockets.delete(windowId);
+      logger.info(`[SocketManager] Socket for window ${windowId} destroyed`);
+    }
+  }
+
+  /**
+   * 断开指定窗口的socket连接
+   * @param windowId 窗口ID
+   */
+  public disconnectSocket(windowId: number): void {
+    const socketService = this.sockets.get(windowId);
+    if (socketService) {
+      socketService.disconnect();
+    }
+  }
+
+  /**
+   * 销毁所有socket连接
+   */
+  public destroyAll(): void {
+    this.sockets.forEach((socketService, windowId) => {
+      socketService.destroy();
+      logger.info(`[SocketManager] Socket for window ${windowId} destroyed`);
+    });
+    this.sockets.clear();
+  }
+
+  /**
+   * 获取所有socket服务
+   */
+  public getAllSocketServices(): SocketService[] {
+    return Array.from(this.sockets.values());
+  }
+
+  /**
+   * 检查指定窗口是否有socket连接
+   * @param windowId 窗口ID
+   */
+  public hasSocket(windowId: number): boolean {
+    return this.sockets.has(windowId);
+  }
+}
+
+export const socketManager = SocketManager.getInstance();

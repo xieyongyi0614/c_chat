@@ -2,6 +2,7 @@ import { ELECTRON_TO_CLIENT_CHANNELS } from '@c_chat/shared-config';
 import { ErrorResult } from '@c_chat/shared-protobuf';
 import { AuthTypes } from './apiTypes';
 import { SocketTypes } from '../socket.types';
+import { LocalMessageListItem } from '../db';
 type Unsubscribe = () => void;
 export interface WebContentEventType {
   on: <T extends keyof WebContentEvents>(channel: T, callback: WebContentEvents[T]) => Unsubscribe;
@@ -9,7 +10,7 @@ export interface WebContentEventType {
   off: (channel: string, callback: (data: any) => void) => void;
 }
 
-const { SocketConnSuccess, SocketDisconnected, ERROR, SocketReconnecting, Toast } =
+const { SocketConnSuccess, SocketDisconnected, ERROR, SocketReconnecting, Toast, SocketMessage } =
   ELECTRON_TO_CLIENT_CHANNELS;
 
 export interface WebContentEvents {
@@ -17,6 +18,7 @@ export interface WebContentEvents {
   [SocketDisconnected]: (data: any) => void;
   [ERROR]: (error: Partial<Pick<ErrorResult, 'errorCode' | 'errorMessage'>>) => void;
   [SocketReconnecting]: (error: SocketTypes.WebContentEvents.SocketReconnectingType) => void;
+  [SocketMessage]: (data: LocalMessageListItem) => void;
 
   [Toast]: (type: 'success' | 'error' | 'info' | 'warning' | 'loading', message: string) => void;
 }

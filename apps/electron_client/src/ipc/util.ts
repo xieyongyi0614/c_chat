@@ -51,7 +51,9 @@ export type ActionCtx = {
 // }[ParamStrategy<Parameters<IpcTypes[K]>>];
 
 type ActionHandler<K extends keyof IpcTypes> = (
-  params: Parameters<IpcTypes[K]>[0] & ActionCtx,
+  params: Parameters<IpcTypes[K]>['length'] extends 1
+    ? Parameters<IpcTypes[K]>[0] & ActionCtx
+    : ActionCtx,
 ) => ReturnType<IpcTypes[K]>;
 
 type AddActionHandlerType = <K extends keyof IpcTypes>(name: K, handler: ActionHandler<K>) => void;
