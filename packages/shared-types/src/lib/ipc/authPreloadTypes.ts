@@ -1,4 +1,3 @@
-import { IUserInfo, UserInfo } from '@c_chat/shared-protobuf';
 import { AuthTypes, UserTypes } from './apiTypes';
 import { IpcMethod } from './ipcTypes';
 import { SocketTypes } from '../socket.types';

@@ -15,4 +15,5 @@ export interface LocalConversationListItem {
   userAvatar?: string;
   groupName?: string;
   groupAvatar?: string;
+  unreadCount?: number;
 }

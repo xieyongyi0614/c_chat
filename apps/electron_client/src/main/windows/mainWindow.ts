@@ -12,6 +12,10 @@ import { ApiClient } from '@c_chat/electron_client/utils/axios/service/apiServic
 import initOsData from '@c_chat/electron_client/utils/osData';
 import { WebContentEvents } from '@c_chat/shared-types';
 
+/**
+ * 旧版单窗口管理器（兼容用途）
+ * 建议迁移到新的 WindowManager 类
+ */
 export class MainWindowManager {
   private static instance: MainWindowManager;
   private mainWindow: BrowserWindow | null = null;

@@ -20,6 +20,14 @@ export interface ChatStoreType extends ChatStoreData {
   setSelectedConversation: SetStateType<ChatStoreData['selectedConversation']>;
   setSelectedUserForDraft: SetStateType<ChatStoreData['selectedUserForDraft']>;
   setMessageData: SetStateType<ChatStoreData['messageData']>;
+  addMessage: (message: LocalMessageListItem) => void;
+  updateConversationSnapshot: (
+    conversationId: string,
+    lastMsgContent: string,
+    lastMsgTime: number,
+  ) => void;
+  increaseUnreadCount: (conversationId: string) => void;
+  clearUnreadCount: (conversationId: string) => void;
 }
 
 type SetData = <T extends keyof ChatStoreData>(
@@ -57,6 +65,52 @@ export const useChatStore = create<ChatStoreType>((set) => {
     },
     setMessageData(data = DEFAULT_LIST_DATA) {
       setData('messageData', data);
+    },
+    addMessage(message) {
+      set((state) => {
+        // 防止重复消息（通过id去重）
+        if (state.messageData.list.some((m) => m.id === message.id)) {
+          return state;
+        }
+        return {
+          messageData: {
+            ...state.messageData,
+            list: [...state.messageData.list, message],
+          },
+        };
+      });
+    },
+    updateConversationSnapshot(conversationId, lastMsgContent, lastMsgTime) {
+      set((state) => ({
+        conversationData: {
+          ...state.conversationData,
+          list: state.conversationData.list.map((c) =>
+            c.id === conversationId
+              ? { ...c, lastMsgContent, lastMsgTime, unreadCount: (c.unreadCount || 0) + 1 }
+              : c,
+          ),
+        },
+      }));
+    },
+    increaseUnreadCount(conversationId) {
+      set((state) => ({
+        conversationData: {
+          ...state.conversationData,
+          list: state.conversationData.list.map((c) =>
+            c.id === conversationId ? { ...c, unreadCount: (c.unreadCount || 0) + 1 } : c,
+          ),
+        },
+      }));
+    },
+    clearUnreadCount(conversationId) {
+      set((state) => ({
+        conversationData: {
+          ...state.conversationData,
+          list: state.conversationData.list.map((c) =>
+            c.id === conversationId ? { ...c, unreadCount: 0 } : c,
+          ),
+        },
+      }));
     },
   };
 });

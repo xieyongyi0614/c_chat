@@ -1,5 +1,5 @@
 import { addActionHandler, omitActionCtx } from '../util';
-import { socketService } from '@c_chat/electron_client/utils/socket-io-client';
+import { socketManager } from '@c_chat/electron_client/utils/socket-io-client';
 import {
   CreateConversationRequest,
   GetConversationListRequest,
@@ -14,6 +14,7 @@ import { RequiredNonNullable, SocketTypes } from '@c_chat/shared-types';
 /** 创建会话 (本地生成ID，不立即提交线上) */
 addActionHandler('CreateConversation', async (data) => {
   const params = omitActionCtx(data);
+  const socketService = socketManager.getSocketService(data.windowId);
   // 这里可以根据业务逻辑生成确定性ID，或者先查询本地
   // 目前先透传给后端，但前端可以改为不立即调用此接口
   const [err, res] = await to(
@@ -80,6 +81,7 @@ addActionHandler('GetLocalMessageHistory', async (data) => {
 /** 获取会话列表 (带同步逻辑) */
 addActionHandler('GetConversationList', async (data) => {
   const params = omitActionCtx(data);
+  const socketService = socketManager.getSocketService(data.windowId);
   const newPageParams = transformPageParams(params.pagination);
   // 1. 获取本地最新的更新时间，进行增量同步
   // const lastUpdateTime = conversationTableClass.getLatestUpdateTime();
@@ -127,6 +129,7 @@ addActionHandler('GetConversationList', async (data) => {
 /** 发送消息 (存入本地并更新会话) */
 addActionHandler('SendMessage', async (data) => {
   const params = omitActionCtx(data);
+  const socketService = socketManager.getSocketService(data.windowId);
 
   // 检查是否提供了有效的 conversationId
   let conversationId = params.conversationId;
@@ -241,6 +244,7 @@ addActionHandler('SendMessage', async (data) => {
 /** 获取消息历史 (本地缓存优先) */
 addActionHandler('GetMessageHistory', async (data) => {
   const params = omitActionCtx(data);
+  const socketService = socketManager.getSocketService(data.windowId);
   // const newPageParams = transformPageParams(params.pagination);
 
   const [err, res] = await to(

@@ -9,6 +9,7 @@ import { SOCKET_PROTO_EVENT, ClientDecodeProtoMapKey } from '@c_chat/shared-prot
 
 import { conversationTableClass, messageTableClass } from '../../db';
 import { WebContentEvents } from '@c_chat/shared-types';
+import { WindowManager } from '@c_chat/electron_client/main/windows';
 
 interface QueuedEvent {
   event: ClientDecodeProtoMapKey;
@@ -86,7 +87,7 @@ export class MessageHandler extends MessageHandlerRegistry {
     this.subscribeToEvent(SOCKET_PROTO_EVENT.getUserInfo, (data) => {
       if (data.id) {
         this._sendToRenderer(mainWindow, ELECTRON_TO_CLIENT_CHANNELS.SocketConnSuccess, data);
-        MainWindowManager.getInstance().applyAuthState(true);
+        WindowManager.getInstance().applyWindowAuthState(this.windowId, true);
       } else {
         MainWindowManager.showToast('error', '登录失败，请检查用户名和密码');
         socket.disconnect();
@@ -149,8 +150,8 @@ export class MessageHandler extends MessageHandlerRegistry {
           ]);
         }
 
-        // 3. 通知渲染进程刷新 UI (可选，通过统一通道)
-        // this._sendToRenderer(mainWindow, ELECTRON_TO_CLIENT_CHANNELS.SocketMessage, data);
+        // 3. 通知渲染进程刷新 UI
+        this._sendToRenderer(mainWindow, ELECTRON_TO_CLIENT_CHANNELS.SocketMessage, data);
       }
     });
   }

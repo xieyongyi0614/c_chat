@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "pnpm run rebuild && electron-vite dev -w",
     "rebuild": "electron-rebuild -f -w better-sqlite3",
-    "lint": "eslint ./src --ext .ts"
+    "lint": "eslint ./src --ext .ts",
+    "installElectron": "node node_modules/electron/install.js"
   },
   "keywords": [],
   "author": "",
