@@ -16,6 +16,17 @@ export type SendMessageParams = {
   type: number;
 };
 
+export type ReadMessageParams = {
+  conversationId: string;
+  messageId?: string;
+};
+
+export type ReadMessageResult = {
+  conversationId: string;
+  messageId: number;
+  unreadCount: number;
+};
+
 export interface ChatPreloadTypes {
   CreateConversation: IpcMethod<CreateConversationParams, LocalConversationListItem>;
   GetConversationList: IpcMethod<
@@ -35,4 +46,5 @@ export interface ChatPreloadTypes {
     SocketTypes.ResponseList<LocalMessageListItem>
   >;
   SendMessage: IpcMethod<SendMessageParams, LocalMessageListItem>;
+  ReadMessage: IpcMethod<ReadMessageParams, ReadMessageResult>;
 }

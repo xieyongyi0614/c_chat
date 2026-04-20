@@ -7,10 +7,17 @@ import { cn } from '@c_chat/ui';
 const MessageHistoryList = () => {
   const { userInfo } = useUserStore();
 
-  const { messageData } = useChatStore();
+  const { messageData, selectedConversation } = useChatStore();
+
+  const latestReadCreateTime = useMemo(() => {
+    const latestReadMessageId = selectedConversation?.lastReadMessageId;
+    if (!latestReadMessageId || latestReadMessageId === 0) return null;
+    const message = messageData.list.find((item) => item.msgId === latestReadMessageId);
+    return message ? Number(message.createTime) : null;
+  }, [messageData.list, selectedConversation?.lastReadMessageId]);
 
   const processedData = useMemo(() => {
-    if (!messageData.list.length) {
+    if (!messageData.list?.length) {
       return { groupedMessages: {}, sortedDateKeys: [] };
     }
 
@@ -56,11 +63,17 @@ const MessageHistoryList = () => {
                   {msg.content}
                   <span
                     className={cn(
-                      'mt-1 block text-xs font-light text-foreground/75 italic',
+                      'mt-1 block text-xs font-light text-foreground/75 italic flex justify-between',
                       msg.senderId === userInfo?.id && 'text-end text-primary-foreground/85',
                     )}
                   >
                     {dayjs(Number(msg.createTime)).format('HH:mm')}
+
+                    <span className="ml-2">
+                      {latestReadCreateTime && Number(msg.createTime) <= latestReadCreateTime
+                        ? '已读'
+                        : '送达'}
+                    </span>
                   </span>
                 </div>
               ))}

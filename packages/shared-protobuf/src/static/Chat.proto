@@ -20,6 +20,8 @@ message ConversationInfo {
   optional UserInfo user = 8; // 私聊时对方的用户信息
   optional string group_name = 9; // 群聊时群名称
   optional string group_avatar = 10; // 群聊时群头像
+  optional int32 unread_count = 11; // 当前用户在该会话下的未读数
+  optional int32 last_read_message_id = 12; // 当前用户已读到的最近消息 msgId
 }
 
 // 发送消息请求
@@ -33,11 +35,11 @@ message SendMessageRequest {
 // 消息信息
 message MessageInfo {
   string id = 1;
-  string sender_id = 2;
-  string conversation_id = 3;
-  string content = 4;
-  int32 type = 5;
-  bool is_read = 6;
+  int32 msg_id = 2;
+  string sender_id = 3;
+  string conversation_id = 4;
+  string content = 5;
+  int32 type = 6;
   int32 state = 7;
   int64 create_time = 8;
   int64 update_time = 9;
@@ -64,4 +66,17 @@ message GetMessageHistoryRequest {
 message GetMessageHistoryResponse {
   Common.PaginationResponse pagination = 1;
   repeated MessageInfo list = 2;
+}
+
+// 读消息请求
+message ReadMessageRequest {
+  string conversation_id = 1;
+  optional string message_id = 2; // 不传时默认读到当前会话最新一条消息
+}
+
+// 读消息响应
+message ReadMessageResponse {
+  string conversation_id = 1;
+  optional string message_id = 2;
+  int32 unread_count = 3;
 }

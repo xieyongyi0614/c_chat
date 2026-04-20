@@ -27,6 +27,8 @@ export abstract class TableConnection {
   /**
    * 迁移数据表
    */
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   migrate(_oldVersion: number, _newVersion: number): void {}
 
   /**

@@ -15,4 +15,10 @@
   html {
     @apply font-sans;
   }
+
+  /* Cursor pointer for buttons */
+  button:not(:disabled),
+  [role='button']:not(:disabled) {
+    cursor: pointer;
+  }
 }
