@@ -10,6 +10,8 @@ import {
   GetConversationListResponse,
   GetMessageHistoryRequest,
   GetMessageHistoryResponse,
+  ReadMessageRequest,
+  ReadMessageResponse,
   ErrorResult,
 } from '.';
 
@@ -22,6 +24,7 @@ export const SOCKET_PROTO_EVENT = {
   sendMessage: 'sendMessage',
   getConversationList: 'getConversationList',
   getMessageHistory: 'getMessageHistory',
+  readMessage: 'readMessage',
   error: 'error',
 } as const;
 
@@ -37,6 +40,7 @@ export const clientDecodeProtoMap = {
   [SOCKET_PROTO_EVENT.sendMessage]: MessageInfo,
   [SOCKET_PROTO_EVENT.getConversationList]: GetConversationListResponse,
   [SOCKET_PROTO_EVENT.getMessageHistory]: GetMessageHistoryResponse,
+  [SOCKET_PROTO_EVENT.readMessage]: ReadMessageResponse,
 };
 
 export type ClientDecodeProtoMapKey = keyof typeof clientDecodeProtoMap;
@@ -84,5 +88,6 @@ export const serviceDecodeProtoMap = {
   [SOCKET_PROTO_EVENT.sendMessage]: SendMessageRequest,
   [SOCKET_PROTO_EVENT.getConversationList]: GetConversationListRequest,
   [SOCKET_PROTO_EVENT.getMessageHistory]: GetMessageHistoryRequest,
+  [SOCKET_PROTO_EVENT.readMessage]: ReadMessageRequest,
 };
 export type ServiceDecodeProtoMapKey = keyof typeof serviceDecodeProtoMap;

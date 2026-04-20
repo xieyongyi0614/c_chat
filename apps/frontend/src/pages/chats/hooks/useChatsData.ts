@@ -6,8 +6,13 @@ import { toast } from 'sonner';
 
 export const useChatsData = () => {
   const { userInfo } = useUserStore();
-  const { conversationData, setConversationData, selectedConversation, setMessageData } =
-    useChatStore();
+  const {
+    conversationData,
+    setConversationData,
+    selectedConversation,
+    setMessageData,
+    applyConversationReadState,
+  } = useChatStore();
 
   const fetchConversationData = async (params?: GetConversationListParams) => {
     const newParams = transformListParams(params);
@@ -46,6 +51,19 @@ export const useChatsData = () => {
     if (res) {
       setMessageData(res);
     }
+  };
+
+  const markConversationAsRead = async (conversationId: string) => {
+    const [err, res] = await to(ipc.ReadMessage({ conversationId }));
+    if (err) {
+      console.error('markConversationAsRead failed:', err);
+      return;
+    }
+    applyConversationReadState({
+      conversationId,
+      unreadCount: res.unreadCount,
+      lastReadMessageId: res.messageId ?? 0,
+    });
   };
 
   // const handleSendMessage = async (e?: React.FormEvent) => {
@@ -102,9 +120,32 @@ export const useChatsData = () => {
   }, [userInfo?.id]);
 
   useEffect(() => {
+    if (!userInfo?.id) return;
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        fetchConversationData();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        fetchConversationData();
+      }
+    }, 30000);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      window.clearInterval(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userInfo?.id]);
+
+  useEffect(() => {
     if (selectedConversation) {
       fetchLocalMessageHistory(selectedConversation.id);
       fetchMessageHistory(selectedConversation.id);
+      if ((selectedConversation.unreadCount ?? 0) > 0) {
+        markConversationAsRead(selectedConversation.id);
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedConversation?.id]);

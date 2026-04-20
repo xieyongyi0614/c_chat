@@ -30,7 +30,7 @@ const MiddleColumn = (props: RightSideProps) => {
     setSelectedUserForDraft,
     setMessageData,
     setSelectedConversation,
-    setConversationData,
+    upsertAndPinConversation,
   } = useChatStore();
 
   // const [messageData, setMessageData] = useState<MessageInfo[]>([]);
@@ -87,21 +87,13 @@ const MiddleColumn = (props: RightSideProps) => {
         userAvatar: selectedUserForDraft.avatarUrl ?? '',
         groupName: undefined,
         groupAvatar: undefined,
+        lastReadMessageId: 0,
       };
 
       setSelectedConversation(newConvo);
       setSelectedUserForDraft(null);
 
-      setConversationData((p) => {
-        const i = p.list.findIndex((c) => c.id === newConvo.id);
-        if (i === -1) {
-          return { ...p, list: [newConvo, ...p.list] };
-        } else {
-          const updateList = [...p.list];
-          updateList[i] = newConvo;
-          return { ...p, list: updateList };
-        }
-      });
+      upsertAndPinConversation(newConvo);
       return;
     }
 
@@ -114,16 +106,7 @@ const MiddleColumn = (props: RightSideProps) => {
         updateTime: res.createTime,
       };
 
-      // 更新会话列表中的该项
-      setConversationData((p) => {
-        const i = p.list.findIndex((c) => c.id === updatedConvo.id);
-        if (i !== -1) {
-          const updateList = [...p.list];
-          updateList[i] = updatedConvo;
-          return { ...p, list: updateList };
-        }
-        return p;
-      });
+      upsertAndPinConversation(updatedConvo);
 
       // 同时更新选中的会话状态
       setSelectedConversation(updatedConvo);

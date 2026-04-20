@@ -4,6 +4,7 @@ import {
   CreateConversationRequest,
   GetConversationListRequest,
   GetMessageHistoryRequest,
+  ReadMessageRequest,
   SendMessageRequest,
 } from '@c_chat/shared-protobuf';
 import { SOCKET_PROTO_EVENT } from '@c_chat/shared-protobuf/protoMap';
@@ -12,25 +13,25 @@ import { to, transformPageParams, transformPagination } from '@c_chat/shared-uti
 import { RequiredNonNullable, SocketTypes } from '@c_chat/shared-types';
 
 /** 创建会话 (本地生成ID，不立即提交线上) */
-addActionHandler('CreateConversation', async (data) => {
-  const params = omitActionCtx(data);
-  const socketService = socketManager.getSocketService(data.windowId);
-  // 这里可以根据业务逻辑生成确定性ID，或者先查询本地
-  // 目前先透传给后端，但前端可以改为不立即调用此接口
-  const [err, res] = await to(
-    socketService.genericRequest(
-      SOCKET_PROTO_EVENT.createConversation,
-      CreateConversationRequest.encode(CreateConversationRequest.create(params)).finish(),
-    ),
-  );
-  if (err) {
-    console.error('创建会话失败:', err);
+// addActionHandler('CreateConversation', async (data) => {
+//   const params = omitActionCtx(data);
+//   const socketService = socketManager.getSocketService(data.windowId);
+//   // 这里可以根据业务逻辑生成确定性ID，或者先查询本地
+//   // 目前先透传给后端，但前端可以改为不立即调用此接口
+//   const [err, res] = await to(
+//     socketService.genericRequest(
+//       SOCKET_PROTO_EVENT.createConversation,
+//       CreateConversationRequest.encode(CreateConversationRequest.create(params)).finish(),
+//     ),
+//   );
+//   if (err) {
+//     console.error('创建会话失败:', err);
 
-    return;
-  }
-  console.log(res, 'CreateConversation res');
-  return;
-});
+//     return;
+//   }
+//   console.log(res, 'CreateConversation res');
+//   return;
+// });
 
 /** 获取本地会话列表 */
 addActionHandler('GetLocalConversationList', async (data) => {
@@ -42,8 +43,9 @@ addActionHandler('GetLocalConversationList', async (data) => {
   const localList = conversationTableClass.getConversations(pageSize, offset);
   const total = conversationTableClass.getConversationCount();
 
+  console.log('GetLocalConversationList');
   return {
-    list: localList,
+    list: localList ?? [],
     pagination: {
       total,
       page,
@@ -68,7 +70,7 @@ addActionHandler('GetLocalMessageHistory', async (data) => {
   const total = messageTableClass.getMessageCount(params.conversationId);
 
   return {
-    list: localMsgs,
+    list: localMsgs ?? [],
     pagination: {
       total,
       page,
@@ -118,6 +120,9 @@ addActionHandler('GetConversationList', async (data) => {
         userAvatar: convo.user?.avatarUrl ?? '',
         groupName: convo.groupName ?? '',
         groupAvatar: convo.groupAvatar ?? '',
+        lastMsgTime: Number(convo.lastMsgTime),
+        updateTime: Number(convo.updateTime),
+        createTime: Number(convo.createTime),
       }))
       .filter((item) => item.id !== undefined) ?? [];
   if (records) {
@@ -167,6 +172,7 @@ addActionHandler('SendMessage', async (data) => {
       userAvatar: res.user?.avatarUrl ?? '',
       groupName: res.groupName ?? '',
       groupAvatar: res.groupAvatar ?? '',
+      lastReadMessageId: 0,
     };
     conversationTableClass.upsertConversations([newConvo]);
   } else if (!conversationId) {
@@ -185,6 +191,7 @@ addActionHandler('SendMessage', async (data) => {
   const senderInfo = socketService.getUserInfo();
   const tempMsg = {
     id: tempId,
+    msgId: 0,
     senderId: senderInfo?.id || '',
     conversationId: actualParams.conversationId,
     content: actualParams.content,
@@ -208,6 +215,7 @@ addActionHandler('SendMessage', async (data) => {
       messageTableClass.upsertMessages([
         {
           id: res.id,
+          msgId: res.msgId,
           senderId: res.senderId,
           conversationId: res.conversationId,
           content: res.content,
@@ -275,5 +283,39 @@ addActionHandler('GetMessageHistory', async (data) => {
   return {
     list: records,
     pagination: transformPagination(params.pagination),
+  };
+});
+
+/** 标记会话已读 */
+addActionHandler('ReadMessage', async (data) => {
+  const params = omitActionCtx(data);
+  const socketService = socketManager.getSocketService(data.windowId);
+  const [err, res] = await to(
+    socketService.genericRequest(
+      SOCKET_PROTO_EVENT.readMessage,
+      ReadMessageRequest.encode(ReadMessageRequest.create(params)).finish(),
+    ),
+  );
+
+  if (err) {
+    console.error('标记消息已读失败:', err);
+    throw err;
+  }
+
+  const convo = conversationTableClass.getConversation(params.conversationId);
+  if (convo) {
+    conversationTableClass.upsertConversations([
+      {
+        ...convo,
+        unreadCount: Number(res.unreadCount ?? 0),
+        lastReadMessageId: Number(res.messageId ?? 0),
+      },
+    ]);
+  }
+
+  return {
+    conversationId: res.conversationId,
+    messageId: Number(res.messageId ?? -1),
+    unreadCount: Number(res.unreadCount ?? 0),
   };
 });

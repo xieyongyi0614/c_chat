@@ -18,7 +18,9 @@ export class ConversationTable extends TableConnection {
         user_nickname TEXT,
         user_avatar TEXT,
         group_name TEXT,
-        group_avatar TEXT
+        group_avatar TEXT,
+        unread_count INTEGER DEFAULT 0,
+        last_read_message_id INTEGER DEFAULT 0
       )
     `;
     this.run(sql);
@@ -80,8 +82,8 @@ export class ConversationTable extends TableConnection {
     if (convos.length === 0) return;
 
     const sql = `
-      INSERT INTO ${this.TABLE_NAME} (id, type, target_id, last_msg_content, last_msg_time, update_time, create_time, user_nickname, user_avatar, group_name, group_avatar)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO ${this.TABLE_NAME} (id, type, target_id, last_msg_content, last_msg_time, update_time, create_time, user_nickname, user_avatar, group_name, group_avatar, unread_count, last_read_message_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(id) DO UPDATE SET
         last_msg_content = excluded.last_msg_content,
         last_msg_time = excluded.last_msg_time,
@@ -89,7 +91,9 @@ export class ConversationTable extends TableConnection {
         user_nickname = excluded.user_nickname,
         user_avatar = excluded.user_avatar,
         group_name = excluded.group_name,
-        group_avatar = excluded.group_avatar
+        group_avatar = excluded.group_avatar,
+        unread_count = excluded.unread_count,
+        last_read_message_id = excluded.last_read_message_id
     `;
 
     const stmt = this.db?.prepare(sql);
@@ -107,6 +111,8 @@ export class ConversationTable extends TableConnection {
           convo.userAvatar,
           convo.groupName,
           convo.groupAvatar,
+          convo.unreadCount ?? 0,
+          Number(convo.lastReadMessageId ?? 0),
         );
       }
     });
@@ -134,6 +140,19 @@ export class ConversationTable extends TableConnection {
       userAvatar: row.user_avatar,
       groupName: row.group_name,
       groupAvatar: row.group_avatar,
+      unreadCount: row.unread_count ?? 0,
+      lastReadMessageId: row.last_read_message_id ?? 0,
     };
+  }
+  /**
+   * 添加file_name列，如果不存在
+   */
+  addFileNameColumnIfNotExists() {
+    this.addColumnIfNotExists('unread_count', 'INTEGER DEFAULT 0');
+    this.addColumnIfNotExists('last_read_message_id', 'INTEGER DEFAULT 0');
+  }
+
+  migrate(): void {
+    this.addFileNameColumnIfNotExists();
   }
 }
