@@ -1,20 +1,11 @@
 import { memo, Fragment, useMemo } from 'react';
 import dayjs from 'dayjs';
-import { useChatStore, useUserStore } from '@c_chat/frontend/stores';
+import { useChatStore } from '@c_chat/frontend/stores';
 import type { LocalMessageListItem } from '@c_chat/shared-types';
-import { cn } from '@c_chat/ui';
+import MessageItem from './message/MessageItem';
 
 const MessageHistoryList = () => {
-  const { userInfo } = useUserStore();
-
-  const { messageData, selectedConversation } = useChatStore();
-
-  const latestReadCreateTime = useMemo(() => {
-    const latestReadMessageId = selectedConversation?.lastReadMessageId;
-    if (!latestReadMessageId || latestReadMessageId === 0) return null;
-    const message = messageData.list.find((item) => item.msgId === latestReadMessageId);
-    return message ? Number(message.createTime) : null;
-  }, [messageData.list, selectedConversation?.lastReadMessageId]);
+  const { messageData } = useChatStore();
 
   const processedData = useMemo(() => {
     if (!messageData.list?.length) {
@@ -50,32 +41,8 @@ const MessageHistoryList = () => {
         <div className="chat-flex flex h-40 w-full grow flex-col-reverse justify-start gap-4 overflow-y-auto py-2 pe-4 pb-4">
           {processedData.sortedDateKeys.map((dateKey) => (
             <Fragment key={dateKey}>
-              {processedData.groupedMessages[dateKey].map((msg, index) => (
-                <div
-                  key={`${msg.senderId}-${msg.createTime}-${index}`}
-                  className={cn(
-                    'chat-box max-w-72 px-3 py-2 wrap-break-word shadow-lg',
-                    msg.senderId === userInfo?.id
-                      ? 'self-end rounded-[16px_16px_0_16px] bg-primary/90 text-primary-foreground/75'
-                      : 'self-start rounded-[16px_16px_16px_0] bg-muted',
-                  )}
-                >
-                  {msg.content}
-                  <span
-                    className={cn(
-                      'mt-1 block text-xs font-light text-foreground/75 italic flex justify-between',
-                      msg.senderId === userInfo?.id && 'text-end text-primary-foreground/85',
-                    )}
-                  >
-                    {dayjs(Number(msg.createTime)).format('HH:mm')}
-
-                    <span className="ml-2">
-                      {latestReadCreateTime && Number(msg.createTime) <= latestReadCreateTime
-                        ? '已读'
-                        : '送达'}
-                    </span>
-                  </span>
-                </div>
+              {processedData.groupedMessages[dateKey].map((msg) => (
+                <MessageItem msg={msg} key={msg.id} />
               ))}
               <div className="text-center text-xs">{dateKey}</div>
             </Fragment>
