@@ -127,12 +127,10 @@ addActionHandler('SendMessage', async (data) => {
   const params = omitActionCtx(data);
   const socketService = socketManager.getSocketService(data.windowId);
 
-  // 检查是否提供了有效的 conversationId
   let conversationId = params.conversationId;
 
-  // 如果没有 conversationId 但有 targetId，则尝试创建会话
+  // 新会话
   if (!conversationId && params.targetId) {
-    // 尝试创建新的对话
     const [err, res] = await to(
       socketService.genericRequest(
         SOCKET_PROTO_EVENT.createConversation,
@@ -147,10 +145,8 @@ addActionHandler('SendMessage', async (data) => {
       throw err;
     }
 
-    // 更新会话ID为新创建的会话
     conversationId = res.id;
 
-    // 将新创建的会话信息存储到本地数据库
     const newConvo = {
       id: res.id,
       type: res.type,
@@ -167,8 +163,7 @@ addActionHandler('SendMessage', async (data) => {
     };
     conversationTableClass.upsertConversations([newConvo]);
   } else if (!conversationId) {
-    // 如果既没有 conversationId 也没有 targetId，则无法发送消息
-    throw new Error('No valid conversationId or targetId provided');
+    throw new Error('参数错误，缺少会话ID');
   }
 
   // 使用实际的会话ID继续发送消息
@@ -193,51 +188,48 @@ addActionHandler('SendMessage', async (data) => {
   };
   messageTableClass.upsertMessages([tempMsg]);
 
-  try {
-    // 2. 发送到线上
-    const res = await socketService.genericRequest(
+  // 2. 发送到线上
+  const [err, res] = await to(
+    socketService.genericRequest(
       SOCKET_PROTO_EVENT.sendMessage,
       SendMessageRequest.encode(SendMessageRequest.create(actualParams)).finish(),
-    );
-
-    // 3. 成功后删除临时消息并插入真实消息
-    if (res) {
-      messageTableClass.deleteMessage(tempId);
-      messageTableClass.upsertMessages([
-        {
-          id: res.id,
-          msgId: res.msgId,
-          senderId: res.senderId,
-          conversationId: res.conversationId,
-          content: res.content,
-          type: res.type,
-          state: 0,
-          createTime: Number(res.createTime),
-          updateTime: Number(res.updateTime),
-        },
-      ]);
-
-      // 同时更新会话的最后一条消息快照
-      const convo = conversationTableClass.getConversation(res.conversationId);
-      if (convo) {
-        const updatedConvo = {
-          ...convo,
-          lastMsgContent: res.content,
-          lastMsgTime: Number(res.createTime),
-          updateTime: Number(res.updateTime),
-        };
-
-        // 更新本地数据库中的会话信息
-        conversationTableClass.upsertConversations([updatedConvo]);
-      }
-    }
-    return res;
-  } catch (error) {
-    // 4. 失败更新状态
+    ),
+  );
+  if (err || !res) {
     messageTableClass.updateMessageState(tempId, 2); // fail
-    console.log('发送消息失败', error);
-    throw error;
+    console.log('发送消息失败', err);
+
+    throw err || new Error('发送消息失败');
   }
+
+  const messageInfo = {
+    id: res.id,
+    msgId: res.msgId,
+    senderId: res.senderId,
+    conversationId: res.conversationId,
+    content: res.content,
+    type: res.type,
+    state: 0,
+    createTime: Number(res.createTime),
+    updateTime: Number(res.updateTime),
+  };
+  messageTableClass.deleteMessage(tempId);
+  messageTableClass.upsertMessages([messageInfo]);
+
+  // 同时更新会话的最后一条消息快照
+  const convo = conversationTableClass.getConversation(res.conversationId);
+  if (convo) {
+    const updatedConvo = {
+      ...convo,
+      lastMsgContent: res.content,
+      lastMsgTime: Number(res.createTime),
+      updateTime: Number(res.updateTime),
+    };
+
+    // 更新本地数据库中的会话信息
+    conversationTableClass.upsertConversations([updatedConvo]);
+  }
+  return messageInfo;
 });
 
 /** 获取消息历史 (本地缓存优先) */
@@ -306,7 +298,7 @@ addActionHandler('ReadMessage', async (data) => {
 
   return {
     conversationId: res.conversationId,
-    messageId: Number(res.messageId ?? -1),
+    messageId: Number(res.messageId ?? 0),
     unreadCount: Number(res.unreadCount ?? 0),
   };
 });
