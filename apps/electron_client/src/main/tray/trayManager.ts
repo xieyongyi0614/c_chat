@@ -23,7 +23,7 @@ export class TrayManager {
   private initTray() {
     // 创建托盘图标
     // const iconPath = path.join(process.resourcesPath, 'icon.png');
-    const iconPath = path.join(__dirname, '..', '..', 'src', 'main', 'tray', 'tray-icon.jpg');
+    const iconPath = path.join(__dirname, '..', '..', 'src', 'main', 'tray', 'tray-icon.png');
     console.log('iconPath:', iconPath);
     const icon = nativeImage.createFromPath(iconPath);
 
@@ -63,7 +63,7 @@ export class TrayManager {
 
     // 获取当前活动的窗口
     const windows = this.windowManager.getAllWindows();
-    const authenticatedWindows = this.windowManager.getAuthenticatedWindows();
+    // const authenticatedWindows = this.windowManager.getAuthenticatedWindows();
 
     // 构建托盘菜单
     const menuTemplate: MenuItemConstructorOptions[] = [
@@ -87,7 +87,7 @@ export class TrayManager {
                 const userInfo = WindowManager.getUserInfo(windowId);
                 const windowLabel =
                   isAuthenticated && userInfo
-                    ? `窗口 ${windowId} (${userInfo.nickname || userInfo.username})`
+                    ? `窗口 ${windowId} (${userInfo.nickname || userInfo.email})`
                     : `窗口 ${windowId} (未登录)`;
 
                 return {
