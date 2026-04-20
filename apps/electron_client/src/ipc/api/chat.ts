@@ -9,7 +9,7 @@ import {
 } from '@c_chat/shared-protobuf';
 import { SOCKET_PROTO_EVENT } from '@c_chat/shared-protobuf/protoMap';
 import { conversationTableClass, messageTableClass } from '../../db';
-import { to, transformPageParams, transformPagination } from '@c_chat/shared-utils';
+import { ipc, to, transformPageParams, transformPagination } from '@c_chat/shared-utils';
 import { RequiredNonNullable, SocketTypes } from '@c_chat/shared-types';
 
 /** 创建会话 (本地生成ID，不立即提交线上) */
@@ -100,14 +100,7 @@ addActionHandler('GetConversationList', async (data) => {
   if (err) {
     console.error('获取线上会话列表失败，加载本地缓存:', err);
 
-    const localList = conversationTableClass.getConversations(
-      params.pagination?.page,
-      params.pagination?.pageSize,
-    );
-    return {
-      list: localList,
-      pagination: { total: localList.length, page: 1, pageSize: 50, totalPage: 0 },
-    };
+    return await ipc.GetLocalConversationList(params);
   }
 
   const records =

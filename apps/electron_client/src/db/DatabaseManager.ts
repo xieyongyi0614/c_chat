@@ -62,26 +62,26 @@ export class DatabaseManager {
         console.error(`创建表实例: ${tableName} 失败:`, error);
         throw error;
       }
-      const newVersion = DB_VERSION;
-      if (oldVersion === newVersion) {
-        return;
-      }
-
-      console.log('开始数据库迁移:', oldVersion, '->', newVersion);
-
-      if (oldVersion < newVersion) {
-        for (const table of tables) {
-          table.migrate(oldVersion, newVersion);
-        }
-      } else {
-        // TODO 正式环境需要考虑是否要删除数据库文件并重新创建
-        console.error('数据库版本错误:', oldVersion, '->', newVersion);
-        throw new Error('数据库版本错误');
-      }
-
-      db.prepare('INSERT INTO version (version) VALUES (?)').run(newVersion);
-      console.log('数据库迁移完成:', oldVersion, '->', newVersion);
     }
+    const newVersion = DB_VERSION;
+    if (oldVersion === newVersion) {
+      return;
+    }
+
+    console.log('开始数据库迁移:', oldVersion, '->', newVersion);
+
+    if (oldVersion < newVersion) {
+      for (const table of tables) {
+        table.migrate(oldVersion, newVersion);
+      }
+    } else {
+      // TODO 正式环境需要考虑是否要删除数据库文件并重新创建
+      console.error('数据库版本错误:', oldVersion, '->', newVersion);
+      throw new Error('数据库版本错误');
+    }
+
+    db.prepare('INSERT INTO version (version) VALUES (?)').run(newVersion);
+    console.log('数据库迁移完成:', oldVersion, '->', newVersion);
   }
   /**
    * 注册表构造函数
