@@ -51,9 +51,7 @@ export const useGlobalSubscribe = () => {
       if (isOwnMessage) {
         console.log('收到自己发送的消息推送，忽略重复添加');
       } else {
-        const activeConversationId = selectedConversation?.id;
-        const isActiveConversation = activeConversationId === data.conversationId;
-        // 他人发的消息：添加到消息列表
+        const isActiveConversation = selectedConversation?.id === data.conversationId;
         addMessage(message);
         // 当前正在查看会话时，立即回执已读并保持未读数为0；否则走未读+1
         if (isActiveConversation) {
@@ -92,7 +90,8 @@ export const useGlobalSubscribe = () => {
       ];
       return subscribeAll(unSubscriptions);
     }
-  }, [isSignedIn, socketMessageHandle]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userInfo?.id]);
 
   return {};
 };

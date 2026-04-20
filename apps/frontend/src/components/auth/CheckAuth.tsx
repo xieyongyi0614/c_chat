@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, type FC, type PropsWithChildren } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { useGlobalStore, useUserStore, useChatStore } from '@c_chat/frontend/stores';
+import { useGlobalStore, useUserStore } from '@c_chat/frontend/stores';
 import { ipc } from '@c_chat/shared-utils';
 import { ELECTRON_TO_CLIENT_CHANNELS, SOCKET_ERROR_CODE } from '@c_chat/shared-config';
 import type { WebContentEventType, LocalMessageListItem } from '@c_chat/shared-types';
