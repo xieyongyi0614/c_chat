@@ -101,6 +101,14 @@ pnpm run dev
 
 > ⚠️ **TIPS**: 本项目正在积极开发中，功能持续更新迭代...
 
+## 部分页面截图
+
+1.  登录页面
+    [<img src="./docs/img/login.png" height=300>](./docs/img/login.png)
+
+2.  聊天页面
+    [<img src="./docs/img/chat.png" height=300>](./docs/img/chat.png)
+
 ## 📞 联系方式
 
 如果您有任何问题、建议，欢迎随时联系我们：
