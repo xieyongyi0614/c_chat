@@ -1,5 +1,8 @@
 import { useChatStore, useUserStore } from '@c_chat/frontend/stores';
-import type { GetConversationListParams } from '@c_chat/shared-types';
+import type {
+  GetConversationListParams,
+  GetLocalConversationListParams,
+} from '@c_chat/shared-types';
 import { ipc, to, transformListParams } from '@c_chat/shared-utils';
 import { useEffect } from 'react';
 import { toast } from 'sonner';
@@ -14,6 +17,19 @@ export const useChatsData = () => {
     applyConversationReadState,
   } = useChatStore();
 
+  const fetchLocalConversationData = async (param?: GetLocalConversationListParams) => {
+    const [err, res] = await to(ipc.GetLocalConversationList(param));
+    if (err) {
+      console.error('获取本地缓存会话列表失败:', err);
+      toast.error('获取本地缓存会话列表失败');
+      return;
+    }
+
+    if (res) {
+      setConversationData(res);
+      console.log('获取本地缓存会话列表成功:', res);
+    }
+  };
   const fetchConversationData = async (params?: GetConversationListParams) => {
     const newParams = transformListParams(params);
     const [err, res] = await to(ipc.GetConversationList(newParams));
@@ -24,9 +40,8 @@ export const useChatsData = () => {
     }
 
     if (res) {
-      // const newData = { list: newList, pagination: transformPagination(res.pagination) };
       setConversationData(res);
-      console.log(res, 'ConversationData');
+      console.log('获取会话列表成功:', res);
     }
   };
 
@@ -114,30 +129,32 @@ export const useChatsData = () => {
 
   useEffect(() => {
     if (userInfo?.id) {
+      fetchLocalConversationData();
       fetchConversationData();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userInfo?.id]);
 
-  useEffect(() => {
-    if (!userInfo?.id) return;
-    const onVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        fetchConversationData();
-      }
-    };
-    document.addEventListener('visibilitychange', onVisibilityChange);
-    const timer = window.setInterval(() => {
-      if (document.visibilityState === 'visible') {
-        fetchConversationData();
-      }
-    }, 30000);
-    return () => {
-      document.removeEventListener('visibilitychange', onVisibilityChange);
-      window.clearInterval(timer);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userInfo?.id]);
+  // TODO: 监听页面可见性
+  // useEffect(() => {
+  //   if (!userInfo?.id) return;
+  //   const onVisibilityChange = () => {
+  //     if (document.visibilityState === 'visible') {
+  //       fetchConversationData();
+  //     }
+  //   };
+  //   document.addEventListener('visibilitychange', onVisibilityChange);
+  //   const timer = window.setInterval(() => {
+  //     if (document.visibilityState === 'visible') {
+  //       fetchConversationData();
+  //     }
+  //   }, 30000);
+  //   return () => {
+  //     document.removeEventListener('visibilitychange', onVisibilityChange);
+  //     window.clearInterval(timer);
+  //   };
+  //   // eslint-disable-next-line react-hooks/exhaustive-deps
+  // }, [userInfo?.id]);
 
   useEffect(() => {
     if (selectedConversation) {
