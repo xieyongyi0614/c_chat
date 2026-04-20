@@ -34,7 +34,7 @@ export interface ChatPreloadTypes {
     SocketTypes.ResponseList<LocalConversationListItem>
   >;
   GetLocalConversationList: IpcMethod<
-    GetLocalConversationListParams,
+    GetLocalConversationListParams | undefined,
     SocketTypes.ResponseList<LocalConversationListItem>
   >;
   GetLocalMessageHistory: IpcMethod<

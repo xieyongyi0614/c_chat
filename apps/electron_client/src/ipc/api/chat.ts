@@ -36,14 +36,12 @@ import { RequiredNonNullable, SocketTypes } from '@c_chat/shared-types';
 /** 获取本地会话列表 */
 addActionHandler('GetLocalConversationList', async (data) => {
   const params = omitActionCtx(data);
-  const page = params?.pagination?.page || 1;
-  const pageSize = params?.pagination?.pageSize || 20;
-  const offset = (page - 1) * pageSize;
 
-  const localList = conversationTableClass.getConversations(pageSize, offset);
+  const { page, pageSize } = transformPageParams(params.pagination);
+
+  const localList = conversationTableClass.getConversations(page, pageSize);
   const total = conversationTableClass.getConversationCount();
 
-  console.log('GetLocalConversationList');
   return {
     list: localList ?? [],
     pagination: {
