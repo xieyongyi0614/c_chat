@@ -8,12 +8,7 @@ interface ConversationListProps {
 }
 const ConversationList = (props: ConversationListProps) => {
   const { list } = props;
-  const {
-    selectedConversation,
-    setSelectedConversation,
-    setSelectedUserForDraft,
-    clearUnreadCount,
-  } = useChatStore();
+  const { selectedConversation, setSelectedConversation, setSelectedUserForDraft } = useChatStore();
 
   return (
     <ScrollArea className="-mx-3 h-full overflow-auto p-3" type="auto">
@@ -33,7 +28,6 @@ const ConversationList = (props: ConversationListProps) => {
         const displayName = type === 1 ? userNickname || targetId : groupName || targetId;
         const avatarUrl = type === 1 ? userAvatar : groupAvatar;
         const avatarFallback = displayName?.slice(0, 2).toUpperCase() || '??';
-        console.log('lastMsgTime,', lastMsgTime);
         const displayTime = lastMsgTime ? formatRelativeTime(lastMsgTime) : null;
 
         return (
@@ -46,15 +40,16 @@ const ConversationList = (props: ConversationListProps) => {
                 selectedConversation?.id === id && 'sm:bg-muted',
               )}
               onClick={() => {
+                console.log(convo, 'selectedConversation');
                 setSelectedConversation(convo);
                 setSelectedUserForDraft(null);
                 // 点击会话时清除未读数
-                if (unreadCount && unreadCount > 0) {
-                  clearUnreadCount(id);
-                }
+                // if (unreadCount && unreadCount > 0) {
+                //   clearUnreadCount(id);
+                // }
               }}
             >
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-1 items-center">
                 <Avatar>
                   <AvatarImage src={avatarUrl} alt="@shadcn" className="grayscale" />
                   <AvatarFallback>{avatarFallback}</AvatarFallback>

@@ -26,6 +26,13 @@ export interface ChatStoreType extends ChatStoreData {
     lastMsgContent: string,
     lastMsgTime: number,
   ) => void;
+  upsertAndPinConversation: (conversation: LocalConversationListItem) => void;
+  applyConversationReadState: (payload: {
+    conversationId: string;
+    unreadCount: number;
+    lastReadMessageId: number;
+  }) => void;
+  markActiveConversationRead: (conversationId: string, messageId: number) => void;
   increaseUnreadCount: (conversationId: string) => void;
   clearUnreadCount: (conversationId: string) => void;
 }
@@ -37,6 +44,15 @@ type SetData = <T extends keyof ChatStoreData>(
 
 /** 全局状态 */
 export const useChatStore = create<ChatStoreType>((set) => {
+  const pinConversation = (
+    list: LocalConversationListItem[],
+    conversation: LocalConversationListItem,
+  ): LocalConversationListItem[] => {
+    const nextList = list.filter((item) => item.id !== conversation.id);
+    nextList.unshift(conversation);
+    return nextList;
+  };
+
   const setData: SetData = (key, data) => {
     if (data instanceof Function) {
       set((state) => ({ [key]: data(state[key]) }));
@@ -81,36 +97,129 @@ export const useChatStore = create<ChatStoreType>((set) => {
       });
     },
     updateConversationSnapshot(conversationId, lastMsgContent, lastMsgTime) {
-      set((state) => ({
-        conversationData: {
-          ...state.conversationData,
-          list: state.conversationData.list.map((c) =>
-            c.id === conversationId
-              ? { ...c, lastMsgContent, lastMsgTime, unreadCount: (c.unreadCount || 0) + 1 }
-              : c,
-          ),
-        },
-      }));
+      set((state) => {
+        const index = state.conversationData.list.findIndex((c) => c.id === conversationId);
+        if (index === -1) return state;
+        const updatedConversation = {
+          ...state.conversationData.list[index],
+          lastMsgContent,
+          lastMsgTime,
+          unreadCount: (state.conversationData.list[index].unreadCount || 0) + 1,
+        };
+        const nextList = [...state.conversationData.list];
+        nextList.splice(index, 1);
+        nextList.unshift(updatedConversation);
+        return {
+          conversationData: {
+            ...state.conversationData,
+            list: nextList,
+          },
+        };
+      });
+    },
+    upsertAndPinConversation(conversation) {
+      set((state) => {
+        const current = state.conversationData.list.find((item) => item.id === conversation.id);
+        const mergedConversation = current ? { ...current, ...conversation } : conversation;
+        return {
+          conversationData: {
+            ...state.conversationData,
+            list: pinConversation(state.conversationData.list, mergedConversation),
+          },
+          selectedConversation:
+            state.selectedConversation?.id === conversation.id
+              ? mergedConversation
+              : state.selectedConversation,
+        };
+      });
+    },
+    applyConversationReadState({ conversationId, unreadCount, lastReadMessageId }) {
+      set((state) => {
+        let updatedSelected = state.selectedConversation;
+        const nextList = state.conversationData.list.map((item) => {
+          if (item.id !== conversationId) return item;
+          const updated = {
+            ...item,
+            unreadCount,
+            lastReadMessageId,
+          };
+          if (updatedSelected?.id === conversationId) {
+            updatedSelected = updated;
+          }
+          return updated;
+        });
+        return {
+          conversationData: {
+            ...state.conversationData,
+            list: nextList,
+          },
+          selectedConversation: updatedSelected,
+        };
+      });
+    },
+    markActiveConversationRead(conversationId, messageId) {
+      set((state) => {
+        let updatedSelected = state.selectedConversation;
+        const nextList = state.conversationData.list.map((item) => {
+          if (item.id !== conversationId) return item;
+          const updated = {
+            ...item,
+            unreadCount: 0,
+            lastReadMessageId: messageId,
+          };
+          if (updatedSelected?.id === conversationId) {
+            updatedSelected = updated;
+          }
+          return updated;
+        });
+        return {
+          conversationData: {
+            ...state.conversationData,
+            list: nextList,
+          },
+          selectedConversation: updatedSelected,
+        };
+      });
     },
     increaseUnreadCount(conversationId) {
-      set((state) => ({
-        conversationData: {
-          ...state.conversationData,
-          list: state.conversationData.list.map((c) =>
-            c.id === conversationId ? { ...c, unreadCount: (c.unreadCount || 0) + 1 } : c,
-          ),
-        },
-      }));
+      set((state) => {
+        let updatedSelected = state.selectedConversation;
+        const nextList = state.conversationData.list.map((c) => {
+          if (c.id !== conversationId) return c;
+          const updated = { ...c, unreadCount: (c.unreadCount || 0) + 1 };
+          if (updatedSelected?.id === conversationId) {
+            updatedSelected = updated;
+          }
+          return updated;
+        });
+        return {
+          conversationData: {
+            ...state.conversationData,
+            list: nextList,
+          },
+          selectedConversation: updatedSelected,
+        };
+      });
     },
     clearUnreadCount(conversationId) {
-      set((state) => ({
-        conversationData: {
-          ...state.conversationData,
-          list: state.conversationData.list.map((c) =>
-            c.id === conversationId ? { ...c, unreadCount: 0 } : c,
-          ),
-        },
-      }));
+      set((state) => {
+        let updatedSelected = state.selectedConversation;
+        const nextList = state.conversationData.list.map((c) => {
+          if (c.id !== conversationId) return c;
+          const updated = { ...c, unreadCount: 0 };
+          if (updatedSelected?.id === conversationId) {
+            updatedSelected = updated;
+          }
+          return updated;
+        });
+        return {
+          conversationData: {
+            ...state.conversationData,
+            list: nextList,
+          },
+          selectedConversation: updatedSelected,
+        };
+      });
     },
   };
 });

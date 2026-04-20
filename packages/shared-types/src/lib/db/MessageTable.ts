@@ -1,5 +1,6 @@
 export interface LocalMessageListItem {
   id: string;
+  msgId: number;
   senderId: string;
   conversationId: string;
   content: string;

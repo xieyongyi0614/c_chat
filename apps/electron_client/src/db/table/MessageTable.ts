@@ -8,6 +8,7 @@ export class MessageTable extends TableConnection {
     const sql = `
       CREATE TABLE IF NOT EXISTS ${this.TABLE_NAME} (
         id TEXT PRIMARY KEY,
+        msg_id INTEGER,
         sender_id TEXT,
         conversation_id TEXT,
         content TEXT,
@@ -67,8 +68,8 @@ export class MessageTable extends TableConnection {
     if (msgs.length === 0) return;
 
     const sql = `
-      INSERT INTO ${this.TABLE_NAME} (id, sender_id, conversation_id, content, type, state, create_time, update_time)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO ${this.TABLE_NAME} (id, msg_id, sender_id, conversation_id, content, type, state, create_time, update_time)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(id) DO UPDATE SET
         state = excluded.state,
         content = excluded.content,
@@ -80,6 +81,7 @@ export class MessageTable extends TableConnection {
       for (const msg of items) {
         stmt?.run(
           msg.id,
+          msg.msgId,
           msg.senderId,
           msg.conversationId,
           msg.content,
@@ -111,6 +113,7 @@ export class MessageTable extends TableConnection {
   private mapRowToRecord(row: any): LocalMessageListItem {
     return {
       id: row.id,
+      msgId: row.msg_id,
       senderId: row.sender_id,
       conversationId: row.conversation_id,
       content: row.content,

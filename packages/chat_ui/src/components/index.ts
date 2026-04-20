@@ -11,6 +11,7 @@ export * from './command';
 export * from './dialog';
 export * from './form';
 export * from './input';
+export * from './item';
 export * from './label';
 export * from './password-input';
 export * from './scroll-area';
