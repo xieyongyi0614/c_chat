@@ -1,0 +1,50 @@
+{
+  "$schema": "https://raw.githubusercontent.com/electron-userland/electron-builder/master/packages/app-builder-lib/scheme.json",
+  "appId": "com.c_chat.electron-client",
+  "productName": "c chat",
+  "directories": {
+    "output": "release/${version}",
+    "buildResources": "build"
+  },
+  "extraMetadata": {
+    "main": "dist/main/index.js"
+  },
+  "asar": true,
+  "nsis": {
+    "oneClick": false,
+    "allowElevation": true,
+    "allowToChangeInstallationDirectory": true,
+    "createDesktopShortcut": true,
+    "createStartMenuShortcut": true,
+    "shortcutName": "cChat"
+  },
+  "mac": {
+    "category": "public.app-category.productivity",
+    "target": [
+      {
+        "target": "dmg",
+        "arch": ["x64", "arm64"]
+      },
+      "zip"
+    ]
+  },
+  "win": {
+    "target": [
+      {
+        "target": "nsis",
+        "arch": ["x64"]
+      },
+      "zip"
+    ],
+    "icon": "build/icon.ico"
+  },
+  "linux": {
+    "target": ["AppImage", "deb", "rpm", "tar.xz"],
+    "icon": "build/icon.png",
+    "category": "Utility"
+  },
+  "publish": {
+    "provider": "generic",
+    "url": "https://github.com/your-repo/releases"
+  }
+}

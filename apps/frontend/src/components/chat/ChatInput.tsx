@@ -1,8 +1,8 @@
 type Props = {
-  value: string
-  onChange: (value: string) => void
-  onSend: () => void
-}
+  value: string;
+  onChange: (value: string) => void;
+  onSend: () => void;
+};
 
 export function ChatInput({ value, onChange, onSend }: Props) {
   return (
@@ -21,7 +21,5 @@ export function ChatInput({ value, onChange, onSend }: Props) {
         发送
       </button>
     </footer>
-  )
+  );
 }
-
-

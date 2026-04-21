@@ -39,3 +39,5 @@ yarn-error.log*
 
 # 运行时自动生成
 packages/shared-protobuf/src/index*
+
+apps/electron_client/release

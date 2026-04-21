@@ -4,9 +4,8 @@ import {
   WINDOW_ID,
   db,
 } from '@c_chat/shared-config';
-import { BrowserWindow, shell } from 'electron';
-import { join } from 'path';
-import { env } from '../../utils/env';
+import { app, BrowserWindow, shell } from 'electron';
+import path, { join } from 'path';
 import { storeTableClass } from '../../db';
 import { ApiClient } from '../../utils/axios/service/apiService';
 import initOsData from '../../utils/osData';
@@ -106,9 +105,9 @@ export class WindowManager {
       window.show();
       console.log(`Window ready-to-show: id=${window.id}, windowId=${targetWindowId}`);
 
-      if (env.isDev) {
-        window.webContents.openDevTools({ mode: 'detach' });
-      }
+      // if (env.isDev) {
+      window.webContents.openDevTools({ mode: 'detach' });
+      // }
     });
 
     // 外部链接处理
@@ -117,14 +116,31 @@ export class WindowManager {
       return { action: 'deny' };
     });
 
-    // 加载内容
-    const loadUrl = `http://localhost:${ELECTRON_RENDERER_PORT}/#/auth/sign-in`;
-    window.loadURL(loadUrl).catch((err) => {
-      console.log(`Window load failed: ${err.message}`);
-      if (process.env.NODE_ENV === 'development') {
-        setTimeout(() => window.loadURL(loadUrl), 1000);
-      }
-    });
+    if (!app.isPackaged) {
+      // 加载内容
+      const loadUrl = `http://localhost:${ELECTRON_RENDERER_PORT}/#/auth/sign-in`;
+      window.loadURL(loadUrl).catch((err) => {
+        console.log(`Window load failed: ${err.message}`);
+        if (process.env.NODE_ENV === 'development') {
+          setTimeout(() => window.loadURL(loadUrl), 1000);
+        }
+      });
+    } else {
+      // 生产环境：加载本地 HTML 文件
+      const localPath = path.join(__dirname, '../renderer/index.html');
+      window.loadFile(localPath).catch((err) => {
+        console.log(`Window load failed: ${err.message}`);
+      });
+      // window.loadURL(
+      //   format({
+      //     pathname: join(__dirname, '..', 'frontend', 'index.html'),
+      //     protocol: 'file:',
+      //     slashes: true,
+      //   }) +
+      //     '#' +
+      //     '/auth/sign-in',
+      // );
+    }
 
     // 窗口关闭清理
     window.on('closed', () => {

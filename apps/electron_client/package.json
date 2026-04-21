@@ -4,10 +4,17 @@
   "description": "",
   "main": "./dist/main/index.js",
   "scripts": {
-    "dev": "pnpm run rebuild && electron-vite dev -w",
+    "dev": "electron-vite dev -w",
+    "build": "electron-vite build",
     "rebuild": "electron-rebuild -f -w better-sqlite3",
     "lint": "eslint ./src --ext .ts",
-    "installElectron": "node node_modules/electron/install.js"
+    "installElectron": "node node_modules/electron/install.js",
+    "package": "cross-env electron-builder --config electron-builder.json",
+    "package:all": "electron-builder --config electron-builder.json --publish never",
+    "package:win": "electron-builder --config electron-builder.json --win --publish never",
+    "package:mac": "electron-builder --config electron-builder.json --mac --publish never",
+    "package:linux": "electron-builder --config electron-builder.json --linux --publish never",
+    "postinstall": "electron-builder install-app-deps"
   },
   "keywords": [],
   "author": "",
