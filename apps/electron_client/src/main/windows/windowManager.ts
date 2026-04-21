@@ -1,4 +1,9 @@
-import { ELECTRON_RENDERER_PORT, WINDOW_ID, db } from '@c_chat/shared-config';
+import {
+  ELECTRON_RENDERER_PORT,
+  ELECTRON_TO_CLIENT_CHANNELS,
+  WINDOW_ID,
+  db,
+} from '@c_chat/shared-config';
 import { BrowserWindow, shell } from 'electron';
 import { join } from 'path';
 import { env } from '../../utils/env';
@@ -336,6 +341,10 @@ export class WindowManager {
       return false;
     }
     window.webContents.send(channel, ...args);
+    return true;
+  }
+  static showToast(windowId: number, ...args: Parameters<WebContentEvents['toast']>) {
+    WindowManager.sendToWindow(windowId, ELECTRON_TO_CLIENT_CHANNELS.Toast, ...args);
     return true;
   }
 

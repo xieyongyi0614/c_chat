@@ -1,8 +1,7 @@
 import { io, Socket } from 'socket.io-client';
-import { BrowserWindow } from 'electron';
 import logger from '../logger';
 import { storeTableClass } from '@c_chat/electron_client/db';
-import { db, ELECTRON_TO_CLIENT_CHANNELS, SOCKET_ERROR_CODE } from '@c_chat/shared-config';
+import { ELECTRON_TO_CLIENT_CHANNELS, SOCKET_ERROR_CODE } from '@c_chat/shared-config';
 import { MessageHandler } from './message.handler';
 import { SOCKET_PROTO_EVENT } from '@c_chat/shared-protobuf/protoMap';
 import { WebContentEvents } from '@c_chat/shared-types';
@@ -24,7 +23,6 @@ export type CChatSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 export class SocketService extends MessageHandler {
   private socket: CChatSocket | null = null;
 
-  private mainWindow: BrowserWindow | null = null;
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 5;
   private accessToken: string | null = null;
@@ -50,13 +48,12 @@ export class SocketService extends MessageHandler {
     return storeTableClass.getUserInfo(this.windowId);
   }
 
-  async init(mainWindow: BrowserWindow) {
-    this.mainWindow = mainWindow;
+  async init() {
     const socketUrl = process.env.SOCKET_URL || 'http://localhost:3001/chat';
-    this.connect(socketUrl, mainWindow);
+    this.connect(socketUrl);
   }
 
-  async connect(url: string, mainWindow: BrowserWindow | null = null) {
+  async connect(url: string) {
     this.destroy();
     logger.info(`[Socket ${this.windowId}] Connecting to ${url}`);
 
@@ -100,7 +97,7 @@ export class SocketService extends MessageHandler {
         this.cancelPendingReconnect();
       });
       if (this.socket) {
-        this._setupSubscribeToEvent(this.socket, mainWindow);
+        this._setupSubscribeToEvent(this.socket);
         this._processQueue(this.socket);
       }
     });
@@ -290,7 +287,6 @@ export class SocketService extends MessageHandler {
       this.reconnectTimerId = undefined;
     }
 
-    this.mainWindow = null;
     this.accessToken = null;
     this.isReconnecting = false;
     this.reconnectAttempts = 0;
@@ -306,7 +302,7 @@ export class SocketService extends MessageHandler {
     channel: T,
     data?: Parameters<WebContentEvents[T]>[0],
   ) {
-    this._sendToRenderer(this.mainWindow, channel, data);
+    this._sendToRenderer(channel, data);
   }
 }
 
@@ -342,9 +338,9 @@ export class SocketManager {
    * @param windowId 窗口ID
    * @param mainWindow 窗口实例
    */
-  public async initSocket(windowId: number, mainWindow: BrowserWindow): Promise<void> {
+  public async initSocket(windowId: number): Promise<void> {
     const socketService = this.getSocketService(windowId);
-    await socketService.init(mainWindow);
+    await socketService.init();
   }
 
   /**

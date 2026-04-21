@@ -2,6 +2,7 @@
 import { BaseService } from './baseService';
 import { HttpClient } from '../httpClient';
 import { AuthTypes } from '@c_chat/shared-types';
+import { ActionCtx } from '@c_chat/electron_client/ipc/util';
 
 export interface RegisterData {
   email: string;
@@ -25,7 +26,7 @@ export class AuthService extends BaseService {
   /**
    * 用户登录
    */
-  public async signIn(params: AuthTypes.PostSignInParams) {
+  public async signIn(params: AuthTypes.PostSignInParams & ActionCtx) {
     const [err, response] = await this.apiTool(
       this.httpClient.post<AuthTypes.PostSignInResponse>('/auth/sign-in', params),
     );

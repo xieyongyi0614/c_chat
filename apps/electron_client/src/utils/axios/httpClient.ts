@@ -1,4 +1,5 @@
 import axios, {
+  AxiosError,
   AxiosInstance,
   AxiosRequestConfig,
   AxiosResponse,
@@ -7,9 +8,7 @@ import axios, {
 import * as https from 'https';
 import { HttpsProxyAgent } from 'https-proxy-agent';
 import { app } from 'electron';
-import { safeJsonStringify } from '@c_chat/shared-utils';
-import { MainWindowManager } from '@c_chat/electron_client/main/windows/mainWindow';
-import { ELECTRON_TO_CLIENT_CHANNELS } from '@c_chat/shared-config';
+import { WindowManager } from '@c_chat/electron_client/main/windows';
 
 interface HttpClientOptions {
   baseURL?: string;
@@ -107,13 +106,13 @@ export class HttpClient {
   /**
    * 处理错误
    */
-  private handleError(error: any): Promise<any> {
+  private handleError(error: AxiosError<{ code: number; message: string }>) {
     if (error.response) {
       // 服务器返回错误状态码
       console.error(`[HTTP] Error ${error.response.status}: ${error.response.config.url}`, {
         status: error.response.status,
         data: error.response.data,
-        headers: error.response.headers,
+        // headers: error.response.headers,
       });
     } else if (error.request) {
       // 请求发出但没有收到响应
@@ -126,19 +125,24 @@ export class HttpClient {
       // 其他错误
       console.error('[HTTP] General Error:', error.message);
     }
-    /** 处理错误toast提示 */
-    if (error.response.status === 401) {
-      MainWindowManager.sendWebContentEvent(
-        ELECTRON_TO_CLIENT_CHANNELS.Toast,
-        'error',
-        '登录已过期，请重新登录！',
-      );
-    } else {
-      MainWindowManager.sendWebContentEvent(
-        ELECTRON_TO_CLIENT_CHANNELS.Toast,
-        'error',
-        error.message,
-      );
+    /**  处理错误toast提示 */
+    try {
+      let windowId: number | null = null;
+      if (error.response?.config.method === 'post') {
+        windowId = Number(JSON.parse(error.response?.config.data).windowId);
+      } else if (error.response?.config.method === 'get') {
+        windowId = Number(JSON.parse(error.response?.config.params).windowId);
+      }
+      if (windowId) {
+        /** 处理错误toast提示 */
+        WindowManager.showToast(
+          windowId,
+          'error',
+          error.response?.data?.message ?? error.message ?? '未知错误，请联系管理员',
+        );
+      }
+    } catch (err) {
+      console.log('处理错误toast提示失败', err);
     }
 
     return Promise.reject(error);
@@ -224,7 +228,7 @@ export class HttpClient {
     onProgress?: (progress: number) => void,
   ): Promise<void> {
     const fs = await import('fs');
-    const path = await import('path');
+    // const path = await import('path');
 
     const response = await this.axiosInstance({
       method: 'GET',

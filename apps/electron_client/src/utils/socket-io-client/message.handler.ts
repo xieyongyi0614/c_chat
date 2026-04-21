@@ -1,8 +1,6 @@
 import { ELECTRON_TO_CLIENT_CHANNELS, SOCKET_ERROR_CODE } from '@c_chat/shared-config';
 import { CChatSocket, ClientToServerEvents, ServerToClientEvents } from '.';
 import { MessageHandlerRegistry } from './message-handler.registry';
-import { MainWindowManager } from '@c_chat/electron_client/main/windows/mainWindow';
-import { BrowserWindow } from 'electron';
 import { Socket } from 'socket.io-client';
 import { Command } from '@c_chat/shared-protobuf';
 import { SOCKET_PROTO_EVENT, ClientDecodeProtoMapKey } from '@c_chat/shared-protobuf/protoMap';
@@ -54,19 +52,13 @@ export class MessageHandler extends MessageHandlerRegistry {
   }
 
   /** 渲染进程通信 */
-  protected _sendToRenderer(
-    mainWindow: BrowserWindow | null,
-    channel: string,
-    data?: unknown,
-  ): void {
-    if (!mainWindow?.webContents || mainWindow.isDestroyed()) {
+  protected _sendToRenderer(channel: string, data?: unknown): void {
+    const window = WindowManager.getInstance().getWindow(this.windowId);
+    if (!window) {
+      throw new Error(`窗口${this.windowId}不存在`);
+    }
+    if (!window?.webContents || window.isDestroyed()) {
       console.log('[Socket] Cannot send to renderer: window not available');
-      console.log(
-        mainWindow?.isDestroyed(),
-        !mainWindow?.webContents,
-        channel,
-        'connect mainWindow333',
-      );
       return;
     }
     /** 错误消息处理 */
@@ -76,20 +68,21 @@ export class MessageHandler extends MessageHandlerRegistry {
         errorCode: newData?.errorCode || SOCKET_ERROR_CODE.UNKNOWN,
         errorMessage: newData?.errorMessage || '未知错误，请联系管理员',
       };
-      mainWindow.webContents.send(channel, errData);
+      window.webContents.send(channel, errData);
       return;
     }
-    mainWindow.webContents.send(channel, data);
+    window.webContents.send(channel, data);
   }
 
   /** 事件订阅处理 */
-  protected _setupSubscribeToEvent(socket: CChatSocket, mainWindow: BrowserWindow | null) {
+  protected _setupSubscribeToEvent(socket: CChatSocket) {
     this.subscribeToEvent(SOCKET_PROTO_EVENT.getUserInfo, (data) => {
       if (data.id) {
-        this._sendToRenderer(mainWindow, ELECTRON_TO_CLIENT_CHANNELS.SocketConnSuccess, data);
+        this._sendToRenderer(ELECTRON_TO_CLIENT_CHANNELS.SocketConnSuccess, data);
         WindowManager.getInstance().applyWindowAuthState(this.windowId, true);
       } else {
-        MainWindowManager.showToast('error', '登录失败，请检查用户名和密码');
+        // MainWindowManager.showToast('error', '登录失败，请检查用户名和密码');
+        WindowManager.showToast(this.windowId, 'error', '登录失败，请检查用户名和密码');
         socket.disconnect();
       }
     });
@@ -110,11 +103,11 @@ export class MessageHandler extends MessageHandlerRegistry {
       const errorHandler = {
         [SOCKET_ERROR_CODE.UNAUTHORIZED]: () => {
           socket.disconnect();
-          MainWindowManager.getInstance().applyAuthState(false);
+          WindowManager.getInstance().applyWindowAuthState(this.windowId, false);
         },
       };
       errorHandler[errorCode as keyof typeof errorHandler]?.();
-      this._sendToRenderer(mainWindow, ELECTRON_TO_CLIENT_CHANNELS.ERROR, data);
+      this._sendToRenderer(ELECTRON_TO_CLIENT_CHANNELS.ERROR, data);
 
       console.log('socket error', data);
     });
@@ -127,6 +120,7 @@ export class MessageHandler extends MessageHandlerRegistry {
         messageTableClass.upsertMessages([
           {
             id: data.id,
+            msgId: data.msgId,
             senderId: data.senderId,
             conversationId: data.conversationId,
             content: data.content,
@@ -151,7 +145,7 @@ export class MessageHandler extends MessageHandlerRegistry {
         }
 
         // 3. 通知渲染进程刷新 UI
-        this._sendToRenderer(mainWindow, ELECTRON_TO_CLIENT_CHANNELS.SocketMessage, data);
+        this._sendToRenderer(ELECTRON_TO_CLIENT_CHANNELS.SocketMessage, data);
       }
     });
   }

@@ -2,7 +2,7 @@ import { WindowManager } from '@c_chat/electron_client/main/windows';
 import { storeTableClass } from '../../db';
 import { ApiClient } from '../../utils/axios/service/apiService';
 import logger from '../../utils/logger';
-import { addActionHandler, omitActionCtx } from '../util';
+import { addActionHandler } from '../util';
 import { socketManager } from '@c_chat/electron_client/utils/socket-io-client';
 import { GetUserList } from '@c_chat/shared-protobuf';
 import { SOCKET_PROTO_EVENT } from '@c_chat/shared-protobuf/protoMap';
@@ -11,18 +11,13 @@ import { UserTypes } from '@c_chat/shared-types';
 
 /** 登录 */
 addActionHandler('SignIn', async (params) => {
-  // 使用 WindowManager 获取或创建窗口
-  const window = WindowManager.getInstance().getWindow(params.windowId);
-  if (!window) {
-    throw new Error(`窗口${params.windowId}不存在`);
-  }
-  const res = await ApiClient.auth.signIn(omitActionCtx(params));
+  const res = await ApiClient.auth.signIn(params);
   if (!res?.access_token) {
     throw new Error('登录失败,不存在token');
   }
   storeTableClass.setAccessToken(res.access_token, params.windowId);
   // 为该窗口初始化独立的 socket 连接
-  await socketManager.initSocket(params.windowId, window);
+  await socketManager.initSocket(params.windowId);
 
   // 更新窗口的认证状态
   if (res.access_token) {
@@ -32,11 +27,6 @@ addActionHandler('SignIn', async (params) => {
 
 /** 自动登录 - 检查token并初始化socket连接 */
 addActionHandler('AutoSignIn', async (params) => {
-  const window = WindowManager.getInstance().getWindow(params.windowId);
-  if (!window) {
-    throw new Error(`窗口${params.windowId}不存在`);
-  }
-
   // 先检查token是否存在
   const accessToken = storeTableClass.getAccessToken(params.windowId);
   if (!accessToken) {
@@ -45,7 +35,7 @@ addActionHandler('AutoSignIn', async (params) => {
     throw new Error('窗口没有token，请重新登录');
   }
 
-  socketManager.initSocket(params.windowId, window);
+  socketManager.initSocket(params.windowId);
 });
 
 /** 注册 */
