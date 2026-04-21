@@ -22,6 +22,10 @@ cd c_chat
 pnpm install
 # 启动
 pnpm run dev
+
+
+# 打包
+pnpm run package
 ```
 
 ## 🛠 技术栈

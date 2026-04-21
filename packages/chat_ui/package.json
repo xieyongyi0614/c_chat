@@ -20,7 +20,7 @@
   "scripts": {
     "test": "vite",
     "dev": "vite build --watch",
-    "dev-build": "vite build --watch",
+    "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
     "add-ui": "pnpm dlx shadcn@latest add",
