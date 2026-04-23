@@ -6,7 +6,7 @@ export enum ConversationTypeEnum {
 export interface LocalConversationListItem {
   id: string;
   type: ConversationTypeEnum;
-  targetId: string;
+  groupId: string;
   lastMsgContent: string;
   lastMsgTime: number;
   updateTime: number;

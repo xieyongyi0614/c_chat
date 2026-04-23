@@ -12,7 +12,7 @@ message CreateConversationRequest {
 message ConversationInfo {
   string id = 1;
   int32 type = 2; // 1: 私聊, 2: 群聊
-  string target_id = 3;
+  string group_id = 3;
   optional string last_msg_content = 4;
   optional int64 last_msg_time = 5;
   int64 update_time = 6;
