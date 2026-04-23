@@ -3,6 +3,7 @@ import { electronAPI } from '@electron-toolkit/preload';
 import { db, IPC_CONFIG, WINDOW_ID } from '@c_chat/shared-config';
 import { IpcMessage } from '@c_chat/shared-types';
 import { webContentEventApi } from './webContentEventPreload';
+import { windowTools } from './windowTools';
 
 function getArgValue(key: string): string | undefined {
   const arg = process.argv.find((a) => a.startsWith(`${key}=`));
@@ -20,4 +21,5 @@ contextBridge.exposeInMainWorld(IPC_CONFIG.API_NAME, {
     return ipcRenderer.invoke(IPC_CONFIG.CHANNEL_NAME, message);
   },
   ...webContentEventApi,
+  ...windowTools,
 });
