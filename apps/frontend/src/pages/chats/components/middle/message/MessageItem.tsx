@@ -31,7 +31,7 @@ const MessageItem = (props: MessageItemProps) => {
       >
         {formatCompactTime(msg.updateTime)}
 
-        <span className="ml-2">{!isMe && isRead ? '已读' : '送达'}</span>
+        <span className="ml-2">{isMe ? '送达' : isRead && '已读'}</span>
       </span>
     </div>
   );

@@ -14,7 +14,7 @@ export const useChatsData = () => {
     setConversationData,
     selectedConversation,
     setMessageData,
-    applyConversationReadState,
+    markConversationAsRead,
   } = useChatStore();
 
   const fetchLocalConversationData = async (param?: GetLocalConversationListParams) => {
@@ -51,7 +51,7 @@ export const useChatsData = () => {
       toast.error('获取本地消息失败');
       return;
     }
-    console.log(err, 'fetchLocalMessageHistory');
+    console.log('fetchLocalMessageHistory', res);
     setMessageData(res);
   };
 
@@ -67,65 +67,6 @@ export const useChatsData = () => {
       setMessageData(res);
     }
   };
-
-  const markConversationAsRead = async (conversationId: string) => {
-    const [err, res] = await to(ipc.ReadMessage({ conversationId }));
-    if (err) {
-      console.error('markConversationAsRead failed:', err);
-      return;
-    }
-    applyConversationReadState({
-      conversationId,
-      unreadCount: res.unreadCount,
-      lastReadMessageId: res.messageId ?? 0,
-    });
-  };
-
-  // const handleSendMessage = async (e?: React.FormEvent) => {
-  //   e?.preventDefault();
-  //   if ((!selectedConversation && !selectedUserForDraft) || !inputMessage.trim()) return;
-
-  //   let convoId = selectedConversation?.id;
-
-  //   // 如果是临时会话，先创建
-  //   if (!convoId && selectedUserForDraft) {
-  //     try {
-  //       const newConvoRaw = await ipc.CreateConversation({ targetId: selectedUserForDraft.id });
-  //       const newConvo: ConversationInfo = {
-  //         id: newConvoRaw.id,
-  //         type: newConvoRaw.type,
-  //         targetId: newConvoRaw.target_id,
-  //         lastMsgContent: newConvoRaw.last_msg_content ?? '',
-  //         lastMsgTime: Number(newConvoRaw.last_msg_time ?? 0),
-  //         updateTime: Number(newConvoRaw.update_time ?? 0),
-  //         createTime: Number(newConvoRaw.create_time ?? 0),
-  //         userNickname: newConvoRaw.user?.nickname,
-  //         userAvatar: newConvoRaw.user?.avatarUrl,
-  //         groupName: newConvoRaw.group_name,
-  //         groupAvatar: newConvoRaw.group_avatar,
-  //       };
-  //       convoId = newConvo.id;
-  //       setSelectedConversation(newConvo);
-  //       setSelectedUserForDraft(null);
-  //     } catch (error) {
-  //       console.error('Failed to create conversation on first message:', error);
-  //       return;
-  //     }
-  //   }
-
-  //   try {
-  //     const res = await ipc.SendMessage({
-  //       conversationId: convoId!,
-  //       content: inputMessage,
-  //       type: 0, // Text
-  //     });
-  //     console.log('Sent message:', res);
-  //     setInputMessage('');
-  //     setMessages((prev) => [...prev, res]);
-  //   } catch (error) {
-  //     console.error('Failed to send message:', error);
-  //   }
-  // };
 
   useEffect(() => {
     if (userInfo?.id) {

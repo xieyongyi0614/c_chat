@@ -3,7 +3,11 @@ import { CChatSocket, ClientToServerEvents, ServerToClientEvents } from '.';
 import { MessageHandlerRegistry } from './message-handler.registry';
 import { Socket } from 'socket.io-client';
 import { Command } from '@c_chat/shared-protobuf';
-import { SOCKET_PROTO_EVENT, ClientDecodeProtoMapKey } from '@c_chat/shared-protobuf/protoMap';
+import {
+  SOCKET_PROTO_EVENT,
+  ClientDecodeProtoMapKey,
+  ClientDecodeProtoCallback,
+} from '@c_chat/shared-protobuf/protoMap';
 
 import { conversationTableClass, messageTableClass } from '../../db';
 import { WebContentEvents } from '@c_chat/shared-types';
@@ -76,77 +80,80 @@ export class MessageHandler extends MessageHandlerRegistry {
 
   /** 事件订阅处理 */
   protected _setupSubscribeToEvent(socket: CChatSocket) {
-    this.subscribeToEvent(SOCKET_PROTO_EVENT.getUserInfo, (data) => {
-      if (data.id) {
-        this._sendToRenderer(ELECTRON_TO_CLIENT_CHANNELS.SocketConnSuccess, data);
-        WindowManager.getInstance().applyWindowAuthState(this.windowId, true);
-      } else {
-        // MainWindowManager.showToast('error', '登录失败，请检查用户名和密码');
-        WindowManager.showToast(this.windowId, 'error', '登录失败，请检查用户名和密码');
-        socket.disconnect();
-      }
-    });
-    this.subscribeToEvent(SOCKET_PROTO_EVENT.getUserList, (data) => {
-      console.log('subscribeToEvent getUserList', data);
-    });
-    this.subscribeToEvent(SOCKET_PROTO_EVENT.createConversation, (data) => {
-      console.log('createConversation response', data);
-    });
-    this.subscribeToEvent(SOCKET_PROTO_EVENT.getConversationList, (data) => {
-      console.log('getConversationList response', data);
-    });
-    this.subscribeToEvent(SOCKET_PROTO_EVENT.getMessageHistory, (data) => {
-      console.log('getMessageHistory response', data);
-    });
-    this.subscribeToEvent(SOCKET_PROTO_EVENT.error, (data) => {
-      const { errorCode } = data;
-      const errorHandler = {
-        [SOCKET_ERROR_CODE.UNAUTHORIZED]: () => {
+    const responseHandler: Partial<ClientDecodeProtoCallback> = {
+      [SOCKET_PROTO_EVENT.getUserInfo]: (data) => {
+        if (data.id) {
+          this._sendToRenderer(ELECTRON_TO_CLIENT_CHANNELS.SocketConnSuccess, data);
+          WindowManager.getInstance().applyWindowAuthState(this.windowId, true);
+        } else {
+          // MainWindowManager.showToast('error', '登录失败，请检查用户名和密码');
+          WindowManager.showToast(this.windowId, 'error', '登录失败，请检查用户名和密码');
           socket.disconnect();
-          WindowManager.getInstance().applyWindowAuthState(this.windowId, false);
-        },
-      };
-      errorHandler[errorCode as keyof typeof errorHandler]?.();
-      this._sendToRenderer(ELECTRON_TO_CLIENT_CHANNELS.ERROR, data);
-
-      console.log('socket error', data);
-    });
-
-    // 监听实时消息推送
-    this.subscribeToEvent(SOCKET_PROTO_EVENT.sendMessage, (data) => {
-      console.log('收到实时消息推送:', data);
-      if (data) {
-        // 1. 写入本地消息表
-        messageTableClass.upsertMessages([
-          {
-            id: data.id,
-            msgId: data.msgId,
-            senderId: data.senderId,
-            conversationId: data.conversationId,
-            content: data.content,
-            type: data.type,
-            state: 0,
-            createTime: Number(data.createTime),
-            updateTime: Number(data.updateTime),
+        }
+      },
+      [SOCKET_PROTO_EVENT.error]: (data) => {
+        const { errorCode } = data;
+        const errorHandler = {
+          [SOCKET_ERROR_CODE.UNAUTHORIZED]: () => {
+            socket.disconnect();
+            WindowManager.getInstance().applyWindowAuthState(this.windowId, false);
           },
-        ]);
+        };
+        errorHandler[errorCode as keyof typeof errorHandler]?.();
+        this._sendToRenderer(ELECTRON_TO_CLIENT_CHANNELS.ERROR, data);
 
-        // 2. 更新本地会话表快照
-        const convo = conversationTableClass.getConversation(data.conversationId);
-        if (convo) {
-          conversationTableClass.upsertConversations([
+        console.log('socket error', data);
+      },
+
+      [SOCKET_PROTO_EVENT.sendMessage]: (data) => {
+        console.log('收到实时消息推送:', data);
+        if (data) {
+          // 1. 写入本地消息表
+          messageTableClass.upsertMessages([
             {
-              ...convo,
-              lastMsgContent: data.content,
-              lastMsgTime: Number(data.createTime),
+              id: data.id,
+              msgId: data.msgId,
+              senderId: data.senderId,
+              conversationId: data.conversationId,
+              content: data.content,
+              type: data.type,
+              state: 0,
+              createTime: Number(data.createTime),
               updateTime: Number(data.updateTime),
             },
           ]);
-        }
 
-        // 3. 通知渲染进程刷新 UI
-        this._sendToRenderer(ELECTRON_TO_CLIENT_CHANNELS.SocketMessage, data);
-      }
+          // 2. 更新本地会话表快照
+          const convo = conversationTableClass.getConversation(data.conversationId);
+          if (convo) {
+            conversationTableClass.upsertConversations([
+              {
+                ...convo,
+                lastMsgContent: data.content,
+                lastMsgTime: Number(data.createTime),
+                updateTime: Number(data.updateTime),
+              },
+            ]);
+          }
+
+          // 3. 通知渲染进程刷新 UI
+          this._sendToRenderer(ELECTRON_TO_CLIENT_CHANNELS.SocketMessage, data);
+        }
+      },
+    };
+
+    const handleEvent = Object.values(SOCKET_PROTO_EVENT).filter(
+      (item) => item !== SOCKET_PROTO_EVENT.ping,
+    );
+    handleEvent.forEach((e) => {
+      this.subscribeToEvent(e, (data: unknown) => {
+        const handle = responseHandler[e];
+        if (handle) {
+          handle(data as never);
+          return;
+        }
+        console.log(`subscribeToEvent ${e}：`, data);
+      });
     });
   }
 }
