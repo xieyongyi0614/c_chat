@@ -17,7 +17,7 @@ const ConversationList = (props: ConversationListProps) => {
           id,
           lastMsgContent,
           lastMsgTime,
-          targetId,
+          groupId,
           type,
           userNickname,
           userAvatar,
@@ -25,7 +25,7 @@ const ConversationList = (props: ConversationListProps) => {
           groupAvatar,
           unreadCount,
         } = convo;
-        const displayName = type === 1 ? userNickname || targetId : groupName || targetId;
+        const displayName = type === 1 ? userNickname : groupName || groupId;
         const avatarUrl = type === 1 ? userAvatar : groupAvatar;
         const avatarFallback = displayName?.slice(0, 2).toUpperCase() || '??';
         const displayTime = lastMsgTime ? formatRelativeTime(lastMsgTime) : null;
@@ -43,10 +43,6 @@ const ConversationList = (props: ConversationListProps) => {
                 console.log(convo, 'selectedConversation');
                 setSelectedConversation(convo);
                 setSelectedUserForDraft(null);
-                // 点击会话时清除未读数
-                // if (unreadCount && unreadCount > 0) {
-                //   clearUnreadCount(id);
-                // }
               }}
             >
               <div className="flex gap-2 flex-1 items-center">

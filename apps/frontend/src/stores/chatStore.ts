@@ -6,6 +6,7 @@ import type {
   UserTypes,
 } from '@c_chat/shared-types';
 import { DEFAULT_LIST_DATA } from '@c_chat/shared-config';
+import { ipc, to } from '@c_chat/shared-utils';
 type SetStateType<T> = (data?: T | ((state: T) => T)) => void;
 
 interface ChatStoreData {
@@ -27,14 +28,8 @@ export interface ChatStoreType extends ChatStoreData {
     lastMsgTime: number,
   ) => void;
   upsertAndPinConversation: (conversation: LocalConversationListItem) => void;
-  applyConversationReadState: (payload: {
-    conversationId: string;
-    unreadCount: number;
-    lastReadMessageId: number;
-  }) => void;
-  markActiveConversationRead: (conversationId: string, messageId: number) => void;
-  increaseUnreadCount: (conversationId: string) => void;
-  clearUnreadCount: (conversationId: string) => void;
+
+  markConversationAsRead: (conversationId: string) => Promise<void>;
 }
 
 type SetData = <T extends keyof ChatStoreData>(
@@ -43,7 +38,7 @@ type SetData = <T extends keyof ChatStoreData>(
 ) => void;
 
 /** 全局状态 */
-export const useChatStore = create<ChatStoreType>((set) => {
+export const useChatStore = create<ChatStoreType>((set, get) => {
   const pinConversation = (
     list: LocalConversationListItem[],
     conversation: LocalConversationListItem,
@@ -100,15 +95,20 @@ export const useChatStore = create<ChatStoreType>((set) => {
       set((state) => {
         const index = state.conversationData.list.findIndex((c) => c.id === conversationId);
         if (index === -1) return state;
+        const isActiveConversation = state.selectedConversation?.id === conversationId;
         const updatedConversation = {
           ...state.conversationData.list[index],
           lastMsgContent,
           lastMsgTime,
-          unreadCount: (state.conversationData.list[index].unreadCount || 0) + 1,
+          unreadCount:
+            (state.conversationData.list[index].unreadCount || 0) + (isActiveConversation ? 0 : 1),
         };
         const nextList = [...state.conversationData.list];
         nextList.splice(index, 1);
         nextList.unshift(updatedConversation);
+        if (isActiveConversation) {
+          get().markConversationAsRead(conversationId);
+        }
         return {
           conversationData: {
             ...state.conversationData,
@@ -133,91 +133,34 @@ export const useChatStore = create<ChatStoreType>((set) => {
         };
       });
     },
-    applyConversationReadState({ conversationId, unreadCount, lastReadMessageId }) {
+
+    async markConversationAsRead(conversationId) {
+      const [err, res] = await to(ipc.ReadMessage({ conversationId }));
+      if (err) {
+        console.error('markConversationAsRead failed:', err);
+        return;
+      }
+
       set((state) => {
-        let updatedSelected = state.selectedConversation;
-        const nextList = state.conversationData.list.map((item) => {
-          if (item.id !== conversationId) return item;
-          const updated = {
-            ...item,
-            unreadCount,
-            lastReadMessageId,
-          };
-          if (updatedSelected?.id === conversationId) {
-            updatedSelected = updated;
-          }
-          return updated;
-        });
-        return {
-          conversationData: {
-            ...state.conversationData,
-            list: nextList,
-          },
-          selectedConversation: updatedSelected,
+        const { conversationData } = state;
+        const newList = [...conversationData.list];
+        const index = newList.findIndex((item) => item.id === conversationId);
+        if (index === -1) {
+          return state;
+        }
+
+        newList[index] = {
+          ...newList[index],
+          unreadCount: res.unreadCount,
+          lastReadMessageId: res.messageId ?? 0,
         };
-      });
-    },
-    markActiveConversationRead(conversationId, messageId) {
-      set((state) => {
-        let updatedSelected = state.selectedConversation;
-        const nextList = state.conversationData.list.map((item) => {
-          if (item.id !== conversationId) return item;
-          const updated = {
-            ...item,
-            unreadCount: 0,
-            lastReadMessageId: messageId,
-          };
-          if (updatedSelected?.id === conversationId) {
-            updatedSelected = updated;
-          }
-          return updated;
-        });
+
         return {
           conversationData: {
-            ...state.conversationData,
-            list: nextList,
+            ...conversationData,
+            list: newList,
           },
-          selectedConversation: updatedSelected,
-        };
-      });
-    },
-    increaseUnreadCount(conversationId) {
-      set((state) => {
-        let updatedSelected = state.selectedConversation;
-        const nextList = state.conversationData.list.map((c) => {
-          if (c.id !== conversationId) return c;
-          const updated = { ...c, unreadCount: (c.unreadCount || 0) + 1 };
-          if (updatedSelected?.id === conversationId) {
-            updatedSelected = updated;
-          }
-          return updated;
-        });
-        return {
-          conversationData: {
-            ...state.conversationData,
-            list: nextList,
-          },
-          selectedConversation: updatedSelected,
-        };
-      });
-    },
-    clearUnreadCount(conversationId) {
-      set((state) => {
-        let updatedSelected = state.selectedConversation;
-        const nextList = state.conversationData.list.map((c) => {
-          if (c.id !== conversationId) return c;
-          const updated = { ...c, unreadCount: 0 };
-          if (updatedSelected?.id === conversationId) {
-            updatedSelected = updated;
-          }
-          return updated;
-        });
-        return {
-          conversationData: {
-            ...state.conversationData,
-            list: nextList,
-          },
-          selectedConversation: updatedSelected,
+          selectedConversation: newList[index],
         };
       });
     },
