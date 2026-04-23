@@ -150,7 +150,7 @@ addActionHandler('SendMessage', async (data) => {
     const newConvo = {
       id: res.id,
       type: res.type,
-      targetId: res.targetId,
+      groupId: res.groupId,
       lastMsgContent: res.lastMsgContent ?? '',
       lastMsgTime: Number(res.lastMsgContent ?? 0),
       updateTime: Number(res.updateTime ?? 0),

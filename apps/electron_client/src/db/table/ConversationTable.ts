@@ -10,7 +10,7 @@ export class ConversationTable extends TableConnection {
       CREATE TABLE IF NOT EXISTS ${this.TABLE_NAME} (
         id TEXT PRIMARY KEY,
         type INTEGER,
-        target_id TEXT,
+        group_id TEXT,
         last_msg_content TEXT,
         last_msg_time INTEGER,
         update_time INTEGER,
@@ -82,7 +82,7 @@ export class ConversationTable extends TableConnection {
     if (convos.length === 0) return;
 
     const sql = `
-      INSERT INTO ${this.TABLE_NAME} (id, type, target_id, last_msg_content, last_msg_time, update_time, create_time, user_nickname, user_avatar, group_name, group_avatar, unread_count, last_read_message_id)
+      INSERT INTO ${this.TABLE_NAME} (id, type, group_id, last_msg_content, last_msg_time, update_time, create_time, user_nickname, user_avatar, group_name, group_avatar, unread_count, last_read_message_id)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(id) DO UPDATE SET
         last_msg_content = excluded.last_msg_content,
@@ -102,7 +102,7 @@ export class ConversationTable extends TableConnection {
         stmt?.run(
           convo.id,
           convo.type,
-          convo.targetId,
+          convo.groupId,
           convo.lastMsgContent,
           convo.lastMsgTime,
           convo.updateTime,
@@ -131,7 +131,7 @@ export class ConversationTable extends TableConnection {
     return {
       id: row.id,
       type: row.type,
-      targetId: row.target_id,
+      groupId: row.group_id,
       lastMsgContent: row.last_msg_content,
       lastMsgTime: row.last_msg_time,
       updateTime: row.update_time,
