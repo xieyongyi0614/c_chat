@@ -19,5 +19,6 @@ export * from './scroll-area';
 export * from './select';
 export * from './separator';
 export * from './spinner';
+export * from './textarea';
 export * from './layout/main';
 export * from './widgets/BackDropLoading';

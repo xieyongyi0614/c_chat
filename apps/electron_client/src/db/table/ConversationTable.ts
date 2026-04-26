@@ -1,4 +1,4 @@
-import { LocalConversationListItem } from '@c_chat/shared-types';
+import { DBConversationListItem, LocalConversationListItem } from '@c_chat/shared-types';
 import { TableConnection } from '../Table';
 import { DEFAULT_LIST_DATA } from '@c_chat/shared-config';
 
@@ -10,17 +10,15 @@ export class ConversationTable extends TableConnection {
       CREATE TABLE IF NOT EXISTS ${this.TABLE_NAME} (
         id TEXT PRIMARY KEY,
         type INTEGER,
-        group_id TEXT,
+        target_id TEXT,
+        target_name TEXT,
+        target_avatar TEXT,
+        unread_count INTEGER DEFAULT 0,
+        last_read_message_id INTEGER DEFAULT 0,
         last_msg_content TEXT,
         last_msg_time INTEGER,
         update_time INTEGER,
-        create_time INTEGER,
-        user_nickname TEXT,
-        user_avatar TEXT,
-        group_name TEXT,
-        group_avatar TEXT,
-        unread_count INTEGER DEFAULT 0,
-        last_read_message_id INTEGER DEFAULT 0
+        create_time INTEGER
       )
     `;
     this.run(sql);
@@ -30,7 +28,9 @@ export class ConversationTable extends TableConnection {
    * 获取所有会话
    */
   getAllConversations(): LocalConversationListItem[] {
-    const rows = this.all<any>(`SELECT * FROM ${this.TABLE_NAME} ORDER BY last_msg_time DESC`);
+    const rows = this.all<DBConversationListItem>(
+      `SELECT * FROM ${this.TABLE_NAME} ORDER BY last_msg_time DESC`,
+    );
     return rows.map(this.mapRowToRecord);
   }
 
@@ -42,7 +42,7 @@ export class ConversationTable extends TableConnection {
     pageSize = DEFAULT_LIST_DATA.pagination.pageSize,
   ) {
     const offset = (page - 1) * pageSize;
-    const rows = this.all<LocalConversationListItem>(
+    const rows = this.all<DBConversationListItem>(
       `SELECT * FROM ${this.TABLE_NAME} ORDER BY last_msg_time DESC LIMIT ? OFFSET ?`,
       [pageSize, offset],
     );
@@ -61,7 +61,10 @@ export class ConversationTable extends TableConnection {
    * 获取单个会话
    */
   getConversation(id: string): LocalConversationListItem | undefined {
-    const row = this.get<[string], any>(`SELECT * FROM ${this.TABLE_NAME} WHERE id = ?`, [id]);
+    const row = this.get<[string], DBConversationListItem>(
+      `SELECT * FROM ${this.TABLE_NAME} WHERE id = ?`,
+      [id],
+    );
     return row ? this.mapRowToRecord(row) : undefined;
   }
 
@@ -76,44 +79,96 @@ export class ConversationTable extends TableConnection {
   }
 
   /**
+   * 更新代理设置
+   * @param data 要更新的代理数据
+   */
+  update(data: Partial<LocalConversationListItem> & { id: string }): void {
+    const { updateFields, updateValues } = Object.entries(data).reduce<{
+      updateFields: string[];
+      updateValues: (string | number)[];
+    }>(
+      (acc, [key, value]) => {
+        if (value !== undefined && key !== 'id') {
+          acc.updateFields.push(`${key} = ?`);
+          acc.updateValues.push(value);
+        }
+        return acc;
+      },
+      { updateFields: [], updateValues: [] },
+    );
+
+    if (data.type !== undefined) {
+      updateFields.push('type = ?');
+      updateValues.push(data.type);
+    }
+
+    if (updateFields.length === 0) {
+      return;
+    }
+
+    // 构建并执行更新SQL
+    const updateSQL = `
+    UPDATE ${this.TABLE_NAME}
+    SET ${updateFields.join(', ')}
+    WHERE id = ?
+  `;
+
+    // 添加ID到参数列表
+    updateValues.push(data.id);
+
+    this.run(updateSQL, updateValues);
+  }
+
+  /**
    * 批量更新会话
    */
   upsertConversations(convos: LocalConversationListItem[]) {
     if (convos.length === 0) return;
 
     const sql = `
-      INSERT INTO ${this.TABLE_NAME} (id, type, group_id, last_msg_content, last_msg_time, update_time, create_time, user_nickname, user_avatar, group_name, group_avatar, unread_count, last_read_message_id)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO ${this.TABLE_NAME} (id, type, target_id, target_name, target_avatar, unread_count, last_read_message_id, last_msg_content, last_msg_time, update_time, create_time)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(id) DO UPDATE SET
+        type = excluded.type,
+        target_id = excluded.target_id,
+        target_name = excluded.target_name,
+        target_avatar = excluded.target_avatar,
+        unread_count = excluded.unread_count,
+        last_read_message_id = excluded.last_read_message_id,
         last_msg_content = excluded.last_msg_content,
         last_msg_time = excluded.last_msg_time,
         update_time = excluded.update_time,
-        user_nickname = excluded.user_nickname,
-        user_avatar = excluded.user_avatar,
-        group_name = excluded.group_name,
-        group_avatar = excluded.group_avatar,
-        unread_count = excluded.unread_count,
-        last_read_message_id = excluded.last_read_message_id
+        create_time = excluded.create_time
     `;
 
-    const stmt = this.db?.prepare(sql);
     const transaction = this.db?.transaction((items: LocalConversationListItem[]) => {
       for (const convo of items) {
-        stmt?.run(
-          convo.id,
-          convo.type,
-          convo.groupId,
-          convo.lastMsgContent,
-          convo.lastMsgTime,
-          convo.updateTime,
-          convo.createTime,
-          convo.userNickname,
-          convo.userAvatar,
-          convo.groupName,
-          convo.groupAvatar,
-          convo.unreadCount ?? 0,
-          Number(convo.lastReadMessageId ?? 0),
-        );
+        const {
+          id,
+          type,
+          targetId,
+          targetName,
+          targetAvatar,
+          unreadCount = 0,
+          lastReadMessageId = 0,
+          lastMsgContent,
+          lastMsgTime,
+          updateTime,
+          createTime,
+        } = convo;
+        this?.run(sql, [
+          id,
+          type,
+          targetId,
+          targetName,
+          targetAvatar,
+          unreadCount,
+          lastReadMessageId,
+          lastMsgContent,
+          lastMsgTime,
+          updateTime,
+          createTime,
+        ]);
       }
     });
 
@@ -127,30 +182,39 @@ export class ConversationTable extends TableConnection {
     this.run(`DELETE FROM ${this.TABLE_NAME} WHERE id = ?`, [id]);
   }
 
-  private mapRowToRecord(row: any): LocalConversationListItem {
+  /** 转化数据行 */
+  private mapRowToRecord(row: DBConversationListItem): LocalConversationListItem {
+    const {
+      id,
+      type,
+      target_id,
+      target_name,
+      target_avatar,
+      unread_count = 0,
+      last_read_message_id = 0,
+      last_msg_content,
+      last_msg_time,
+      update_time,
+      create_time,
+    } = row;
     return {
-      id: row.id,
-      type: row.type,
-      groupId: row.group_id,
-      lastMsgContent: row.last_msg_content,
-      lastMsgTime: row.last_msg_time,
-      updateTime: row.update_time,
-      createTime: row.create_time,
-      userNickname: row.user_nickname,
-      userAvatar: row.user_avatar,
-      groupName: row.group_name,
-      groupAvatar: row.group_avatar,
-      unreadCount: row.unread_count ?? 0,
-      lastReadMessageId: row.last_read_message_id ?? 0,
+      id,
+      type,
+      targetId: target_id,
+      targetName: target_name,
+      targetAvatar: target_avatar,
+      unreadCount: unread_count,
+      lastReadMessageId: last_read_message_id,
+      lastMsgContent: last_msg_content,
+      lastMsgTime: last_msg_time,
+      updateTime: update_time,
+      createTime: create_time,
     };
   }
   /**
    * 添加file_name列，如果不存在
    */
-  addFileNameColumnIfNotExists() {
-    this.addColumnIfNotExists('unread_count', 'INTEGER DEFAULT 0');
-    this.addColumnIfNotExists('last_read_message_id', 'INTEGER DEFAULT 0');
-  }
+  addFileNameColumnIfNotExists() {}
 
   migrate(): void {
     this.addFileNameColumnIfNotExists();

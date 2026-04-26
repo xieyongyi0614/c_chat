@@ -152,7 +152,7 @@ export class MessageHandler extends MessageHandlerRegistry {
           handle(data as never);
           return;
         }
-        console.log(`subscribeToEvent ${e}：`, data);
+        // console.log(`subscribeToEvent ${e}：`, data);
       });
     });
   }

@@ -10,7 +10,12 @@ import {
 import { SOCKET_PROTO_EVENT } from '@c_chat/shared-protobuf/protoMap';
 import { conversationTableClass, messageTableClass } from '../../db';
 import { ipc, to, transformPageParams, transformPagination } from '@c_chat/shared-utils';
-import { RequiredNonNullable, SocketTypes } from '@c_chat/shared-types';
+import {
+  LocalConversationListItem,
+  LocalMessageListItem,
+  RequiredNonNullable,
+  SocketTypes,
+} from '@c_chat/shared-types';
 
 /** 创建会话 (本地生成ID，不立即提交线上) */
 // addActionHandler('CreateConversation', async (data) => {
@@ -102,20 +107,21 @@ addActionHandler('GetConversationList', async (data) => {
 
     return await ipc.GetLocalConversationList(params);
   }
+  console.log('获取线上会话列表成功:', res.list);
 
-  const records =
+  const records: LocalConversationListItem[] =
     res.list
       ?.map((convo) => ({
         ...(convo as RequiredNonNullable<typeof convo>),
-        userNickname: convo.user?.nickname ?? '',
-        userAvatar: convo.user?.avatarUrl ?? '',
-        groupName: convo.groupName ?? '',
-        groupAvatar: convo.groupAvatar ?? '',
+        targetId: convo.targetInfo?.id ?? '',
+        targetName: convo.targetInfo?.name ?? '',
+        targetAvatar: convo.targetInfo?.avatarUrl ?? '',
         lastMsgTime: Number(convo.lastMsgTime),
         updateTime: Number(convo.updateTime),
         createTime: Number(convo.createTime),
       }))
       .filter((item) => item.id !== undefined) ?? [];
+
   if (records) {
     conversationTableClass.upsertConversations(records);
   }
@@ -126,6 +132,7 @@ addActionHandler('GetConversationList', async (data) => {
 addActionHandler('SendMessage', async (data) => {
   const params = omitActionCtx(data);
   const socketService = socketManager.getSocketService(data.windowId);
+  let newConvo: LocalConversationListItem | null = null;
 
   let conversationId = params.conversationId;
 
@@ -144,35 +151,24 @@ addActionHandler('SendMessage', async (data) => {
       console.error('创建会话失败:', err);
       throw err;
     }
-
     conversationId = res.id;
-
-    const newConvo = {
-      id: res.id,
-      type: res.type,
-      groupId: res.groupId,
-      lastMsgContent: res.lastMsgContent ?? '',
-      lastMsgTime: Number(res.lastMsgContent ?? 0),
-      updateTime: Number(res.updateTime ?? 0),
-      createTime: Number(res.createTime ?? 0),
-      userNickname: res.user?.nickname ?? '',
-      userAvatar: res.user?.avatarUrl ?? '',
-      groupName: res.groupName ?? '',
-      groupAvatar: res.groupAvatar ?? '',
-      lastReadMessageId: 0,
+    newConvo = {
+      ...(res as RequiredNonNullable<typeof res>),
+      lastMsgTime: Number(res.lastMsgTime),
+      updateTime: Number(res.updateTime),
+      createTime: Number(res.createTime),
+      targetId: res.targetInfo?.id ?? '',
+      targetName: res.targetInfo?.name ?? '',
+      targetAvatar: res.targetInfo?.avatarUrl ?? '',
     };
     conversationTableClass.upsertConversations([newConvo]);
   } else if (!conversationId) {
     throw new Error('参数错误，缺少会话ID');
   }
 
-  // 使用实际的会话ID继续发送消息
-  const actualParams = {
-    ...params,
-    conversationId,
-  };
+  const actualParams = { ...params, conversationId };
 
-  // 1. 存入本地，状态为发送中 (乐观更新)
+  // 1. 存入本地
   const tempId = `temp_${Date.now()}`;
   const senderInfo = socketService.getUserInfo();
   const tempMsg = {
@@ -196,20 +192,13 @@ addActionHandler('SendMessage', async (data) => {
     ),
   );
   if (err || !res) {
-    messageTableClass.updateMessageState(tempId, 2); // fail
+    messageTableClass.updateMessageState(tempId, 2);
     console.log('发送消息失败', err);
 
     throw err || new Error('发送消息失败');
   }
-
-  const messageInfo = {
-    id: res.id,
-    msgId: res.msgId,
-    senderId: res.senderId,
-    conversationId: res.conversationId,
-    content: res.content,
-    type: res.type,
-    state: 0,
+  const messageInfo: LocalMessageListItem = {
+    ...res,
     createTime: Number(res.createTime),
     updateTime: Number(res.updateTime),
   };
@@ -229,7 +218,7 @@ addActionHandler('SendMessage', async (data) => {
     // 更新本地数据库中的会话信息
     conversationTableClass.upsertConversations([updatedConvo]);
   }
-  return messageInfo;
+  return { messageInfo, newConvo };
 });
 
 /** 获取消息历史 (本地缓存优先) */

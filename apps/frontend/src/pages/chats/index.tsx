@@ -16,36 +16,6 @@ export function Chats() {
   const [createConversationDialogOpened, setCreateConversationDialog] = useState(false);
   const leftColumnRef = useRef<LeftColumnRef>(null);
 
-  // // 监听实时消息推送
-  // const removeListener = ipc.onSocketMessage((data: MessageInfo) => {
-  //   console.log('收到实时消息推送:', data);
-  //   // 1. 如果当前正处于该会话，追加消息
-  //   if (selectedConversation?.id === data.conversationId) {
-  //     setMessages((prev) => {
-  //       // 去重（防止重复收到）
-  //       if (prev.some((m) => m.id === data.id)) return prev;
-  //       return [...prev, data];
-  //     });
-  //   }
-
-  //   // 2. 更新会话列表中的快照
-  //   setConversationList((prev) => {
-  //     const index = prev.findIndex((c) => c.id === data.conversationId);
-  //     if (index > -1) {
-  //       const newList = [...prev];
-  //       newList[index] = {
-  //         ...newList[index],
-  //         lastMsgContent: data.content,
-  //         lastMsgTime: data.createTime,
-  //       };
-  //       // 置顶逻辑
-  //       const [movedItem] = newList.splice(index, 1);
-  //       return [movedItem, ...newList];
-  //     }
-  //     return prev;
-  //   });
-  // });
-
   const handleSelectUserFromNewChat = (user: UserTypes.UserListItem) => {
     const existingConvo = leftColumnRef.current?.filterConversations.find(
       (c) => c.targetId === user.id,
