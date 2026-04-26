@@ -67,6 +67,9 @@ export const useChatStore = create<ChatStoreType>((set, get) => {
     },
     setSelectedConversation(data) {
       setData('selectedConversation', data);
+      if (data) {
+        setData('selectedUserForDraft', null);
+      }
     },
     setSelectedUserForDraft(data) {
       setData('selectedUserForDraft', data ?? null);

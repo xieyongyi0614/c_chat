@@ -8,20 +8,34 @@ message CreateConversationRequest {
   string target_id = 1;
 }
 
+message GroupInfo {
+  string id = 1;
+  string name = 2;
+  optional string avatar_url = 3;
+  optional string notice = 4;
+  string owner_id = 5;
+  int32 state = 6;
+  int64 update_time = 7;
+  int64 create_time = 8;
+}
+
+
+message TargetInfo {
+  string id = 1;
+  string name = 2;
+  string avatar_url = 3;
+}
 // 会话信息
 message ConversationInfo {
   string id = 1;
   int32 type = 2; // 1: 私聊, 2: 群聊
-  string group_id = 3;
+  optional TargetInfo target_info = 3; // 目标信息（用户或群）
   optional string last_msg_content = 4;
   optional int64 last_msg_time = 5;
   int64 update_time = 6;
   int64 create_time = 7;
-  optional UserInfo user = 8; // 私聊时对方的用户信息
-  optional string group_name = 9; // 群聊时群名称
-  optional string group_avatar = 10; // 群聊时群头像
-  optional int32 unread_count = 11; // 当前用户在该会话下的未读数
-  optional int32 last_read_message_id = 12; // 当前用户已读到的最近消息 msgId
+  optional int32 unread_count = 8; // 当前用户在该会话下的未读数
+  optional int32 last_read_message_id = 9; // 当前用户已读到的最近消息 msgId
 }
 
 // 发送消息请求

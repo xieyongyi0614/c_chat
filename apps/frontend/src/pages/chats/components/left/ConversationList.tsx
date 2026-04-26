@@ -13,21 +13,8 @@ const ConversationList = (props: ConversationListProps) => {
   return (
     <ScrollArea className="-mx-3 h-full overflow-auto p-3" type="auto">
       {list.map((convo) => {
-        const {
-          id,
-          lastMsgContent,
-          lastMsgTime,
-          groupId,
-          type,
-          userNickname,
-          userAvatar,
-          groupName,
-          groupAvatar,
-          unreadCount,
-        } = convo;
-        const displayName = type === 1 ? userNickname : groupName || groupId;
-        const avatarUrl = type === 1 ? userAvatar : groupAvatar;
-        const avatarFallback = displayName?.slice(0, 2).toUpperCase() || '??';
+        const { id, lastMsgContent, lastMsgTime, targetName, targetAvatar, unreadCount } = convo;
+        const avatarFallback = targetName?.slice(0, 2).toUpperCase() || '??';
         const displayTime = lastMsgTime ? formatRelativeTime(lastMsgTime) : null;
 
         return (
@@ -40,19 +27,18 @@ const ConversationList = (props: ConversationListProps) => {
                 selectedConversation?.id === id && 'sm:bg-muted',
               )}
               onClick={() => {
-                console.log(convo, 'selectedConversation');
                 setSelectedConversation(convo);
                 setSelectedUserForDraft(null);
               }}
             >
               <div className="flex gap-2 flex-1 items-center">
                 <Avatar>
-                  <AvatarImage src={avatarUrl} alt="@shadcn" className="grayscale" />
+                  <AvatarImage src={targetAvatar} alt="@shadcn" className="grayscale" />
                   <AvatarFallback>{avatarFallback}</AvatarFallback>
                 </Avatar>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between">
-                    <span className="font-medium truncate">{displayName}</span>
+                    <span className="font-medium truncate">{targetName ?? '无'}</span>
                     {displayTime && (
                       <span className="text-xs text-muted-foreground ml-2 shrink-0">
                         {displayTime}
