@@ -6,7 +6,6 @@ import * as path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { stat } from 'fs/promises';
 import { getFileTypeFromExtension, getMimeTypeFromExtension, to } from '@c_chat/shared-utils';
-
 export type SelectUploadFilesParams = {
   filters?: Array<{ name: string; extensions: string[] }>;
   allowMultiSelect?: boolean;
@@ -33,7 +32,6 @@ export type UploadFileByChunksResult = {
 
 const DEFAULT_CHUNK_SIZE = 3 * 1024 * 1024; // 3MB
 const DEFAULT_UPLOAD_URL = 'http://localhost:3001/api/upload/chunk';
-
 /** 选择文件 */
 addActionHandler('SelectFiles', async (params) => {
   const browserWindow = BrowserWindow.getFocusedWindow() ?? undefined;
@@ -66,21 +64,34 @@ addActionHandler('SelectFiles', async (params) => {
       const fileName = path.basename(filePath);
       const fileExtension = path.extname(filePath).toLowerCase();
 
+      const fileType = getFileTypeFromExtension(fileExtension);
+
       return {
+        id: uuidv4(),
         filePath,
         fileName,
         fileSize: stats.size,
-        fileType: getFileTypeFromExtension(fileExtension),
+        fileType: fileType,
         mimeType: getMimeTypeFromExtension(fileExtension),
         extension: fileExtension,
         lastModified: stats.mtime.getTime(), // 时间戳
         isDirectory: stats.isDirectory(),
         isFile: stats.isFile(),
+        buffer: fileType === 'image' ? fs.readFileSync(filePath) : null,
       };
     }),
   );
 
   return fileInfos.filter((info) => info !== null);
+});
+
+addActionHandler('ReadLocalFile', async (params) => {
+  if (!params?.filePath) {
+    throw new Error('缺少 filePath');
+  }
+
+  const data = await fs.promises.readFile(params.filePath);
+  return new Uint8Array(data);
 });
 
 addActionHandler('UploadFileByChunks', async (params) => {

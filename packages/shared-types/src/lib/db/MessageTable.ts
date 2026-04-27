@@ -12,6 +12,7 @@ export enum MessageTypeEnum {
   File = 2,
   Audio = 3,
   Video = 4,
+  ImageText = 5, // 图文消息
   // Location = 5,
   // Contact = 6,
   // Sticker = 7,

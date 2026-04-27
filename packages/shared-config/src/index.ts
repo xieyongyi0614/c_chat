@@ -4,7 +4,7 @@ export * from './lib/webContentEvent.config';
 export * from './lib/injected';
 export * from './lib/errorCode';
 export * from './lib/constants';
-
+export * from './lib/fileType';
 /** electron 渲染端口 */
 export const ELECTRON_RENDERER_PORT = 3000;
 

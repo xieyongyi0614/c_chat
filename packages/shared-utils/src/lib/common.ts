@@ -1,6 +1,6 @@
+import { DEFAULT_PAGINATION } from '@c_chat/shared-config';
 import { Common } from '@c_chat/shared-protobuf';
 import { RequiredNonNullable, SocketTypes } from '@c_chat/shared-types';
-import { DEFAULT_PAGINATION } from 'src';
 
 export const transformListParams = (params?: SocketTypes.RequestListParams) => {
   const newParams: SocketTypes.RequestListParams = {

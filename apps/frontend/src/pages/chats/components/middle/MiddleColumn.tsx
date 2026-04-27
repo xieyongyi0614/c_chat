@@ -6,6 +6,7 @@ import { ArrowLeft, MoreVertical, Paperclip, Phone, ImagePlus, Send, Video } fro
 import { ipc, to } from '@c_chat/shared-utils';
 import { toast } from 'sonner';
 import HistoryMessageList from './MessageHistoryList';
+import { ChatInput } from './input/ChatInput';
 
 interface RightSideProps {
   openCreateConversationDialog: (open: boolean) => void;
@@ -222,10 +223,12 @@ const MiddleColumn = (props: RightSideProps) => {
       {/* Conversation */}
       <div className="flex flex-1 flex-col gap-2 rounded-md px-4 pt-0 pb-4">
         <HistoryMessageList />
-        <form className="flex w-full flex-none gap-2" onSubmit={handleSendMessage}>
+        <ChatInput />
+
+        {/* <form className="flex w-full flex-none gap-2" onSubmit={handleSendMessage}>
           <div className="flex flex-1 items-center gap-2 rounded-md border border-input bg-card px-2 py-1 focus-within:ring-1 focus-within:ring-ring focus-within:outline-hidden lg:gap-4">
             <div className="space-x-1">
-              {/* <input
+              <input
                 ref={imageInputRef}
                 type="file"
                 accept="image/*"
@@ -237,8 +240,8 @@ const MiddleColumn = (props: RightSideProps) => {
                 type="file"
                 className="hidden"
                 onChange={handleFileSelected}
-              /> */}
-              {/* <Button
+              />
+              <Button
                 size="icon"
                 type="button"
                 variant="ghost"
@@ -248,7 +251,7 @@ const MiddleColumn = (props: RightSideProps) => {
                 aria-label="插入链接"
               >
                 <Link2 size={20} className="stroke-muted-foreground" />
-              </Button> */}
+              </Button>
               <Button
                 size="icon"
                 type="button"
@@ -282,16 +285,16 @@ const MiddleColumn = (props: RightSideProps) => {
                 onChange={(e) => setInputMessage(e.target.value)}
               />
             </label>
-            {/* <MultimodalInput /> */}
 
             <Button variant="ghost" size="icon" className="hidden sm:inline-flex" type="submit">
               <Send size={20} />
             </Button>
           </div>
+
           <Button className="h-full sm:hidden" type="submit">
             <Send size={18} /> Send
           </Button>
-        </form>
+        </form> */}
       </div>
     </div>
   );
