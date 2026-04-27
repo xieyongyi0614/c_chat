@@ -4,7 +4,8 @@ export type SelectFilesParams = {
   filters?: Array<{ name: string; extensions: string[] }>;
   allowMultiSelect?: boolean;
 };
-export interface SelectFileInfo {
+export interface FileInfoListItem {
+  id: string;
   filePath: string;
   fileName: string;
   fileSize: number;
@@ -14,6 +15,8 @@ export interface SelectFileInfo {
   lastModified: number;
   isDirectory: boolean;
   isFile: boolean;
+  buffer: Buffer<ArrayBuffer> | null;
+  url?: string;
 }
 
 export type UploadFileByChunksParams = {
@@ -35,7 +38,12 @@ export type UploadFileByChunksResult = {
   serverResponse?: any;
 };
 
+export type ReadLocalFileParams = {
+  filePath: string;
+};
+
 export interface FileOperationPreloadTypes {
-  SelectFiles: IpcMethod<SelectFilesParams | undefined, SelectFileInfo[]>;
+  SelectFiles: IpcMethod<SelectFilesParams | undefined, FileInfoListItem[]>;
+  ReadLocalFile: IpcMethod<ReadLocalFileParams, Uint8Array>;
   UploadFileByChunks: IpcMethod<UploadFileByChunksParams, UploadFileByChunksResult>;
 }
