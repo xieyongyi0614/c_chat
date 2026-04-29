@@ -2,7 +2,7 @@ import { memo, useRef, useState } from 'react';
 import EmptyConversation from './EmptyConversation';
 import { useChatStore } from '@c_chat/frontend/stores';
 import { Avatar, AvatarFallback, AvatarImage, Button, cn } from '@c_chat/ui';
-import { ArrowLeft, MoreVertical, Paperclip, Phone, ImagePlus, Send, Video } from 'lucide-react';
+import { ArrowLeft, MoreVertical, Phone, Video } from 'lucide-react';
 import { ipc, to } from '@c_chat/shared-utils';
 import { toast } from 'sonner';
 import HistoryMessageList from './MessageHistoryList';

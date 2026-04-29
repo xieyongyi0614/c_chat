@@ -1,4 +1,4 @@
-import { useChatStore, useUserStore } from '@c_chat/frontend/stores';
+import { useChatStore, useMessageStore, useUserStore } from '@c_chat/frontend/stores';
 import type {
   GetConversationListParams,
   GetLocalConversationListParams,
@@ -13,9 +13,10 @@ export const useChatsData = () => {
     conversationData,
     setConversationData,
     selectedConversation,
-    setMessageData,
+    // setMessageData,
     markConversationAsRead,
   } = useChatStore();
+  const { addMsgList } = useMessageStore();
 
   const fetchLocalConversationData = async (param?: GetLocalConversationListParams) => {
     const [err, res] = await to(ipc.GetLocalConversationList(param));
@@ -52,19 +53,21 @@ export const useChatsData = () => {
       return;
     }
     console.log('fetchLocalMessageHistory', res);
-    setMessageData(res);
+    // setMessageData(res);
+    // addMsgList(res);
   };
 
   const fetchMessageHistory = async (conversationId: string) => {
     const [err, res] = await to(
       ipc.GetMessageHistory({
         conversationId,
-        pagination: { page: 1, pageSize: 50 },
+        pagination: { page: 1, pageSize: 100000 },
       }),
     );
     console.log('fetchMessageHistory', res, err);
     if (res) {
-      setMessageData(res);
+      // setMessageData(res);
+      addMsgList(res.list);
     }
   };
 

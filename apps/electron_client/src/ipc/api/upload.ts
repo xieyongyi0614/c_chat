@@ -3,9 +3,13 @@ import { addActionHandler } from '../util';
 import { storeTableClass } from '../../db';
 import * as fs from 'fs';
 import * as path from 'path';
-import { v4 as uuidv4 } from 'uuid';
 import { stat } from 'fs/promises';
-import { getFileTypeFromExtension, getMimeTypeFromExtension, to } from '@c_chat/shared-utils';
+import {
+  getFileTypeFromExtension,
+  getMimeTypeFromExtension,
+  to,
+  uuidv4,
+} from '@c_chat/shared-utils';
 export type SelectUploadFilesParams = {
   filters?: Array<{ name: string; extensions: string[] }>;
   allowMultiSelect?: boolean;

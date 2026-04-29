@@ -1,5 +1,22 @@
-import { LocalMessageListItem } from '@c_chat/shared-types';
+import { LocalMessageListItem, MessageStatusEnum, MessageTypeEnum } from '@c_chat/shared-types';
 import { TableConnection } from '../Table';
+
+interface DBMessageListItem {
+  id: string;
+  msg_id: number;
+  sender_id: string;
+  conversation_id: string;
+  content: string;
+  type: MessageTypeEnum;
+  state: number;
+  create_time: number;
+  update_time: number;
+  local_time: number;
+  client_msg_id: string;
+  status: MessageStatusEnum;
+  file_id?: string;
+  media_group_id?: string;
+}
 
 export class MessageTable extends TableConnection {
   readonly TABLE_NAME = 'messages';
@@ -8,57 +25,144 @@ export class MessageTable extends TableConnection {
     const sql = `
       CREATE TABLE IF NOT EXISTS ${this.TABLE_NAME} (
         id TEXT PRIMARY KEY,
-        msg_id INTEGER,
+        conversation_id TEXT NOT NULL,
+        msg_id INTEGER,              
+        client_msg_id TEXT,           
         sender_id TEXT,
-        conversation_id TEXT,
         content TEXT,
-        type INTEGER,
-        state INTEGER DEFAULT 0,
-        create_time INTEGER,
-        update_time INTEGER
+        type INTEGER DEFAULT 0,
+        status INTEGER DEFAULT 0, 
+        create_time INTEGER,          
+        update_time INTEGER,  
+        local_time INTEGER,
+        file_id TEXT,
+        media_group_id TEXT,
+        UNIQUE(conversation_id, msg_id),
+        UNIQUE(conversation_id, client_msg_id)
       )
     `;
     this.run(sql);
-    // 建立索引
-    this.run(
-      `CREATE INDEX IF NOT EXISTS idx_messages_conversation_id ON ${this.TABLE_NAME} (conversation_id)`,
-    );
-    this.run(
-      `CREATE INDEX IF NOT EXISTS idx_messages_create_time ON ${this.TABLE_NAME} (create_time)`,
-    );
+
+    // 🚀 核心索引（最重要）
+    this.run(`
+      CREATE INDEX IF NOT EXISTS idx_msg_conversation_msgid
+      ON ${this.TABLE_NAME}(conversation_id, msg_id DESC)
+    `);
+
+    // 🚀 本地排序优化（秒开）
+    this.run(`
+      CREATE INDEX IF NOT EXISTS idx_msg_conversation_local_time
+      ON ${this.TABLE_NAME}(conversation_id, local_time DESC)
+    `);
+
+    // 🚀 clientMsgId 查找（ACK/对齐用）
+    this.run(`
+      CREATE INDEX IF NOT EXISTS idx_msg_client_msg_id
+      ON ${this.TABLE_NAME}(client_msg_id)
+    `);
   }
 
   /**
    * 获取会话的所有消息
    */
-  getMessagesByConversationId(conversationId: string, limit = 50, offset = 0) {
-    const rows = this.all<LocalMessageListItem>(
-      `SELECT * FROM ${this.TABLE_NAME} WHERE conversation_id = ? ORDER BY create_time DESC LIMIT ? OFFSET ?`,
-      [conversationId, limit, offset],
-    );
+  // getMessagesByConversationId(conversationId: string, limit = 50, offset = 0) {
+  //   const rows = this.all<LocalMessageListItem>(
+  //     `SELECT * FROM ${this.TABLE_NAME} WHERE conversation_id = ? ORDER BY create_time DESC LIMIT ? OFFSET ?`,
+  //     [conversationId, limit, offset],
+  //   );
+  //   return rows.map(this.mapRowToRecord);
+  // }
+
+  getMessagesByConversationId(conversationId: string, limit = 50, beforeMsgId?: number) {
+    let rows;
+
+    if (beforeMsgId) {
+      // 🚀 向上翻历史
+      rows = this.all<DBMessageListItem>(
+        `
+        SELECT * FROM ${this.TABLE_NAME}
+        WHERE conversation_id = ?
+          AND msg_id < ?
+        ORDER BY msg_id DESC
+        LIMIT ?
+        `,
+        [conversationId, beforeMsgId, limit],
+      );
+    } else {
+      // 🚀 首次加载
+      rows = this.all<DBMessageListItem>(
+        `
+        SELECT * FROM ${this.TABLE_NAME}
+        WHERE conversation_id = ?
+        ORDER BY msg_id DESC
+        LIMIT ?
+        `,
+        [conversationId, limit],
+      );
+    }
+
     return rows.map(this.mapRowToRecord);
   }
-
-  /**
-   * 获取消息总数
-   */
-  getMessageCount(conversationId: string): number {
-    const row = this.get<[string], { count: number }>(
-      `SELECT COUNT(*) as count FROM ${this.TABLE_NAME} WHERE conversation_id = ?`,
-      [conversationId],
-    );
-    return row?.count ?? 0;
-  }
-
   /**
    * 获取最新的一条消息
    */
   getLastMessage(conversationId: string) {
-    const row = this.get<[string], LocalMessageListItem>(
+    const row = this.get<[string], DBMessageListItem>(
       `SELECT * FROM ${this.TABLE_NAME} WHERE conversation_id = ? ORDER BY create_time DESC LIMIT 1`,
       [conversationId],
     );
     return row ? this.mapRowToRecord(row) : undefined;
+  }
+  insert(msg: LocalMessageListItem) {
+    // 🚀 SQLite UPSERT（关键）
+    const sql = `
+  INSERT INTO ${this.TABLE_NAME} (
+    id,
+    conversation_id,
+    msg_id,
+    client_msg_id,
+    sender_id,
+    content,
+    type,
+    status,
+    create_time,
+    update_time,
+    local_time,
+    file_id,
+    media_group_id
+  )
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `;
+    const {
+      id,
+      conversationId,
+      msgId,
+      clientMsgId,
+      senderId,
+      content,
+      type,
+      status,
+      updateTime,
+      createTime,
+      localTime,
+      fileId,
+      mediaGroupId,
+    } = msg;
+    this?.run(sql, [
+      id,
+      conversationId,
+      msgId,
+      clientMsgId,
+      senderId,
+      content,
+      type,
+      status,
+      updateTime,
+      createTime,
+      localTime,
+      fileId,
+      mediaGroupId,
+    ]);
   }
 
   /**
@@ -67,29 +171,72 @@ export class MessageTable extends TableConnection {
   upsertMessages(msgs: LocalMessageListItem[]) {
     if (msgs.length === 0) return;
 
+    // 🚀 SQLite UPSERT（关键）
     const sql = `
-      INSERT INTO ${this.TABLE_NAME} (id, msg_id, sender_id, conversation_id, content, type, state, create_time, update_time)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-      ON CONFLICT(id) DO UPDATE SET
-        state = excluded.state,
-        content = excluded.content,
-        update_time = excluded.update_time
-    `;
+    INSERT INTO ${this.TABLE_NAME} (
+      id,
+      conversation_id,
+      msg_id,
+      client_msg_id,
+      sender_id,
+      content,
+      type,
+      status,
+      update_time,
+      create_time,
+      local_time,
+      file_id,
+      media_group_id
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 
-    const stmt = this.db?.prepare(sql);
+    ON CONFLICT(conversation_id, client_msg_id) DO UPDATE SET
+      msg_id = excluded.msg_id,
+      status = excluded.status,
+      create_time = COALESCE(excluded.create_time, messages.create_time),
+      update_time = COALESCE(excluded.update_time, messages.update_time),
+      content = COALESCE(excluded.content, messages.content),
+      file_id = COALESCE(excluded.file_id, messages.file_id),
+      media_group_id = COALESCE(excluded.media_group_id, messages.media_group_id)
+
+    ON CONFLICT(conversation_id, msg_id) DO UPDATE SET
+      client_msg_id = COALESCE(excluded.client_msg_id, messages.client_msg_id),
+      status = excluded.status,
+      content = COALESCE(excluded.content, messages.content)
+  `;
+
     const transaction = this.db?.transaction((items: LocalMessageListItem[]) => {
       for (const msg of items) {
-        stmt?.run(
-          msg.id,
-          msg.msgId,
-          msg.senderId,
-          msg.conversationId,
-          msg.content,
-          msg.type,
-          msg.state,
-          msg.createTime,
-          msg.updateTime,
-        );
+        const {
+          id,
+          conversationId,
+          msgId,
+          clientMsgId,
+          senderId,
+          content,
+          type,
+          status,
+          updateTime,
+          createTime,
+          localTime,
+          fileId,
+          mediaGroupId,
+        } = msg;
+        this?.run(sql, [
+          id,
+          conversationId,
+          msgId,
+          clientMsgId,
+          senderId,
+          content,
+          type,
+          status,
+          updateTime,
+          createTime,
+          localTime,
+          fileId,
+          mediaGroupId,
+        ]);
       }
     });
 
@@ -110,17 +257,16 @@ export class MessageTable extends TableConnection {
     this.run(`DELETE FROM ${this.TABLE_NAME} WHERE id = ?`, [id]);
   }
 
-  private mapRowToRecord(row: any): LocalMessageListItem {
+  private mapRowToRecord(row: DBMessageListItem): LocalMessageListItem {
     return {
-      id: row.id,
+      ...row,
       msgId: row.msg_id,
       senderId: row.sender_id,
       conversationId: row.conversation_id,
-      content: row.content,
-      type: row.type,
-      state: row.state,
+      clientMsgId: row.client_msg_id,
       createTime: row.create_time,
       updateTime: row.update_time,
+      localTime: row.local_time,
     };
   }
 }

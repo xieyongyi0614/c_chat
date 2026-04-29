@@ -7,7 +7,8 @@ export const ELECTRON_TO_CLIENT_CHANNELS = {
   SocketConnSuccess: 'socketConnSuccess',
   SocketDisconnected: 'socketDisconnected',
   SocketReconnecting: 'socketReconnecting',
-  SocketMessage: 'socketMessage',
+
+  newMessage: 'newMessage',
 
   /** toast 相关channel */
   Toast: 'toast',

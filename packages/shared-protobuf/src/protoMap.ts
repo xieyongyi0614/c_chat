@@ -2,7 +2,6 @@ import {
   GetUserList,
   GetUserListResponse,
   UserInfo,
-  CreateConversationRequest,
   ConversationInfo,
   SendMessageRequest,
   MessageInfo,
@@ -13,34 +12,40 @@ import {
   ReadMessageRequest,
   ReadMessageResponse,
   ErrorResult,
+  AckSendMessage,
 } from '.';
 
-/** 通用 */
-export const SOCKET_PROTO_EVENT = {
-  ping: 'ping',
-  getUserInfo: 'getUserInfo',
-  getUserList: 'getUserList',
-  createConversation: 'createConversation',
-  sendMessage: 'sendMessage',
-  getConversationList: 'getConversationList',
-  getMessageHistory: 'getMessageHistory',
-  readMessage: 'readMessage',
+export const ServiceToClientEvent = {
+  pong: 'pong',
   error: 'error',
+
+  getUserInfoResponse: 'getUserInfoResponse',
+  getUserListResponse: 'getUserListResponse',
+  getConversationListResponse: 'getConversationListResponse',
+  getMessageHistoryResponse: 'getMessageHistoryResponse',
+  ReadMessageResponse: 'ReadMessageResponse',
+
+  ackSendMessage: 'ackSendMessage',
+  newMessage: 'newMessage',
+  newConversation: 'newConversation',
 } as const;
 
 /** 客户端使用 */
 export const clientDecodeProtoMap = {
   /** 错误信息处理 */
-  [SOCKET_PROTO_EVENT.error]: ErrorResult,
+  [ServiceToClientEvent.pong]: null,
+  [ServiceToClientEvent.error]: ErrorResult,
 
-  [SOCKET_PROTO_EVENT.getUserInfo]: UserInfo,
-  [SOCKET_PROTO_EVENT.ping]: null,
-  [SOCKET_PROTO_EVENT.getUserList]: GetUserListResponse,
-  [SOCKET_PROTO_EVENT.createConversation]: ConversationInfo,
-  [SOCKET_PROTO_EVENT.sendMessage]: MessageInfo,
-  [SOCKET_PROTO_EVENT.getConversationList]: GetConversationListResponse,
-  [SOCKET_PROTO_EVENT.getMessageHistory]: GetMessageHistoryResponse,
-  [SOCKET_PROTO_EVENT.readMessage]: ReadMessageResponse,
+  [ServiceToClientEvent.getUserInfoResponse]: UserInfo,
+  [ServiceToClientEvent.getUserListResponse]: GetUserListResponse,
+  [ServiceToClientEvent.getConversationListResponse]: GetConversationListResponse,
+  [ServiceToClientEvent.getMessageHistoryResponse]: GetMessageHistoryResponse,
+  [ServiceToClientEvent.ReadMessageResponse]: ReadMessageResponse,
+  // [ServiceToClientEvent.createConversation]: ConversationInfo,
+
+  [ServiceToClientEvent.ackSendMessage]: AckSendMessage,
+  [ServiceToClientEvent.newMessage]: MessageInfo,
+  [ServiceToClientEvent.newConversation]: ConversationInfo,
 };
 
 export type ClientDecodeProtoMapKey = keyof typeof clientDecodeProtoMap;
@@ -53,41 +58,64 @@ export type ClientDecodeProtoCallback = {
   ) => void | Promise<void>;
 };
 
-// export type ClientDecodeProtoCallback = {
-//   [SOCKET_PROTO_EVENT.getUserInfo]: (data: UserInfo) => void;
-//   [SOCKET_PROTO_EVENT.ping]: () => void;
-//   [SOCKET_PROTO_EVENT.getUserList]: (data: GetUserListResponse) => void;
-//   [SOCKET_PROTO_EVENT.createConversation]: (data: ConversationInfo) => void;
-//   [SOCKET_PROTO_EVENT.sendMessage]: (data: MessageInfo) => void;
-//   [SOCKET_PROTO_EVENT.getConversationList]: (data: GetConversationListResponse) => void;
-//   [SOCKET_PROTO_EVENT.getMessageHistory]: (data: GetMessageHistoryResponse) => void;
-// };
-// export const PROTO_MAP_KEY = {
-//   PING: 101,
-//   RESULT: 201,
-// } as const;
+/** ----------------------------------------------------------------- */
+/** ----------------------------------------------------------------- */
+/** ----------------------------------------------------------------- */
 
-// export const PROTO_RESULT_TYPE = {
-//   ping: 'ping',
-//   getUserInfo: 'getUserInfo',
-// } as const;
-
-// export type ProtoResultType = (typeof PROTO_RESULT_TYPE)[keyof typeof PROTO_RESULT_TYPE];
-
-// export const resultMap = {
-//   [PROTO_RESULT_TYPE.ping]: null,
-//   [PROTO_RESULT_TYPE.getUserInfo]: UserInfo,
-// };
+/** 客户端发送socket事件 */
+export const ClientToServiceEvent = {
+  ping: 'ping',
+  getUserInfo: 'getUserInfo',
+  getUserList: 'getUserList',
+  createConversation: 'createConversation',
+  sendMessage: 'sendMessage',
+  getConversationList: 'getConversationList',
+  getMessageHistory: 'getMessageHistory',
+  readMessage: 'readMessage',
+} as const;
 
 /** 服务端使用 */
 export const serviceDecodeProtoMap = {
-  [SOCKET_PROTO_EVENT.getUserInfo]: UserInfo,
-  [SOCKET_PROTO_EVENT.ping]: null,
-  [SOCKET_PROTO_EVENT.getUserList]: GetUserList,
-  [SOCKET_PROTO_EVENT.createConversation]: CreateConversationRequest,
-  [SOCKET_PROTO_EVENT.sendMessage]: SendMessageRequest,
-  [SOCKET_PROTO_EVENT.getConversationList]: GetConversationListRequest,
-  [SOCKET_PROTO_EVENT.getMessageHistory]: GetMessageHistoryRequest,
-  [SOCKET_PROTO_EVENT.readMessage]: ReadMessageRequest,
+  [ClientToServiceEvent.ping]: null,
+  [ClientToServiceEvent.getUserInfo]: UserInfo,
+  [ClientToServiceEvent.getUserList]: GetUserList,
+  // [ClientToServiceEvent.createConversation]: CreateConversationRequest,
+  [ClientToServiceEvent.sendMessage]: SendMessageRequest,
+  [ClientToServiceEvent.getConversationList]: GetConversationListRequest,
+  [ClientToServiceEvent.getMessageHistory]: GetMessageHistoryRequest,
+  [ClientToServiceEvent.readMessage]: ReadMessageRequest,
 };
 export type ServiceDecodeProtoMapKey = keyof typeof serviceDecodeProtoMap;
+
+export type ServiceDecodeProtoCallback = {
+  [K in ServiceDecodeProtoMapKey]: (
+    data: (typeof serviceDecodeProtoMap)[K] extends null
+      ? null
+      : InstanceType<NonNullable<(typeof serviceDecodeProtoMap)[K]>>,
+  ) => void | Promise<void>;
+};
+
+/** ----------------------------------------------------------------- */
+/** 事件对应响应处理 */
+export const ClientPaddingRequestsEvent = {
+  [ClientToServiceEvent.ping]: ServiceToClientEvent.pong,
+  [ClientToServiceEvent.getUserInfo]: ServiceToClientEvent.getUserInfoResponse,
+  [ClientToServiceEvent.getUserList]: ServiceToClientEvent.getUserListResponse,
+  // [ClientToServiceEvent.createConversation]: ServiceToClientEvent.newConversation,
+  [ClientToServiceEvent.sendMessage]: ServiceToClientEvent.ackSendMessage,
+  [ClientToServiceEvent.getConversationList]: ServiceToClientEvent.getConversationListResponse,
+  [ClientToServiceEvent.getMessageHistory]: ServiceToClientEvent.getMessageHistoryResponse,
+  [ClientToServiceEvent.readMessage]: ServiceToClientEvent.ReadMessageResponse,
+} as const;
+
+export type ClientPaddingRequestsCallback = {
+  [K in ServiceDecodeProtoMapKey]: (
+    data: (typeof clientDecodeProtoMap)[(typeof ClientPaddingRequestsEvent)[K]] extends null
+      ? null
+      : InstanceType<
+          NonNullable<(typeof clientDecodeProtoMap)[(typeof ClientPaddingRequestsEvent)[K]]>
+        >,
+  ) => void | Promise<void>;
+};
+
+/** ----------------------------------------------------------------- */
