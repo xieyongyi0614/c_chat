@@ -5,9 +5,9 @@ import logger from '../../utils/logger';
 import { addActionHandler } from '../util';
 import { socketManager } from '@c_chat/electron_client/utils/socket-io-client';
 import { GetUserList } from '@c_chat/shared-protobuf';
-import { SOCKET_PROTO_EVENT } from '@c_chat/shared-protobuf/protoMap';
 import { to, transformPageParams, transformPagination } from '@c_chat/shared-utils';
 import { UserTypes } from '@c_chat/shared-types';
+import { ClientToServiceEvent } from '@c_chat/shared-protobuf/protoMap';
 
 /** 登录 */
 addActionHandler('SignIn', async (params) => {
@@ -30,7 +30,6 @@ addActionHandler('AutoSignIn', async (params) => {
   // 先检查token是否存在
   const accessToken = storeTableClass.getAccessToken(params.windowId);
   if (!accessToken) {
-    // 没有token，不初始化socket
     logger.info(`[AutoSignIn] 窗口${params.windowId}没有token，跳过socket初始化`);
     throw new Error('窗口没有token，请重新登录');
   }
@@ -57,7 +56,7 @@ addActionHandler('GetUserList', async (data) => {
   const socketService = socketManager.getSocketService(data.windowId);
   const [, res] = await to(
     socketService.genericRequest(
-      SOCKET_PROTO_EVENT.getUserList,
+      ClientToServiceEvent.getUserList,
       GetUserList.encode(GetUserList.create(params)).finish(),
     ),
   );

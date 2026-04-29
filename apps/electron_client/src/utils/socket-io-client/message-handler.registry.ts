@@ -2,18 +2,20 @@ import { storeTableClass } from '@c_chat/electron_client/db';
 import initOsData from '../osData';
 import {
   clientDecodeProtoMap,
-  SOCKET_PROTO_EVENT,
   ClientDecodeProtoMapKey,
   ClientDecodeProtoCallback,
+  ServiceDecodeProtoMapKey,
+  ServiceToClientEvent,
+  ClientPaddingRequestsCallback,
 } from '@c_chat/shared-protobuf/protoMap';
 import { Command } from '@c_chat/shared-protobuf';
 import { Socket } from 'socket.io-client';
 import { ClientToServerEvents, ServerToClientEvents } from '.';
-import { v4 as uuidv4 } from 'uuid';
+import { uuidv4 } from '@c_chat/shared-utils';
 
 type Deferred<T = any> = {
   timer: NodeJS.Timeout;
-  event: ClientDecodeProtoMapKey;
+  event: ServiceDecodeProtoMapKey;
   resolve: (value: T | PromiseLike<T>) => void;
   reject: (reason?: any) => void;
 };
@@ -90,7 +92,7 @@ export abstract class MessageHandlerRegistry {
 
   /** 主动发送消息 */
   protected _sendMessageToService(
-    event: ClientDecodeProtoMapKey,
+    event: ServiceDecodeProtoMapKey,
     payload?: Uint8Array | Uint8Array[],
     requestId?: string,
   ) {
@@ -146,23 +148,23 @@ export abstract class MessageHandlerRegistry {
   }
 
   /** 请求处理 */
-  async genericRequest<T extends ClientDecodeProtoMapKey>(
+  async genericRequest<T extends ServiceDecodeProtoMapKey>(
     event: T,
     encodedData: Uint8Array,
     requestId: string = uuidv4(),
   ) {
-    return new Promise<Parameters<ClientDecodeProtoCallback[T]>[0]>((resolve, reject) => {
+    return new Promise<Parameters<ClientPaddingRequestsCallback[T]>[0]>((resolve, reject) => {
       // 创建超时定时器
       const timer = setTimeout(() => {
         const entry = this.pendingRequests.get(requestId);
         if (entry) {
           this.pendingRequests.delete(requestId);
           clearTimeout(entry.timer);
-          reject(new Error(`请求 ${requestId} 超时.`));
+          reject(new Error(`请求 ${event}: ${requestId} 超时.`));
         }
       }, MessageHandlerRegistry.DEFAULT_WAIT_TIMEOUT_MS);
 
-      const entry: Deferred<Parameters<ClientDecodeProtoCallback[T]>[0]> = {
+      const entry: Deferred<Parameters<ClientPaddingRequestsCallback[T]>[0]> = {
         resolve,
         reject,
         timer,
@@ -187,8 +189,9 @@ export abstract class MessageHandlerRegistry {
     error: any | null,
   ): void {
     const entry = this.pendingRequests.get(requestId);
+    console.log(`客户端 ${this.windowId} 收到响应：${requestId}`);
     if (!entry) {
-      // console.warn(`No waiter found for requestId: ${requestId}. Response might be stale.`);
+      console.warn(`No waiter found for requestId: ${requestId}. Response might be stale.`);
       return;
     }
 
@@ -214,6 +217,6 @@ export abstract class MessageHandlerRegistry {
 
 /** 排除掉一些事件的打印 */
 const isIgnoreConsoleEvent = (event: ClientDecodeProtoMapKey) => {
-  const ignoreEvents: ClientDecodeProtoMapKey[] = [SOCKET_PROTO_EVENT.ping];
+  const ignoreEvents: ClientDecodeProtoMapKey[] = [ServiceToClientEvent.pong];
   return !ignoreEvents.includes(event);
 };

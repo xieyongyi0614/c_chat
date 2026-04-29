@@ -3,8 +3,8 @@ import logger from '../logger';
 import { storeTableClass } from '@c_chat/electron_client/db';
 import { ELECTRON_TO_CLIENT_CHANNELS, SOCKET_ERROR_CODE } from '@c_chat/shared-config';
 import { MessageHandler } from './message.handler';
-import { SOCKET_PROTO_EVENT } from '@c_chat/shared-protobuf/protoMap';
 import { WebContentEvents } from '@c_chat/shared-types';
+import { ClientToServiceEvent, ServiceToClientEvent } from '@c_chat/shared-protobuf/protoMap';
 
 export interface ServerToClientEvents {
   message: (data: Uint8Array | Buffer) => void;
@@ -92,8 +92,8 @@ export class SocketService extends MessageHandler {
       logger.success(`[Socket ${this.windowId}] 连接成功. ID: ${this.socket?.id}`);
       this.setupPingTimer();
 
-      this.subscribeToEvent(SOCKET_PROTO_EVENT.ping, () => {
-        console.log(`[客户端 ${this.windowId}] 收到 ${SOCKET_PROTO_EVENT.ping}`);
+      this.subscribeToEvent(ServiceToClientEvent.pong, () => {
+        console.log(`[客户端 ${this.windowId}] 收到 ${ServiceToClientEvent.pong}`);
         this.cancelPendingReconnect();
       });
       if (this.socket) {
@@ -139,7 +139,7 @@ export class SocketService extends MessageHandler {
     this.pingTimerId = setInterval(() => {
       if (!this.socket?.connected) return;
 
-      this._sendMessageToService(SOCKET_PROTO_EVENT.ping);
+      this._sendMessageToService(ClientToServiceEvent.ping);
 
       this.cancelPendingReconnect();
 

@@ -1,31 +1,45 @@
-import { useChatStore, useUserStore } from '@c_chat/frontend/stores';
-import type { LocalMessageListItem } from '@c_chat/shared-types';
-import { formatCompactTime } from '@c_chat/shared-utils';
-import { cn } from '@c_chat/ui';
 import { memo } from 'react';
+import { cn } from '@c_chat/ui';
+import { formatCompactTime } from '@c_chat/shared-utils';
+import { MessageStatusEnum, type LocalMessageListItem } from '@c_chat/shared-types';
+import { useUserStore } from '@c_chat/frontend/stores';
 
 interface MessageItemProps {
   msg: LocalMessageListItem;
+  isRead: boolean;
 }
-const MessageItem = (props: MessageItemProps) => {
-  const { msg } = props;
-  const { userInfo } = useUserStore();
-  const { selectedConversation } = useChatStore();
-  const isMe = msg.senderId === userInfo?.id;
-  const isRead = selectedConversation && selectedConversation?.lastReadMessageId >= msg.msgId;
+
+const MessageItem = ({ msg, isRead }: MessageItemProps) => {
+  const userId = useUserStore((s) => s.userInfo?.id);
+  const isMe = msg.senderId === userId;
+
+  const renderStatusIcon = () => {
+    if (!isMe) return null;
+
+    if (msg.status === MessageStatusEnum.fail) {
+      return <span className="text-red-500">!</span>;
+    }
+
+    if (msg.status === MessageStatusEnum.success) {
+      return isRead ? (
+        <span className="text-blue-400 text-[10px]">✓✓</span>
+      ) : (
+        <span className="text-[10px]">✓</span>
+      );
+    }
+
+    return <span className="opacity-40 text-[10px]">•</span>;
+  };
+
   const renderContent = () => {
     if (msg.type === 1) {
       return (
-        <img
-          src={msg.content}
-          alt="图片消息"
-          className="max-h-48 w-full max-w-full rounded-md object-contain"
-        />
+        <img src={msg.content} alt="图片" className="max-h-60 w-full rounded-lg object-contain" />
       );
     }
 
     if (msg.type === 2) {
-      const fileName = msg.content.split('/').pop() || '文件下载';
+      const fileName = msg.content.split('/').pop() || '文件';
       return (
         <a
           href={msg.content}
@@ -55,25 +69,24 @@ const MessageItem = (props: MessageItemProps) => {
   };
 
   return (
-    <div
-      className={cn(
-        'chat-box max-w-72 px-3 py-2 wrap-break-word shadow-lg',
-        isMe
-          ? 'self-end rounded-[16px_16px_0_16px] bg-primary/90 text-primary-foreground/75'
-          : 'self-start rounded-[16px_16px_16px_0] bg-muted',
-      )}
-    >
-      {renderContent()}
-      <span
+    <div className={cn('flex w-full', isMe ? 'justify-end' : 'justify-start')}>
+      <div
         className={cn(
-          'mt-1 block text-xs font-light text-foreground/75 italic flex justify-between',
-          msg.senderId === userInfo?.id && 'text-end text-primary-foreground/85',
+          'max-w-[70%] rounded-2xl px-3 py-2 shadow-sm',
+          isMe ? 'bg-primary text-primary-foreground rounded-br-sm' : 'bg-muted rounded-bl-sm',
         )}
       >
-        {formatCompactTime(msg.updateTime)}
-
-        <span className="ml-2">{isMe ? '送达' : isRead && '已读'}</span>
-      </span>
+        <div className="text-sm">{renderContent()}</div>
+        <div
+          className={cn(
+            'mt-1 flex items-center justify-end gap-1 text-[10px]',
+            isMe ? 'text-primary-foreground/70' : 'text-foreground/60',
+          )}
+        >
+          <span>{formatCompactTime(msg.createTime)}</span>
+          {isMe && <span className="inline-flex w-4 justify-center">{renderStatusIcon()}</span>}
+        </div>
+      </div>
     </div>
   );
 };

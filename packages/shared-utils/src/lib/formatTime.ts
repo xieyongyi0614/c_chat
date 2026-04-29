@@ -206,6 +206,11 @@ export class ImTimeFormatter {
 
     return dates;
   }
+
+  static getDateKey(timestamp: number | string): string {
+    const date = dayjs(Number(timestamp));
+    return date.format('D MMM, YYYY');
+  }
 }
 
 // 导出常用函数的便捷别名
@@ -217,6 +222,7 @@ export const {
   isWithinRange,
   formatOnlineStatus,
   formatCompactTime,
+  getDateKey,
 } = ImTimeFormatter;
 
 // 使用示例

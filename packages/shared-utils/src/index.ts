@@ -6,3 +6,5 @@ export * from './lib/formatTime';
 export * from './lib/fileOperation';
 
 export { to } from 'await-to-js';
+
+export { v4 as uuidv4 } from 'uuid';

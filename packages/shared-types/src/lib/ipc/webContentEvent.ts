@@ -10,7 +10,7 @@ export interface WebContentEventType {
   off: (channel: string, callback: (data: any) => void) => void;
 }
 
-const { SocketConnSuccess, SocketDisconnected, ERROR, SocketReconnecting, Toast, SocketMessage } =
+const { SocketConnSuccess, SocketDisconnected, ERROR, SocketReconnecting, Toast, newMessage } =
   ELECTRON_TO_CLIENT_CHANNELS;
 
 export interface WebContentEvents {
@@ -18,7 +18,7 @@ export interface WebContentEvents {
   [SocketDisconnected]: (data: any) => void;
   [ERROR]: (error: Partial<Pick<ErrorResult, 'errorCode' | 'errorMessage'>>) => void;
   [SocketReconnecting]: (error: SocketTypes.WebContentEvents.SocketReconnectingType) => void;
-  [SocketMessage]: (data: LocalMessageListItem) => void;
+  [newMessage]: (data: LocalMessageListItem) => void;
 
   [Toast]: (type: 'success' | 'error' | 'info' | 'warning' | 'loading', message: string) => void;
 }

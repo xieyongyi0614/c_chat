@@ -4,13 +4,13 @@ import { MessageHandlerRegistry } from './message-handler.registry';
 import { Socket } from 'socket.io-client';
 import { Command } from '@c_chat/shared-protobuf';
 import {
-  SOCKET_PROTO_EVENT,
   ClientDecodeProtoMapKey,
   ClientDecodeProtoCallback,
+  ServiceToClientEvent,
 } from '@c_chat/shared-protobuf/protoMap';
 
-import { conversationTableClass, messageTableClass } from '../../db';
-import { WebContentEvents } from '@c_chat/shared-types';
+import { conversationTableClass, messageTableClass, storeTableClass } from '../../db';
+import { MessageStatusEnum, WebContentEvents } from '@c_chat/shared-types';
 import { WindowManager } from '@c_chat/electron_client/main/windows';
 
 interface QueuedEvent {
@@ -81,17 +81,21 @@ export class MessageHandler extends MessageHandlerRegistry {
   /** 事件订阅处理 */
   protected _setupSubscribeToEvent(socket: CChatSocket) {
     const responseHandler: Partial<ClientDecodeProtoCallback> = {
-      [SOCKET_PROTO_EVENT.getUserInfo]: (data) => {
+      [ServiceToClientEvent.getUserInfoResponse]: (data) => {
         if (data.id) {
           this._sendToRenderer(ELECTRON_TO_CLIENT_CHANNELS.SocketConnSuccess, data);
           WindowManager.getInstance().applyWindowAuthState(this.windowId, true);
+          storeTableClass.setUserInfo(
+            { ...data, avatar_url: data?.avatarUrl ?? '', nickname: data?.nickname ?? '' },
+            this.windowId,
+          );
         } else {
           // MainWindowManager.showToast('error', '登录失败，请检查用户名和密码');
           WindowManager.showToast(this.windowId, 'error', '登录失败，请检查用户名和密码');
           socket.disconnect();
         }
       },
-      [SOCKET_PROTO_EVENT.error]: (data) => {
+      [ServiceToClientEvent.error]: (data) => {
         const { errorCode } = data;
         const errorHandler = {
           [SOCKET_ERROR_CODE.UNAUTHORIZED]: () => {
@@ -105,45 +109,42 @@ export class MessageHandler extends MessageHandlerRegistry {
         console.log('socket error', data);
       },
 
-      [SOCKET_PROTO_EVENT.sendMessage]: (data) => {
+      [ServiceToClientEvent.newMessage]: (data) => {
         console.log('收到实时消息推送:', data);
-        if (data) {
-          // 1. 写入本地消息表
-          messageTableClass.upsertMessages([
-            {
-              id: data.id,
-              msgId: data.msgId,
-              senderId: data.senderId,
-              conversationId: data.conversationId,
-              content: data.content,
-              type: data.type,
-              state: 0,
-              createTime: Number(data.createTime),
-              updateTime: Number(data.updateTime),
-            },
-          ]);
-
-          // 2. 更新本地会话表快照
-          const convo = conversationTableClass.getConversation(data.conversationId);
-          if (convo) {
-            conversationTableClass.upsertConversations([
-              {
-                ...convo,
-                lastMsgContent: data.content,
-                lastMsgTime: Number(data.createTime),
-                updateTime: Number(data.updateTime),
-              },
-            ]);
-          }
-
-          // 3. 通知渲染进程刷新 UI
-          this._sendToRenderer(ELECTRON_TO_CLIENT_CHANNELS.SocketMessage, data);
+        if (!data) {
+          return;
         }
+        const newMsg = {
+          ...data,
+          fileId: data?.fileId ?? '',
+          mediaGroupId: data?.mediaGroupId ?? '',
+          status: MessageStatusEnum.success,
+          createTime: Number(data.createTime),
+          localTime: Number(data.updateTime),
+          updateTime: Number(data.updateTime),
+        };
+        // 1. 写入本地消息表
+        messageTableClass.upsertMessages([newMsg]);
+
+        // 2. 更新本地会话表快照
+        const convo = conversationTableClass.getConversation(newMsg.conversationId);
+        if (convo) {
+          const newConvo = {
+            ...convo,
+            lastMsgContent: newMsg.content,
+            lastMsgTime: newMsg.createTime,
+            updateTime: newMsg.updateTime,
+          };
+          conversationTableClass.upsertConversations([newConvo]);
+        }
+
+        // 3. 通知渲染进程刷新 UI
+        this._sendToRenderer(ELECTRON_TO_CLIENT_CHANNELS.newMessage, newMsg);
       },
     };
 
-    const handleEvent = Object.values(SOCKET_PROTO_EVENT).filter(
-      (item) => item !== SOCKET_PROTO_EVENT.ping,
+    const handleEvent = Object.values(ServiceToClientEvent).filter(
+      (item) => item !== ServiceToClientEvent.pong,
     );
     handleEvent.forEach((e) => {
       this.subscribeToEvent(e, (data: unknown) => {

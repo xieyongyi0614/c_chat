@@ -1,9 +1,9 @@
 /** 0: success, 1: sending, 2: fail */
-export enum MessageStateEnum {
-  Success = 0,
-  Sending = 1,
-  Fail = 2,
-}
+// export enum MessageStateEnum {
+//   Success = 0,
+//   Sending = 1,
+//   Fail = 2,
+// }
 
 /** 0:文本, 1:图片, 2:文件, 3:音频, 4:视频 */
 export enum MessageTypeEnum {
@@ -12,7 +12,6 @@ export enum MessageTypeEnum {
   File = 2,
   Audio = 3,
   Video = 4,
-  ImageText = 5, // 图文消息
   // Location = 5,
   // Contact = 6,
   // Sticker = 7,
@@ -26,26 +25,25 @@ export enum MessageTypeEnum {
   // Markdown = 15,
 }
 
-export interface DBMessageListItem {
-  id: string;
-  msg_id: number;
-  sender_id: string;
-  conversation_id: string;
-  content: string;
-  type: MessageTypeEnum;
-  state: number;
-  create_time: number;
-  update_time: number;
-}
-
 export interface LocalMessageListItem {
   id: string;
-  msgId: number;
-  senderId: string;
   conversationId: string;
+  msgId: number;
+  clientMsgId: string;
+  senderId: string;
   content: string;
   type: MessageTypeEnum;
-  state: number;
-  createTime: number;
+  status: MessageStatusEnum;
   updateTime: number;
+  createTime: number;
+  localTime: number;
+  fileId?: string;
+  mediaGroupId?: string;
+}
+
+export enum MessageStatusEnum {
+  default = 0,
+  sending = 1,
+  success = 2,
+  fail = -1,
 }

@@ -1,4 +1,4 @@
-import { IpcMethod } from '../ipcTypes';
+import { FileInfoListItem, IpcMethod } from '../ipcTypes';
 import { SocketTypes } from '../../socket.types';
 import { LocalConversationListItem, LocalMessageListItem, MessageTypeEnum } from '../../db';
 
@@ -14,6 +14,7 @@ export type SendMessageParams = {
   targetId?: string;
   content: string;
   type: MessageTypeEnum;
+  files?: FileInfoListItem[];
 };
 
 export type ReadMessageParams = {
@@ -45,9 +46,6 @@ export interface ChatPreloadTypes {
     GetMessageHistoryParams,
     SocketTypes.ResponseList<LocalMessageListItem>
   >;
-  SendMessage: IpcMethod<
-    SendMessageParams,
-    { messageInfo: LocalMessageListItem; newConvo: LocalConversationListItem | null }
-  >;
+  SendMessage: IpcMethod<SendMessageParams, LocalMessageListItem>;
   ReadMessage: IpcMethod<ReadMessageParams, ReadMessageResult>;
 }
