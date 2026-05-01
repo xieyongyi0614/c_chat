@@ -9,3 +9,5 @@ export const DEFAULT_LIST_DATA = {
   list: [],
   pagination: DEFAULT_PAGINATION,
 };
+
+export const DEFAULT_MESSAGE_PAGE_SIZE = 200;

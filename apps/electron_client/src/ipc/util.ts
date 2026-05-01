@@ -1,7 +1,6 @@
 import { db, IPC_CONFIG } from '@c_chat/shared-config';
 import { IpcMessage, IpcResponse, IpcTypes } from '@c_chat/shared-types';
 import { ipcMain } from 'electron';
-import { isPlainObject } from 'lodash';
 
 // action注入的上下文类型
 export type ActionCtx = {

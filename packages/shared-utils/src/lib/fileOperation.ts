@@ -52,7 +52,6 @@ export const getSelectFileInfoByFile = async (file: File): Promise<FileInfoListI
     lastModified: file.lastModified,
     isDirectory: false,
     isFile: true,
-    buffer: null,
     url: preview,
   };
 };

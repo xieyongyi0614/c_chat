@@ -1,3 +1,3 @@
 export * from './auth';
-export * from './chat';
-export * from './upload';
+export * from './chatIpc';
+export * from './fileOperationIpc';

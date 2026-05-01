@@ -1,6 +1,7 @@
-export * from './storeTable';
+export * from './storeTableTypes';
 export * from './ConversationTable';
-export * from './MessageTable';
+export * from './MessageTableTypes';
+export * from './UploadTaskTableTypes';
 
 /**
  * TableConnection 定位参数类型

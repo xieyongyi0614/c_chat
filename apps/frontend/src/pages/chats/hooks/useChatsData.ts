@@ -1,4 +1,5 @@
 import { useChatStore, useMessageStore, useUserStore } from '@c_chat/frontend/stores';
+import { DEFAULT_MESSAGE_PAGE_SIZE } from '@c_chat/shared-config';
 import type {
   GetConversationListParams,
   GetLocalConversationListParams,
@@ -50,24 +51,24 @@ export const useChatsData = () => {
     const [err, res] = await to(ipc.GetLocalMessageHistory({ conversationId }));
     if (err) {
       toast.error('获取本地消息失败');
+      console.log('获取本地消息失败:', err);
       return;
     }
     console.log('fetchLocalMessageHistory', res);
-    // setMessageData(res);
-    // addMsgList(res);
+    // debugger;
+    // const returnData = res.map((r) => snakeToCamelCase(r));
+
+    addMsgList(res);
   };
 
   const fetchMessageHistory = async (conversationId: string) => {
     const [err, res] = await to(
-      ipc.GetMessageHistory({
-        conversationId,
-        pagination: { page: 1, pageSize: 100000 },
-      }),
+      ipc.GetMessageHistory({ conversationId, pageSize: DEFAULT_MESSAGE_PAGE_SIZE }),
     );
-    console.log('fetchMessageHistory', res, err);
     if (res) {
       // setMessageData(res);
-      addMsgList(res.list);
+      // addMsgList(res.list);
+      console.log('fetchMessageHistory', res.list.length);
     }
   };
 

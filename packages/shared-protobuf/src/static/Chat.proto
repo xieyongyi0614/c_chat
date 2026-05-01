@@ -45,6 +45,7 @@ message SendMessageRequest {
   int32 type = 3; // 0:文本, 1:图片, 2:文件, 3:音频, 4:视频
   optional string target_id = 4; // 私聊可选：对方 ID，用于首条消息自动创建会话
   string clientMsgId = 5;
+  optional string mediaGroupId = 6;
 }
 message AckSendMessage{
   string clientMsgId = 1;
@@ -65,6 +66,8 @@ message MessageInfo {
   string client_msg_id = 10;
   optional string fileId = 11;
   optional string mediaGroupId = 12;
+  optional string file_url = 13;
+  optional string thumb_url = 14;
 }
 
 // 获取会话列表请求

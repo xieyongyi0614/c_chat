@@ -14,17 +14,18 @@ export function AttachmentItem({
 }) {
   const [previewOpen, setPreviewOpen] = useState(false);
 
-  const previewUrl = useMemo(() => {
-    if (item.fileType === 'image') {
-      if (item.buffer) {
-        return bufferToPreviewUrl({ buffer: item.buffer, type: item.fileType });
-      }
-      if (item.url) {
-        return item.url;
-      }
-      return;
-    }
-  }, [item.buffer, item.fileType, item.url]);
+  const previewUrl = item.url;
+  // const previewUrl = useMemo(() => {
+  //   if (item.fileType === 'image') {
+  //     if (item.buffer) {
+  //       return bufferToPreviewUrl({ buffer: item.buffer, type: item.fileType });
+  //     }
+  //     if (item.url) {
+  //       return item.url;
+  //     }
+  //     return;
+  //   }
+  // }, [item.buffer, item.fileType, item.url]);
   return (
     <Card className="relative w-28 h-28 overflow-hidden group p-0">
       {/* 删除按钮 */}
@@ -34,9 +35,9 @@ export function AttachmentItem({
         className="absolute top-1 right-1 z-10 opacity-0 group-hover:opacity-100"
         onClick={() => {
           onRemove(item.id);
-          if (previewUrl) {
-            URL.revokeObjectURL(previewUrl);
-          }
+          // if (previewUrl) {
+          //   URL.revokeObjectURL(previewUrl);
+          // }
         }}
       >
         <X className="w-4 h-4" />

@@ -59,7 +59,6 @@ export const useMessageStore = create<MessageStoreType>((set) => {
 
         for (const msg of sortedMsgs) {
           const dateKey = getDateKey(msg.createTime);
-
           const firstGroup = groups[0];
 
           if (firstGroup && firstGroup.dateKey === dateKey) {
@@ -103,11 +102,14 @@ export const useMessageStore = create<MessageStoreType>((set) => {
           }
         }
 
+        // 合并已有 msgMap 条目，支持部分更新
+        const existing = state.msgMap[newMsg.clientMsgId];
+
         return {
           groups,
           msgMap: {
             ...state.msgMap,
-            [newMsg.clientMsgId]: newMsg,
+            [newMsg.clientMsgId]: existing ? { ...existing, ...newMsg } : newMsg,
           },
         };
       });

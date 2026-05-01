@@ -1,341 +1,328 @@
-# 💬 即时通讯核心业务流程说明
+# c_chat 项目说明
 
-本文档基于最新的 Prisma Schema 设计，详细描述了系统中**私聊**与**群聊**的核心业务逻辑流转。
+## 项目定位
 
-## 📋 核心概念定义
+`c_chat`（Corner Chat）是一款跨平台即时通讯桌面应用的**前端仓库**。采用 **Turborepo Monorepo** 架构，通过 pnpm workspace 统一管理 Electron 桌面客户端、React 渲染进程及各共享包。
 
-- **会话:** 聊天行为发生的载体。无论是私聊还是群聊，在系统中都抽象为一条 `Conversation` 记录。
-- **私聊:** 两个用户之间的通信。其 `Conversation` 的 `target_id` 指向对方用户 ID。
-- **群聊:** 多个用户之间的通信。其 `Conversation` 的 `target_id` 指向群组 ID。
-- **消息:** 具体的聊天内容，归属于某个 `Conversation`。
-- **本地缓存:** 客户端使用 SQLite 存储会话和消息，以实现秒开体验和离线查看。
-
----
-
-## 🤝 场景一：私聊流程
-
-<!-- **前提条件:** 用户 A 和用户 B 互为好友（或系统允许陌生人发起会话）。 -->
-
-### 1. 发起会话 (延迟创建)
-
-当用户 A 在联系人列表中点击用户 B 时，系统采用**延迟创建**策略。
-
-**1.1 生成确定性 ID:**
-客户端根据双方 ID 生成唯一的 `conversation_id`：
-`ID = md5(sort([A.id, B.id]).join('_'))`
-
-**1.2 开启临时会话:**
-
-- 客户端首先在本地数据库查询该 ID。
-- 如果存在，加载历史消息。
-- 如果不存在，UI 进入"临时会话"状态，不立即调用后端创建接口。
-
-### 2. 发送消息 (触发创建)
-
-用户 A 发送第一条消息时，正式触发会话创建。
-
-**2.1 客户端处理:**
-
-- 客户端将消息存入本地 SQLite，状态设为 `sending`。
-- 调用 `SendMessage` IPC 接口。
-
-**2.2 后端处理 (自动创建):**
-
-- 后端收到消息请求，首先检查 `conversation_id` 是否已存在。
-- 如果不存在：
-  - 在 `Conversation` 表创建新记录。
-  - 在 `ConversationParticipant` 表为双方创建关联。
-- 保存消息至 `MessageHistory` 表。
-- 返回成功响应及完整的会话/消息对象。
-
-**2.3 状态同步:**
-
-- 客户端收到响应，更新本地消息状态为 `success`。
-- 如果是首条消息，将临时会话转为正式会话。
+- 仓库地址：`https://github.com/xieyongyi0614/c_chat`
+- 后端仓库：`c_chat_service`（独立的 NestJS 服务端）
+- 运行时：Node.js >= 18，pnpm 9.0.0
+- 许可证：MIT（LICENSE 文件）
 
 ---
 
-## 💾 本地数据同步策略
+## 目录结构
 
-为了保证性能与数据一致性，采用以下同步方案：
-
-### 1. 列表加载 (先本地后线上)
-
-1. **加载本地:** UI 启动时，立即从本地 SQLite 读取 `Conversation` 列表并展示。
-2. **异步对齐:** 客户端调用后端 `GetConversationList` 接口。
-3. **增量更新:**
-   - 遍历后端返回的列表，对比 `update_time`。
-   - 如果线上 `update_time > 本地 update_time`，则更新本地记录并通知 UI 刷新。
-
-### 2. 消息同步
-
-- 进入具体聊天窗口时，先展示本地 `MessageHistory`。
-- 向后端请求该会话的最新消息（带上本地最后一条消息的时间戳）。
-- 后端返回该时间戳之后的增量数据。
-- 客户端存入本地并更新 UI。
-
-### 3. 接收与展示
-
-用户 B 收到消息。
-
-**3.1 本地存储:** B 的客户端收到 WebSocket 推送，将消息写入本地 SQLite 的 `MessageHistory` 表。
-
-**3.2 列表更新:** 更新本地 `Conversation` 列表，将该会话置顶（按 `last_msg_time` 排序），并增加未读数。
-
-**3.3 UI 渲染:** 聊天窗口显示新消息气泡。
-
-### 4. 结束/删除会话
-
-用户 A 决定不再查看此聊天，点击"删除会话"。
-
-**4.1 软删除:** 客户端调用后端接口。
-
-**4.2 更新状态:** 后端更新 `ConversationParticipant` 表：
-
-- 条件：`conversation_id = ...` AND `user_id = A.id`
-- 动作：设置 `is_deleted = true`。
-
-**4.3 结果:** A 的聊天列表中不再显示该会话，但 `MessageHistory` 依然保留，且 B 的列表不受影响。
-
----
-
-## 👥 场景二：群聊流程
-
-**前提条件:** 用户 A 创建了一个群，并拉入用户 B 和 C。
-
-### 1. 进入群聊
-
-用户 A 点击群聊入口。
-
-**1.1 获取会话:**
-
-- 查询 `Conversation` 表，条件：`type = 2` (群聊) AND `target_id = 群ID`。
-- 如果不存在（首次创建群时），则创建 `Conversation` 记录，`target_id` 指向 `Group.id`。
-
-**1.2 权限校验:** 检查 `GroupMember` 表，确认 A 在该群的状态是否为 `0` (正常)。
-
-### 2. 发送消息
-
-用户 A 发送一条图片消息。
-
-**2.1 客户端请求:** 发送 `{ type: 1 (图片), url: "...", conversationId: "..." }`。
-
-**2.2 后端处理:**
-
-- **保存消息:** 在 `MessageHistory` 表插入记录：
-  - `sender_id`: A 的 ID
-  - `conversation_id`: 群会话 ID
-  - `content`: 图片 URL
-- **更新会话快照:** 更新 `Conversation` 表的 `last_msg_content` 为 "[图片]"，更新时间戳。
-- **实时推送:** 后端通过 WebSocket 向该 `conversation_id` 下的**所有**在线参与者（B 和 C）推送消息。
-
-### 3. 修改群设置
-
-用户 A（群主）修改群名为"技术交流群"。
-
-**3.1 更新资料:** 后端更新 `Group` 表：
-
-- `name`: "技术交流群"
-
-**3.2 通知成员:**
-
-- 发送一条系统类型的消息到 `MessageHistory`（可选，用于在聊天流显示"A 修改了群名"）。
-- 通过 WebSocket 推送 `update_group_info` 事件，让 B 和 C 的客户端更新本地群信息缓存。
-
-### 4. 退出群聊
-
-用户 B 决定退出群聊。
-
-**4.1 更新成员状态:** 后端更新 `GroupMember` 表：
-
-- 条件：`group_id = ...` AND `user_id = B.id`
-- 动作：设置 `state = -1` (退出)。
-
-**4.2 清理会话:**
-
-- 可选操作：更新 `ConversationParticipant` 表，设置 B 的 `is_deleted = true`。
-
-**4.3 结果:** B 不再接收该群的新消息，群成员列表更新。
-
----
-
-## 📊 数据库字段映射速查表
-
-| 业务动作       | 涉及表                    | 关键字段/操作                             |
-| -------------- | ------------------------- | ----------------------------------------- |
-| **创建私聊**   | `Conversation`            | `type: 1`, `target_id: 对方UserID`        |
-| **创建群聊**   | `Conversation`            | `type: 2`, `target_id: 群ID`              |
-| **发送消息**   | `MessageHistory`          | `conversation_id`, `sender_id`, `content` |
-| **更新列表**   | `Conversation`            | 更新 `last_msg_content`, `last_msg_time`  |
-| **个性化设置** | `ConversationParticipant` | `is_top` (置顶), `is_disturb` (免打扰)    |
-| **删除会话**   | `ConversationParticipant` | 设置 `is_deleted: true`                   |
-| **群成员管理** | `GroupMember`             | `role` (角色), `state` (状态)             |
-
----
-
-## 💡 开发者注意事项
-
-1. **私聊 ID 一致性:** 务必在后端封装一个工具函数来生成私聊 `conversation_id`，确保无论谁发起，ID 都是固定的。
-2. **数据冗余:** `Conversation` 表中的 `last_msg_content` 是冗余字段。在发送消息的事务中，必须同时更新 `MessageHistory` 和 `Conversation` 表，以保证聊天列表展示的实时性。
-3. **索引优化:** 查询消息历史时，务必使用 `conversation_id` + `create_time` 的联合索引进行分页查询，以保证性能。
-4. **事务处理:** 在发送消息等关键操作中，使用数据库事务保证数据一致性。
-5. **实时性:** 利用 WebSocket 实现消息的实时推送，提升用户体验。
-6. **安全性:** 在群聊场景中，发送消息前务必校验用户是否为群成员，防止非法消息发送。
-
----
-
-# 针对基于 Electron + Better-SQLite3 的 IM 语聊系统，设计“本地+服务端”双端缓存与同步机制，核心原则是：**“本地优先渲染，后台静默同步，增量更新，冲突以服务端为准”**。
-
-以下是结合业界最佳实践（如 OpenIM、微信架构）设计的详细逻辑方案：
-
-### 🚀 核心策略概览
-
-| 数据维度     | 本地数据库 (Better-SQLite3)                            | 服务端数据库 (mysql)                             | 同步策略                                          |
-| :----------- | :----------------------------------------------------- | :----------------------------------------------- | :------------------------------------------------ |
-| **会话列表** | 缓存最近联系人、未读数、最后一条消息摘要               | 存储全量关系链、群组信息                         | **本地加载 + 增量拉取** (基于 `last_update_time`) |
-| **聊天历史** | 仅存储当前用户可见的历史消息 (分页存储)                | 存储全量消息 (永久存储)                          | **按需加载** (滚动到底部加载) + **实时推送**      |
-| **消息状态** | 存储 `is_read` (本地已读), `status` (发送中/成功/失败) | 存储 `read_seq` (已读游标), `max_seq` (最大游标) | **读写分离** (本地乐观更新，服务端同步游标)       |
-
----
-
-### 📂 一、会话列表 (Conversation List)
-
-会话列表要求**启动快**、**未读数准**。
-
-#### 1. 加载逻辑
-
-1.  **应用启动/登录**：
-    - **第一步（极速渲染）**：直接从 **Better-SQLite3** 读取最近的 50-100 个会话。
-      - _SQL:_ `SELECT * FROM conversations ORDER BY last_msg_time DESC LIMIT 100`
-    - **第二步（后台同步）**：建立 WebSocket 连接后，立即调用服务端接口 `syncConversationList(last_local_update_time)`。
-2.  **数据合并**：
-    - 服务端返回新增或变更的会话列表。
-    - 客户端遍历更新本地 SQLite 数据库。
-    - **UI 刷新**：利用 React/Vue 的响应式特性，数据库变动后自动刷新列表。
-
-#### 2. 同步时机
-
-- **实时推送**：当收到新消息（WebSocket 事件）时，**不要**只更新消息表，要同时**更新会话表**（更新 `last_msg_content`, `last_msg_time`, `unread_count + 1`），并将会话置顶。
-- **多端同步**：如果手机端读了消息，服务端通过 WebSocket 推送 `ConversationUpdate` 事件， Electron 收到后更新本地 SQLite 的 `unread_count` 为 0。
-
----
-
-### 💬 二、聊天历史 (Message History)
-
-聊天历史数据量大，不能一次性拉取，采用**“懒加载 + 增量同步”**。
-
-#### 1. 进入会话时的加载 (懒加载)
-
-当用户点击某个会话（例如 `session_id = 'user_1001'`）：
-
-1.  **检查本地游标**：
-    - 读取本地记录的该会话最大消息序列号 `local_max_seq`。
-2.  **读取本地数据库**：
-    - 立即从 SQLite 加载最近 20 条消息用于渲染。
-    - _SQL:_ `SELECT * FROM messages WHERE session_id = ? ORDER BY seq DESC LIMIT 20`
-3.  **拉取服务端增量 (如有)**：
-    - 请求服务端：`GET /messages/history?session_id=user_1001&min_seq=local_max_seq`。
-    - 如果服务端返回了新消息（说明本地断连期间有消息），写入 SQLite，并追加到 UI 列表底部。
-
-#### 2. 滚动加载更多 (分页加载)
-
-当用户向上滚动（查看更早消息）：
-
-1.  **触发条件**：滚动条触顶。
-2.  **查询本地**：
-    - 先查 SQLite 是否有更早的数据（例如查当前页之前的 20 条）。
-    - 如果本地有，直接渲染（**0 延迟**）。
-3.  **请求服务端**：
-    - 如果本地数据到底了（例如本地最早一条是 `seq=100`），则请求服务端：`GET /messages/history?session_id=...&end_seq=100&limit=20`。
-    - 拿到数据后，写入 SQLite，并插入到 UI 列表顶部。
-
----
-
-### ⚡ 三、数据同步与冲突处理
-
-#### 1. 消息发送（乐观更新）
-
-1.  **UI 层**：用户发送消息，立即在 UI 显示，状态为“发送中”。
-2.  **本地 DB 层**：
-    - 写入 SQLite，生成一个临时的 `client_msg_id`，状态 `SENDING`。
-3.  **网络层**：发送给服务端。
-4.  **回调处理**：
-    - **成功**：服务端返回真实的 `server_msg_id` 和 `seq`。更新 SQLite 状态为 `SENT`，替换临时 ID。
-    - **失败**：更新 SQLite 状态为 `FAILED`，UI 显示红色感叹号。
-
-#### 2. 消息接收（实时 + 补漏）
-
-1.  **实时推送**：
-    - WebSocket 收到新消息 -> 写入 SQLite -> 触发 UI 更新。
-2.  **断线重连（补漏机制）**：
-    - 重连成功后，客户端上报当前所有会话的 `max_seq`。
-    - 服务端返回缺失的消息包。
-    - 客户端批量写入 SQLite（注意去重，使用 `INSERT OR IGNORE`）。
-
-#### 3. 已读状态同步 (红点逻辑)
-
-这是最容易乱的，建议采用 **游标机制**：
-
-- **服务端**：维护 `Read_Seq` (用户已读到的最大序列号)。
-- **本地**：
-  - **未读数计算**：`UnreadCount = (Session_Max_Seq) - (Local_Read_Seq)`。
-  - **点击会话时**：
-    1.  更新本地 `Local_Read_Seq` = `Session_Max_Seq`。
-    2.  UI 上红点消失。
-    3.  **异步**向服务端发送“已读回执”，更新服务端的 `Read_Seq`。
-
----
-
-### 🛠️ 四、 Electron 架构落地建议
-
-结合之前的 `Better-SQLite3` 和 `Worker` 架构：
-
-1.  **数据库层 (Worker Thread)**
-    - 封装 `MessageDAO` 和 `ConversationDAO`。
-    - 提供 `getHistory(sessionId, anchorSeq, count)` 方法。
-    - 提供 `syncMessages(messages[])` 方法（批量插入/更新）。
-
-2.  **缓存层 (Main Process)**
-    - 使用 `LRU Cache` 缓存当前打开的会话消息（例如最近 5 个会话的最近 50 条消息）。
-    - **读取逻辑**：UI 请求 -> 查 LRU -> 无则查 SQLite -> 写入 LRU -> 返回。
-
-3.  **同步管理器 (SyncManager)**
-    - 单例模式，监听 WebSocket 事件。
-    - 维护一个 `SyncQueue`，防止并发写入数据库。
-    - **防抖处理**：短时间内收到多条消息，合并写入数据库，避免频繁 I/O。
-
-### 📝 总结流程图
-
-<!-- ![总结流程图](./docs/img/会话消息缓存流程图.png) -->
-
-```mermaid
-sequenceDiagram
-    participant UI as 渲染进程 (UI)
-    participant Main as 主进程 (Node/Cache)
-    participant DB as Worker (SQLite)
-    participant Server as 服务端
-
-    %% 场景：进入会话
-    UI->>Main: 打开会话 A
-    Main->>DB: 查询本地最近 20 条
-    DB-->>Main: 返回数据
-    Main-->>UI: 渲染列表 (极速)
-
-    Main->>Server: 请求增量 (last_seq=100)
-    Server-->>Main: 返回新消息 (101, 102)
-    Main->>DB: 写入新消息
-    Main->>UI: 追加消息到底部
-
-    %% 场景：滚动加载
-    UI->>Main: 滚动触顶 (请求更早)
-    Main->>DB: 查询本地 (seq < 101)
-    alt 本地有数据
-        DB-->>Main: 返回数据
-        Main-->>UI: 渲染
-    else 本地无数据
-        Main->>Server: 请求服务端历史 (end_seq=101)
-        Server-->>Main: 返回数据
-        Main->>DB: 写入并缓存
-        Main-->>UI: 渲染
-    end
 ```
+c_chat/
+├── apps/
+│   ├── electron_client/   # Electron 桌面客户端工程
+│   └── frontend/          # React 前端应用（渲染进程）
+├── packages/
+│   ├── chat_ui/           # UI 组件库（基于 shadcn/ui + Radix）
+│   ├── shared-config/     # 共享配置常量（端口、IPC 通道名、错误码等）
+│   ├── shared-protobuf/   # Protobuf 消息定义与生成代码
+│   ├── shared-types/      # 共享 TypeScript 类型定义
+│   └── shared-utils/      # 共享工具函数（IPC 客户端、时间格式化、缓存等）
+├── docs/                  # 文档与截图
+├── turbo.json             # Turbo 任务编排配置
+├── pnpm-workspace.yaml    # pnpm 工作区配置
+├── package.json           # 根 package.json（脚本入口）
+└── tsconfig.json          # 根 TypeScript 配置
+```
+
+---
+
+## 技术栈
+
+| 层级 | 技术 | 说明 |
+|------|------|------|
+| 桌面框架 | Electron | 主进程 + 渲染进程架构 |
+| 前端框架 | React 19 + Vite 7 | 渲染层 UI |
+| 样式 | Tailwind CSS 4 | 原子化 CSS |
+| 状态管理 | Zustand 5 | 轻量级状态管理 |
+| 路由 | react-router-dom 7 | Hash 路由（适配 Electron） |
+| 表单 | react-hook-form + zod | 表单校验 |
+| 本地数据库 | better-sqlite3 | 消息/会话本地缓存 |
+| 实时通信 | socket.io-client | WebSocket 客户端（Protobuf 编码） |
+| HTTP 客户端 | Axios | REST API 调用 |
+| 日志 | winston | 客户端日志 |
+| Monorepo | Turborepo 2.x | 任务调度与构建 |
+| 包管理 | pnpm 9.0.0 | workspace 依赖管理 |
+| 代码规范 | ESLint + Prettier + Husky + commitlint | 统一的代码质量与提交规范 |
+
+---
+
+## 架构概览
+
+### 进程模型
+
+```
+┌─────────────────────────────────────────────┐
+│              Electron 主进程                  │
+│  ┌──────────┐ ┌──────────┐ ┌─────────────┐  │
+│  │ 窗口管理  │ │ 托盘管理  │ │ IPC 处理层   │  │
+│  │ (最多10个) │ │          │ │ (auth/chat/  │  │
+│  │          │ │          │ │  upload)     │  │
+│  └──────────┘ └──────────┘ └─────────────┘  │
+│  ┌──────────┐ ┌──────────┐ ┌─────────────┐  │
+│  │ SQLite   │ │ Socket   │ │ HTTP(Axios) │  │
+│  │ (本地DB)  │ │ (实时通信) │ │ (REST API)  │  │
+│  └──────────┘ └──────────┘ └─────────────┘  │
+├─────────────────────────────────────────────┤
+│            IPC (contextBridge)               │
+├─────────────────────────────────────────────┤
+│         Electron 渲染进程 (React)             │
+│  ┌──────────┐ ┌──────────┐ ┌─────────────┐  │
+│  │ 路由/页面 │ │ Zustand  │ │  UI 组件库   │  │
+│  │          │ │  状态管理 │ │ (chat_ui)    │  │
+│  └──────────┘ └──────────┘ └─────────────┘  │
+└─────────────────────────────────────────────┘
+```
+
+### 通信路径
+
+1. **渲染进程 ↔ 主进程**：通过 `contextBridge` 暴露的 `window.c_chat.ipcCall()` 方法，使用 typed Proxy（`shared-utils` 中的 `ipc` 对象）进行类型安全的 IPC 调用。
+2. **主进程 ↔ 后端**：HTTP 请求走 Axios（`httpClient`），实时消息走 socket.io-client（Protobuf 二进制编码）。
+3. **本地缓存**：消息和会话数据存入 SQLite（`global.db`），优先从服务端获取，网络不可用时回退到本地缓存。
+
+### Protobuf 协议
+
+前后端之间所有 WebSocket 消息均使用 Protobuf 编码。`Command` 消息作为通用信封：
+
+```
+Command { event, userId, client, requestId, payload[] }
+```
+
+事件映射关系定义在 `shared-protobuf/src/protoMap.ts` 中，包含客户端请求事件、服务端响应事件、以及客户端与服务端的编解码映射。
+
+---
+
+## apps/electron_client — Electron 桌面客户端
+
+### 职责
+
+- Electron 主进程：窗口生命周期管理、系统托盘、IPC 请求处理
+- 本地 SQLite 数据库管理（消息表、会话表、键值存储表）
+- Socket.IO 客户端管理（每个窗口独立连接，JWT 认证）
+- HTTP API 调用（登录、注册等）
+- 文件系统操作（文件选择、读取、分片上传）
+
+### 核心模块
+
+| 模块 | 文件 | 说明 |
+|------|------|------|
+| 入口 | `src/main/index.ts` | 初始化 ApiClient、数据库、窗口管理器、托盘管理器 |
+| 窗口管理 | `src/main/windows/windowManager.ts` | 单例，管理最多 10 个独立窗口，支持无边框窗口 |
+| 托盘管理 | `src/main/tray/` | 系统托盘图标，可快速切换不同账号窗口 |
+| 预加载脚本 | `src/preload/index.ts` | contextBridge 暴露 `window.c_chat` API |
+| IPC 处理 | `src/ipc/api/auth.ts` | 登录、注册、自动登录 |
+| IPC 处理 | `src/ipc/api/chat.ts` | 会话列表、消息历史、发送消息、已读 |
+| IPC 处理 | `src/ipc/api/upload.ts` | 文件选择、读取、分片上传 |
+| 数据库 | `src/db/DatabaseManager.ts` | SQLite 数据库管理，表注册与迁移 |
+| 数据库 | `src/db/table/MessageTable.ts` | 消息表 CRUD（UPSERT，去重索引） |
+| 数据库 | `src/db/table/ConversationTable.ts` | 会话表 CRUD |
+| 数据库 | `src/db/table/StoreTable.ts` | 键值存储（token、用户信息等） |
+| Socket | `src/utils/socket-io-client/` | 每窗口独立的 socket.io 连接，Protobuf 消息编解码 |
+| HTTP | `src/utils/axios/` | Axios 实例，自动注入 token，统一错误处理 |
+
+### 关键脚本
+
+- `pnpm run dev`（在根目录）：启动 electron-vite 开发模式
+- `pnpm run package`（在根目录）：打包为桌面安装包（Windows NSIS / macOS DMG / Linux AppImage）
+
+---
+
+## apps/frontend — React 前端应用
+
+### 职责
+
+- 聊天 UI 界面（会话列表、消息展示、新会话创建）
+- 登录/注册表单
+- 路由管理与认证守卫
+- Zustand 状态管理（用户信息、会话列表、消息数据）
+
+### 核心模块
+
+| 模块 | 文件 | 说明 |
+|------|------|------|
+| 入口 | `src/main.tsx` | React 渲染入口 |
+| 根组件 | `src/App.tsx` | 包含标题栏、路由、全局加载遮罩、Toast |
+| 路由 | `src/router/index.tsx` | Hash 路由，`/auth/*` 认证页，`/chat` 聊天页 |
+| 认证守卫 | `src/router/CheckAuth.tsx` | 检查登录状态，自动跳转 |
+| 用户状态 | `src/store/userStore.ts` | 用户信息、登录状态 |
+| 会话状态 | `src/store/chatStore.ts` | 会话列表、当前选中会话 |
+| 消息状态 | `src/store/messageStore.ts` | 按日期分组的消息列表 |
+| 全局订阅 | `src/hooks/useGolablSubscribe.ts` | 监听主进程事件（新消息、Toast） |
+| 聊天页 | `src/pages/chats/index.tsx` | 主聊天界面（会话列表 + 消息面板） |
+| 数据加载 | `src/pages/chats/hooks/useChatsData.ts` | 会话列表与消息历史的获取（在线优先 + 本地回退） |
+
+---
+
+## packages/chat_ui — UI 组件库（@c_chat/ui）
+
+### 职责
+
+基于 **shadcn/ui + Radix UI** 的可复用组件库，提供统一的设计系统。
+
+### 组件清单
+
+`Alert`、`AlertDialog`、`Avatar`、`Badge`、`Button`、`Card`、`Command`（命令面板）、`Dialog`、`Form`（react-hook-form 集成）、`Input`、`Textarea`、`PasswordInput`、`Label`、`Select`、`ScrollArea`、`Separator`、`Spinner`、`Item`（列表项）、`Layout/Main`（布局容器）、`BackDropLoading`（全屏加载遮罩）。
+
+### 导出配置
+
+- 主入口：JS 组件 `./dist/index.es.js`
+- 样式入口：`./src/styles/index.css`（Tailwind + 主题 CSS 变量）
+
+---
+
+## packages/shared-config — 共享配置（@c_chat/shared-config）
+
+### 职责
+
+全仓库统一的配置常量，被所有其他包依赖。
+
+### 配置项
+
+| 类别 | 文件 | 内容 |
+|------|------|------|
+| 主配置 | `src/index.ts` | `ELECTRON_RENDERER_PORT`(3000)，`IPC_CONFIG`(通道名) |
+| 常量 | `src/lib/constants.ts` | 默认分页参数、默认列表数据结构 |
+| 错误码 | `src/lib/errorCode.ts` | Socket 错误码（1011/2001/10001） |
+| 文件类型 | `src/lib/fileType.ts` | 文件类型分类与扩展名映射、MIME 类型映射 |
+| 命令行参数 | `src/lib/injected.ts` | `WEB_CONTENT_ID`，`WINDOW_ID` |
+| 事件通道 | `src/lib/webContentEvent.config.ts` | Electron→客户端的事件通道名 |
+| 数据库常量 | `src/lib/db/` | 全局窗口 ID、Store 表键名、表名常量 |
+
+---
+
+## packages/shared-protobuf — Protobuf 定义（@c_chat/shared-protobuf）
+
+### 职责
+
+维护前后端通信的 Protobuf 消息定义与自动生成的编解码代码。
+
+### Proto 定义文件
+
+| 文件 | 内容 |
+|------|------|
+| `static/Command.proto` | 通用消息信封 |
+| `static/Common.proto` | 分页请求/响应 |
+| `static/User.proto` | 用户信息、用户列表 |
+| `static/Chat.proto` | 会话、消息、发送/已读等业务消息 |
+| `static/ErrorResult.proto` | 错误消息格式 |
+
+### protoMap.ts 关键映射
+
+- **ClientToServiceEvent**：`ping`, `getUserInfo`, `getUserList`, `sendMessage`, `getConversationList`, `getMessageHistory`, `readMessage` 等
+- **ServiceToClientEvent**：`pong`, `getUserInfoResponse`, `newMessage`, `ackSendMessage`, `getConversationListResponse` 等
+- **ClientPaddingRequestsEvent**：客户端请求→期望响应的事件配对
+
+---
+
+## packages/shared-types — 共享类型（@c_chat/shared-types）
+
+### 职责
+
+纯类型定义包（无运行时依赖），定义 IPC 方法签名、数据库行类型、Socket 事件类型。
+
+### 类型分类
+
+| 类别 | 文件 | 内容 |
+|------|------|------|
+| IPC 基础 | `lib/ipc/ipcTypes.ts` | `IpcMethod<P,R>`、`IpcMessage`、`IpcResponse`、`IpcBridgeApi` |
+| 认证类型 | `lib/ipc/apiTypes/authTypes.ts` | `SignIn`、`SignUp`、`GetUserInfo` 等方法的参数与返回值 |
+| 聊天类型 | `lib/ipc/apiTypes/chatTypes.ts` | `SendMessage`、`GetConversationList` 等方法签名 |
+| 文件类型 | `lib/ipc/apiTypes/fileOperationTypes.ts` | `SelectFiles`、`UploadFileByChunks` 等方法签名 |
+| 数据库类型 | `lib/db/` | `ConversationTypeEnum`、`MessageTypeEnum`、`MessageStatusEnum` 及本地表行类型 |
+| Socket 类型 | `lib/socket.types.ts` | 分页请求/响应、WebSocket 事件回调类型 |
+| 全局声明 | `src/global.ts` | `window.c_chat` 的类型增强 |
+
+---
+
+## packages/shared-utils — 共享工具（@c_chat/shared-utils）
+
+### 职责
+
+跨项目共享的工具函数库。
+
+### 工具分类
+
+| 类别 | 文件 | 说明 |
+|------|------|------|
+| IPC 客户端 | `lib/ipc/ipcRenderer.ts` | 基于 Proxy 的类型安全 IPC 调用封装 |
+| IPC 实例 | `lib/ipc/ipcClient.ts` | 单例 `ipc` 对象，前端通过它调用主进程方法 |
+| 通用工具 | `lib/common.ts` | 分页参数转换 |
+| 时间格式化 | `lib/formatTime.ts` | IM 场景时间显示（相对时间、聊天时间、日期分组） |
+| 文件操作 | `lib/fileOperation.ts` | 文件类型判断、MIME 映射、Buffer 转 File/URL |
+| 缓存 | `lib/cache/browserCache.ts` | Token 存储、登录状态判断 |
+| JSON | `lib/json.ts` | 安全的 JSON 序列化/反序列化 |
+
+---
+
+## 包依赖关系图
+
+```
+@c_chat/electron_client
+  ├── @c_chat/shared-config
+  ├── @c_chat/shared-protobuf
+  ├── @c_chat/shared-types
+  └── @c_chat/shared-utils
+        ├── @c_chat/shared-config
+        ├── @c_chat/shared-protobuf
+        └── @c_chat/shared-types
+
+@c_chat/frontend
+  ├── @c_chat/ui
+  └── @c_chat/shared-utils
+        └── (同上)
+
+@c_chat/shared-protobuf
+  └── @c_chat/shared-config
+```
+
+---
+
+## 常用命令
+
+| 命令 | 说明 |
+|------|------|
+| `pnpm install` | 安装所有依赖 |
+| `pnpm run dev` | 启动所有工作区开发任务 |
+| `pnpm run build` | 编译所有项目 |
+| `pnpm run lint` | 执行 lint 检查 |
+| `pnpm run format` | 格式化代码 |
+| `pnpm run package` | 打包桌面客户端 |
+| `pnpm run check-types` | 类型检查 |
+
+---
+
+## 功能完成度
+
+### 已完成
+- 实时消息传递（WebSocket + Protobuf）
+- 多窗口登录（最多 10 个窗口，不同账号）
+- 系统托盘管理（快速切换窗口）
+- 本地 SQLite 消息缓存（离线可用）
+- 登录/注册（JWT 认证）
+
+### 待开发
+- 群聊功能
+- 消息撤回、转发、搜索
+- 文件传输、云端存储
+- 语音/视频通话
+- 好友系统、联系人管理
+- 主题切换（深色/浅色）
+- 多语言国际化
+- 消息加密、阅后即焚
+
+---
+
+## 开发注意事项
+
+1. **pnpm 版本**：必须使用 pnpm 9.0.0（与 `packageManager` 字段一致）
+2. **SQLite 本地依赖**：`electron_client` 包含 `better-sqlite3` 原生模块，安装后需执行 `electron-builder install-app-deps`
+3. **跨包引用**：使用 `workspace:*` 协议，必须在根目录执行 `pnpm install`
+4. **Protobuf 同步**：修改 `.proto` 文件后需重新生成代码，前后端两端均需更新
+5. **多窗口架构**：每个窗口有独立的 `windowId` 和 socket 连接，窗口间互不干扰
+6. **本地数据库路径**：`userData/database/global.db`，包含 Store、Message、Conversation 三张表

@@ -10,6 +10,9 @@ export const ELECTRON_TO_CLIENT_CHANNELS = {
 
   newMessage: 'newMessage',
 
+  /** 上传进度 */
+  uploadProgress: 'uploadProgress',
+
   /** toast 相关channel */
   Toast: 'toast',
 } as const;
