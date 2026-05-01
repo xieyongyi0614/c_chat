@@ -5,6 +5,8 @@
 //   Fail = 2,
 // }
 
+import { FileInfoListItem } from '../ipc/ipcCallTypes';
+
 /** 0:文本, 1:图片, 2:文件, 3:音频, 4:视频 */
 export enum MessageTypeEnum {
   Text = 0,
@@ -39,11 +41,14 @@ export interface LocalMessageListItem {
   localTime: number;
   fileId?: string;
   mediaGroupId?: string;
+  progress?: number;
+  files?: FileInfoListItem[];
 }
 
 export enum MessageStatusEnum {
   default = 0,
   sending = 1,
   success = 2,
+  uploading = 3,
   fail = -1,
 }

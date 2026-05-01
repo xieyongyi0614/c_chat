@@ -23,6 +23,7 @@
     "@c_chat/shared-protobuf": "workspace:^",
     "@c_chat/shared-types": "workspace:^",
     "await-to-js": "^3.0.0",
+    "camelcase-keys": "^10.0.2",
     "dayjs": "^1.11.20",
     "uuid": "^13.0.0"
   },

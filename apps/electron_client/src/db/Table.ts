@@ -1,4 +1,5 @@
 import BetterSqlite3 from 'better-sqlite3';
+import { camelcaseKeys } from '@c_chat/shared-utils';
 
 export const TableBelong = {
   GLOBAL: 'global',
@@ -56,7 +57,7 @@ export abstract class TableConnection {
    * @param params 查询参数
    * @returns 查询结果数组
    */
-  protected all<T = unknown>(sql: string, params: unknown[] = []): T[] {
+  protected all<T = Record<string, any>>(sql: string, params: unknown[] = []): T[] {
     try {
       const results = this.db?.prepare(sql).all(params);
       return results as T[]; // 使用类型断言，确保返回值符合泛型 T[]
@@ -131,5 +132,12 @@ export abstract class TableConnection {
    */
   protected dropTable(): BetterSqlite3.RunResult | undefined {
     return this.run(`DROP TABLE IF EXISTS ${this.TABLE_NAME}`);
+  }
+
+  protected _camelcaseKeysByRows<R>(rows: Record<string, any>[]): R[] {
+    return rows.map((row) => camelcaseKeys(row)) as R[];
+  }
+  protected _camelcaseKeysByRow<R>(row: Record<string, any>): R {
+    return camelcaseKeys(row) as R;
   }
 }

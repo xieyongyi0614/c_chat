@@ -2,13 +2,13 @@ import { useEffect } from 'react';
 import { useChatStore, useMessageStore, useUserStore } from '../stores';
 import { ELECTRON_TO_CLIENT_CHANNELS } from '@c_chat/shared-config';
 import { toast } from 'sonner';
-import type { WebContentEvents, WebContentEventType } from '@c_chat/shared-types';
+import type { WebContentEvents, WebContentEventType, LocalMessageListItem } from '@c_chat/shared-types';
 import { useLastCallback } from './useLastCallback';
 
 /** 全局订阅监听 */
 export const useGlobalSubscribe = () => {
   const { userInfo, isSignedIn } = useUserStore();
-  const { addMessage, setMessageData, updateConversationSnapshot } = useChatStore();
+  const { updateConversationSnapshot } = useChatStore();
   const { updateMsg, addMsg } = useMessageStore();
 
   const newMessageHandle = useLastCallback<WebContentEvents['newMessage']>((data) => {
@@ -19,17 +19,6 @@ export const useGlobalSubscribe = () => {
       if (isOwnMessage) {
         console.log('收到自己发送的消息推送，更新数据');
         updateMsg(data);
-        // setMessageData((state) => {
-        //   const index = state.list.findIndex((m) => m.id === data.id);
-        //   if (index === -1) return state;
-        //   const newList = [...state.list];
-        //   newList[index] = data;
-        //   console.log('收到自己发送的消息推送，更新数据111', JSON.stringify(newList[index]));
-        //   return {
-        //     ...state,
-        //     list: newList,
-        //   };
-        // });
         updateConversationSnapshot(data.conversationId, data.content, data.createTime);
         return;
       }
@@ -37,6 +26,13 @@ export const useGlobalSubscribe = () => {
       updateConversationSnapshot(data.conversationId, data.content, data.createTime);
     }
   });
+
+  const uploadProgressHandle = useLastCallback<WebContentEvents['uploadProgress']>((data) => {
+    if (data?.clientMsgId) {
+      updateMsg({ clientMsgId: data.clientMsgId, progress: data.progress } as LocalMessageListItem);
+    }
+  });
+
   const subscribeAll = (subscriptions: ReturnType<WebContentEventType['on']>[]) => {
     return () => subscriptions.forEach((unSub) => unSub());
   };
@@ -59,6 +55,8 @@ export const useGlobalSubscribe = () => {
       const unSubscriptions = [
         // 监听实时消息推送
         window.c_chat.on(ELECTRON_TO_CLIENT_CHANNELS.newMessage, newMessageHandle),
+        // 监听上传进度
+        window.c_chat.on(ELECTRON_TO_CLIENT_CHANNELS.uploadProgress, uploadProgressHandle),
       ];
       return subscribeAll(unSubscriptions);
     }

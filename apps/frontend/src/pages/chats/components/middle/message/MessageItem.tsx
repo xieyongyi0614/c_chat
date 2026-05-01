@@ -17,7 +17,7 @@ const MessageItem = ({ msg, isRead }: MessageItemProps) => {
     if (!isMe) return null;
 
     if (msg.status === MessageStatusEnum.fail) {
-      return <span className="text-red-500">!</span>;
+      return <span className="text-red-500 text-[10px] font-bold">!</span>;
     }
 
     if (msg.status === MessageStatusEnum.success) {
@@ -28,14 +28,61 @@ const MessageItem = ({ msg, isRead }: MessageItemProps) => {
       );
     }
 
-    return <span className="opacity-40 text-[10px]">•</span>;
+    // uploading 或 sending：显示等待中
+    return <span className="opacity-40 text-[10px]">&#8226;</span>;
+  };
+
+  const renderTextContent = () => {
+    return <span className="whitespace-pre-wrap break-words">{msg.content}</span>;
+  };
+
+  const renderImageContent = () => {
+    const isUploading = msg.status === MessageStatusEnum.uploading;
+    const isSending = msg.status === MessageStatusEnum.sending;
+    const isFailed = msg.status === MessageStatusEnum.fail;
+    const showOverlay = isUploading || isSending || isFailed;
+
+    return (
+      <div className="relative">
+        <img
+          src={msg.content}
+          alt="图片"
+          className={cn('max-h-60 w-full rounded-lg object-contain', showOverlay && 'opacity-60')}
+        />
+
+        {/* 上传进度覆盖层 */}
+        {isUploading && (
+          <div className="absolute inset-0 rounded-lg flex flex-col items-center justify-center bg-black/20">
+            <div className="w-3/4 bg-white/40 rounded-full h-1.5 mb-1">
+              <div
+                className="bg-white h-full rounded-full transition-all duration-300"
+                style={{ width: `${msg.progress || 0}%` }}
+              />
+            </div>
+            <span className="text-white text-[10px]">{msg.progress || 0}%</span>
+          </div>
+        )}
+
+        {/* 发送中覆盖层 */}
+        {isSending && (
+          <div className="absolute inset-0 rounded-lg flex items-center justify-center bg-black/20">
+            <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+          </div>
+        )}
+
+        {/* 失败覆盖层 */}
+        {isFailed && (
+          <div className="absolute inset-0 rounded-lg flex items-center justify-center bg-black/30">
+            <span className="text-white text-xs">发送失败</span>
+          </div>
+        )}
+      </div>
+    );
   };
 
   const renderContent = () => {
     if (msg.type === 1) {
-      return (
-        <img src={msg.content} alt="图片" className="max-h-60 w-full rounded-lg object-contain" />
-      );
+      return renderImageContent();
     }
 
     if (msg.type === 2) {
@@ -65,7 +112,7 @@ const MessageItem = ({ msg, isRead }: MessageItemProps) => {
       );
     }
 
-    return <span className="whitespace-pre-wrap break-words">{msg.content}</span>;
+    return renderTextContent();
   };
 
   return (

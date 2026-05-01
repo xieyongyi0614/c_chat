@@ -15,17 +15,19 @@ export interface FileInfoListItem {
   lastModified: number;
   isDirectory: boolean;
   isFile: boolean;
-  buffer: Buffer<ArrayBuffer> | null;
   url?: string;
 }
 
 export type UploadFileByChunksParams = {
-  filePath: string;
+  filePath?: string;
+  fileBuffer?: number[];
+  fileName?: string;
   uploadUrl?: string;
   chunkSize?: number;
   description?: string;
   alt?: string;
   headers?: Record<string, string>;
+  clientMsgId?: string;
 };
 
 export type UploadFileByChunksResult = {

@@ -32,6 +32,7 @@ export function ChatInput() {
 
   const handleFileSelect = async () => {
     const res = await ipc.SelectFiles({});
+    console.log(res, 'res');
     setAttachments((state) => [...state, ...res]);
   };
 
@@ -80,7 +81,7 @@ export function ChatInput() {
     files?: FileInfoListItem[],
     messageType = MessageTypeEnum.Text,
   ) => {
-    if ((!selectedConversation && !selectedUserForDraft) || !content.trim()) return;
+    if (!selectedConversation && !selectedUserForDraft) return;
     const isDraft = selectedUserForDraft && !selectedConversation;
 
     const sendMessageParams = {
@@ -118,6 +119,7 @@ export function ChatInput() {
       upsertAndPinConversation(updatedConvo);
       setSelectedConversation(updatedConvo);
     }
+    return true;
   };
 
   const handleSubmit = async () => {
@@ -138,9 +140,13 @@ export function ChatInput() {
       }
     }
 
-    await sendMessageContent(inputValue, attachments, messageType);
+    const res = await sendMessageContent(inputValue, attachments, messageType);
     setSending(false);
+    if (!res) {
+      return;
+    }
     setInputValue('');
+    setAttachments([]);
   };
 
   return (

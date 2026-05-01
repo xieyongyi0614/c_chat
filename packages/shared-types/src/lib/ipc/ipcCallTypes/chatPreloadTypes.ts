@@ -7,7 +7,12 @@ interface CreateConversationParams {
 }
 export type GetConversationListParams = SocketTypes.RequestListParams;
 export type GetLocalConversationListParams = SocketTypes.RequestListParams;
-export type GetMessageHistoryParams = SocketTypes.RequestListParams & { conversationId: string };
+
+export type GetMessageHistoryParams = {
+  conversationId: string;
+  pageSize?: number;
+  beforeMsgId?: number;
+};
 
 export type SendMessageParams = {
   conversationId?: string;
@@ -15,6 +20,8 @@ export type SendMessageParams = {
   content: string;
   type: MessageTypeEnum;
   files?: FileInfoListItem[];
+  fileId?: string;
+  mediaGroupId?: string;
 };
 
 export type ReadMessageParams = {
@@ -38,10 +45,7 @@ export interface ChatPreloadTypes {
     GetLocalConversationListParams | undefined,
     SocketTypes.ResponseList<LocalConversationListItem>
   >;
-  GetLocalMessageHistory: IpcMethod<
-    GetMessageHistoryParams,
-    SocketTypes.ResponseList<LocalMessageListItem>
-  >;
+  GetLocalMessageHistory: IpcMethod<GetMessageHistoryParams, LocalMessageListItem[]>;
   GetMessageHistory: IpcMethod<
     GetMessageHistoryParams,
     SocketTypes.ResponseList<LocalMessageListItem>

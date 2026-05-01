@@ -1,22 +1,6 @@
-import { LocalMessageListItem, MessageStatusEnum, MessageTypeEnum } from '@c_chat/shared-types';
+import { LocalMessageListItem, MessageStatusEnum } from '@c_chat/shared-types';
 import { TableConnection } from '../Table';
-
-interface DBMessageListItem {
-  id: string;
-  msg_id: number;
-  sender_id: string;
-  conversation_id: string;
-  content: string;
-  type: MessageTypeEnum;
-  state: number;
-  create_time: number;
-  update_time: number;
-  local_time: number;
-  client_msg_id: string;
-  status: MessageStatusEnum;
-  file_id?: string;
-  media_group_id?: string;
-}
+import { DEFAULT_MESSAGE_PAGE_SIZE } from '@c_chat/shared-config';
 
 export class MessageTable extends TableConnection {
   readonly TABLE_NAME = 'messages';
@@ -62,23 +46,16 @@ export class MessageTable extends TableConnection {
     `);
   }
 
-  /**
-   * 获取会话的所有消息
-   */
-  // getMessagesByConversationId(conversationId: string, limit = 50, offset = 0) {
-  //   const rows = this.all<LocalMessageListItem>(
-  //     `SELECT * FROM ${this.TABLE_NAME} WHERE conversation_id = ? ORDER BY create_time DESC LIMIT ? OFFSET ?`,
-  //     [conversationId, limit, offset],
-  //   );
-  //   return rows.map(this.mapRowToRecord);
-  // }
-
-  getMessagesByConversationId(conversationId: string, limit = 50, beforeMsgId?: number) {
+  getMessagesByConversationId(
+    conversationId: string,
+    limit = DEFAULT_MESSAGE_PAGE_SIZE,
+    beforeMsgId?: number,
+  ) {
     let rows;
 
     if (beforeMsgId) {
-      // 🚀 向上翻历史
-      rows = this.all<DBMessageListItem>(
+      // 向上翻历史
+      rows = this.all(
         `
         SELECT * FROM ${this.TABLE_NAME}
         WHERE conversation_id = ?
@@ -89,8 +66,8 @@ export class MessageTable extends TableConnection {
         [conversationId, beforeMsgId, limit],
       );
     } else {
-      // 🚀 首次加载
-      rows = this.all<DBMessageListItem>(
+      // 首次加载
+      rows = this.all(
         `
         SELECT * FROM ${this.TABLE_NAME}
         WHERE conversation_id = ?
@@ -101,17 +78,18 @@ export class MessageTable extends TableConnection {
       );
     }
 
-    return rows.map(this.mapRowToRecord);
+    // return rows.map(this.mapRowToRecord);
+    return this._camelcaseKeysByRows<LocalMessageListItem>(rows);
   }
   /**
    * 获取最新的一条消息
    */
   getLastMessage(conversationId: string) {
-    const row = this.get<[string], DBMessageListItem>(
+    const row = this.get<[string]>(
       `SELECT * FROM ${this.TABLE_NAME} WHERE conversation_id = ? ORDER BY create_time DESC LIMIT 1`,
       [conversationId],
     );
-    return row ? this.mapRowToRecord(row) : undefined;
+    return row ? this._camelcaseKeysByRow<LocalMessageListItem>(row) : undefined;
   }
   insert(msg: LocalMessageListItem) {
     // 🚀 SQLite UPSERT（关键）
@@ -244,10 +222,10 @@ export class MessageTable extends TableConnection {
   }
 
   /**
-   * 更新消息状态
+   * 更新发送状态
    */
-  updateMessageState(id: string, state: number) {
-    this.run(`UPDATE ${this.TABLE_NAME} SET state = ? WHERE id = ?`, [state, id]);
+  updateMessageStatus(id: string, status: MessageStatusEnum) {
+    this.run(`UPDATE ${this.TABLE_NAME} SET status = ? WHERE id = ?`, [status, id]);
   }
 
   /**
@@ -257,16 +235,38 @@ export class MessageTable extends TableConnection {
     this.run(`DELETE FROM ${this.TABLE_NAME} WHERE id = ?`, [id]);
   }
 
-  private mapRowToRecord(row: DBMessageListItem): LocalMessageListItem {
-    return {
-      ...row,
-      msgId: row.msg_id,
-      senderId: row.sender_id,
-      conversationId: row.conversation_id,
-      clientMsgId: row.client_msg_id,
-      createTime: row.create_time,
-      updateTime: row.update_time,
-      localTime: row.local_time,
-    };
-  }
+  // private mapRowToRecord(row: DBMessageListItem): LocalMessageListItem {
+  //   // const {
+  //   //   id,
+  //   //   conversation_id,
+  //   //   msg_id,
+  //   //   client_msg_id,
+  //   //   sender_id,
+  //   //   content,
+  //   //   type,
+  //   //   status,
+  //   //   create_time,
+  //   //   update_time,
+  //   //   local_time,
+  //   //   file_id,
+  //   //   media_group_id,
+  //   // } = row;
+  //   const record = snakeToCamelCase<LocalMessageListItem>(row);
+  //   return record;
+  //   // return {
+  //   //   id,
+  //   //   conversationId: conversation_id,
+  //   //   msgId: msg_id,
+  //   //   clientMsgId: client_msg_id,
+  //   //   senderId: sender_id,
+  //   //   content,
+  //   //   type,
+  //   //   status,
+  //   //   createTime: create_time,
+  //   //   updateTime: update_time,
+  //   //   localTime: local_time,
+  //   //   fileId: file_id,
+  //   //   mediaGroupId: media_group_id,
+  //   // };
+  // }
 }

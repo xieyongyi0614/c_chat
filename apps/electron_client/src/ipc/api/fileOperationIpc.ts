@@ -3,6 +3,7 @@ import { addActionHandler } from '../util';
 import { storeTableClass } from '../../db';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as os from 'os';
 import { stat } from 'fs/promises';
 import {
   getFileTypeFromExtension,
@@ -10,18 +11,22 @@ import {
   to,
   uuidv4,
 } from '@c_chat/shared-utils';
+import { WindowManager } from '../../main/windows/windowManager';
 export type SelectUploadFilesParams = {
   filters?: Array<{ name: string; extensions: string[] }>;
   allowMultiSelect?: boolean;
 };
 
 export type UploadFileByChunksParams = {
-  filePath: string;
+  filePath?: string;
+  fileBuffer?: number[];
+  fileName?: string;
   uploadUrl?: string;
   chunkSize?: number;
   description?: string;
   alt?: string;
   headers?: Record<string, string>;
+  clientMsgId?: string;
 };
 
 export type UploadFileByChunksResult = {
@@ -78,10 +83,10 @@ addActionHandler('SelectFiles', async (params) => {
         fileType: fileType,
         mimeType: getMimeTypeFromExtension(fileExtension),
         extension: fileExtension,
-        lastModified: stats.mtime.getTime(), // 时间戳
+        lastModified: stats.mtime.getTime(),
         isDirectory: stats.isDirectory(),
         isFile: stats.isFile(),
-        buffer: fileType === 'image' ? fs.readFileSync(filePath) : null,
+        bookmarks: result.bookmarks,
       };
     }),
   );
@@ -89,23 +94,35 @@ addActionHandler('SelectFiles', async (params) => {
   return fileInfos.filter((info) => info !== null);
 });
 
-addActionHandler('ReadLocalFile', async (params) => {
+export const readLocalFile = async (params: { filePath: string }) => {
   if (!params?.filePath) {
     throw new Error('缺少 filePath');
   }
 
   const data = await fs.promises.readFile(params.filePath);
   return new Uint8Array(data);
-});
+};
+addActionHandler('ReadLocalFile', readLocalFile);
 
 addActionHandler('UploadFileByChunks', async (params) => {
   const chunkSize =
     params.chunkSize && params.chunkSize > 0 ? params.chunkSize : DEFAULT_CHUNK_SIZE;
   const uploadUrl = params.uploadUrl ?? DEFAULT_UPLOAD_URL;
-  const filePath = params.filePath;
+  let filePath = params.filePath;
+
+  // 支持 buffer 上传（粘贴的图片）：先写入临时文件
+  if (!filePath && params.fileBuffer) {
+    const tempDir = path.join(os.tmpdir(), 'c_chat_uploads');
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir, { recursive: true });
+    }
+    const tempFileName = params.fileName || `paste_${Date.now()}`;
+    filePath = path.join(tempDir, `${uuidv4()}_${tempFileName}`);
+    fs.writeFileSync(filePath, Buffer.from(params.fileBuffer));
+  }
 
   if (!filePath) {
-    throw new Error('缺少文件路径');
+    throw new Error('缺少文件路径或文件数据');
   }
 
   const stats = await fs.promises.stat(filePath);
@@ -156,6 +173,24 @@ addActionHandler('UploadFileByChunks', async (params) => {
 
     if (!response.ok) {
       throw new Error(json?.message || response.statusText || '文件分片上传失败');
+    }
+
+    // 发送上传进度到渲染进程
+    if (params.clientMsgId && params.windowId !== undefined) {
+      const progress = Math.round((uploadedChunks / totalChunks) * 100);
+      WindowManager.sendToWindow(params.windowId, 'uploadProgress', {
+        clientMsgId: params.clientMsgId,
+        progress,
+      });
+    }
+  }
+
+  // 清理临时文件（仅当是从 buffer 创建的）
+  if (params.fileBuffer && filePath) {
+    try {
+      fs.unlinkSync(filePath);
+    } catch {
+      // 忽略清理错误
     }
   }
 

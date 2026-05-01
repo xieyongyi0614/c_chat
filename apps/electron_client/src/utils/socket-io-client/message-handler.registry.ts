@@ -64,16 +64,16 @@ export abstract class MessageHandlerRegistry {
             const clazz = clientDecodeProtoMap[event];
             const decodedResult = clazz?.decode(command.payload[0]);
 
-            if (isIgnoreConsoleEvent(event)) {
-              console.log(
-                '============================处理订阅广播========================================',
-              );
-              console.log(`反序列化结果`);
-              console.log(decodedResult?.toJSON());
-              console.log(
-                '==========================    end    ========================================',
-              );
-            }
+            // if (isIgnoreConsoleEvent(event)) {
+            //   console.log(
+            //     '============================处理订阅广播========================================',
+            //   );
+            //   console.log(`反序列化结果`);
+            //   console.log(decodedResult?.toJSON());
+            //   console.log(
+            //     '==========================    end    ========================================',
+            //   );
+            // }
             this.resolveOrRejectWaiter(
               command.requestId,
               decodedResult?.toJSON() || decodedResult,
