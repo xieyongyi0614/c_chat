@@ -9,9 +9,16 @@ import {
   ServiceToClientEvent,
 } from '@c_chat/shared-protobuf/protoMap';
 
-import { conversationTableClass, messageTableClass, storeTableClass } from '../../db';
-import { MessageStatusEnum, WebContentEvents } from '@c_chat/shared-types';
+import {
+  conversationTableClass,
+  messageTableClass,
+  storeTableClass,
+  uploadTaskTableClass,
+} from '../../db';
+import { MessageStatusEnum, UploadStatusEnum, WebContentEvents } from '@c_chat/shared-types';
 import { WindowManager } from '@c_chat/electron_client/main/windows';
+import { to } from '@c_chat/shared-utils';
+import { sendSocketMessageWithFile } from '../uploadTaskRunner';
 
 interface QueuedEvent {
   event: ClientDecodeProtoMapKey;
@@ -117,6 +124,7 @@ export class MessageHandler extends MessageHandlerRegistry {
         const newMsg = {
           ...data,
           fileId: data?.fileId ?? '',
+          fileUrl: data.fileUrl ?? '',
           mediaGroupId: data?.mediaGroupId ?? '',
           status: MessageStatusEnum.success,
           createTime: Number(data.createTime),
@@ -140,6 +148,44 @@ export class MessageHandler extends MessageHandlerRegistry {
 
         // 3. 通知渲染进程刷新 UI
         this._sendToRenderer(ELECTRON_TO_CLIENT_CHANNELS.newMessage, newMsg);
+      },
+      [ServiceToClientEvent.sendFileUploadComplete]: async (data) => {
+        const { uploadId, fileId } = data ?? {};
+        if (!uploadId || !fileId) return;
+
+        try {
+          const task = uploadTaskTableClass.getByUploadSessionId(uploadId);
+          if (!task) return;
+
+          uploadTaskTableClass.updateFields(task.id, {
+            file_id: fileId,
+            status: UploadStatusEnum.success,
+          });
+
+          if (task.clientMsgId) {
+            messageTableClass.updateFileIdByClientId(task.clientMsgId, fileId);
+          }
+
+          const msg = messageTableClass.getByClientMsgId(task.clientMsgId);
+          if (msg) {
+            const [sendErr] = await to(
+              sendSocketMessageWithFile(task.windowId ?? 1, {
+                conversationId: msg.conversationId,
+                clientMsgId: msg.clientMsgId,
+                fileId,
+                type: msg.type,
+                mediaGroupId: msg.mediaGroupId || undefined,
+                content: msg.content,
+              }),
+            );
+
+            if (sendErr) {
+              throw sendErr;
+            }
+          }
+        } catch (err) {
+          console.error('[Socket] handle uploadComplete error', err);
+        }
       },
     };
 

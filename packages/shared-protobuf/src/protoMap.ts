@@ -13,8 +13,10 @@ import {
   ReadMessageResponse,
   ErrorResult,
   AckSendMessage,
+  SendFileUploadComplete,
 } from '.';
 
+/** 服务端发送socket事件 */
 export const ServiceToClientEvent = {
   pong: 'pong',
   error: 'error',
@@ -28,6 +30,8 @@ export const ServiceToClientEvent = {
   ackSendMessage: 'ackSendMessage',
   newMessage: 'newMessage',
   newConversation: 'newConversation',
+
+  sendFileUploadComplete: 'sendFileUploadComplete',
 } as const;
 
 /** 客户端使用 */
@@ -46,6 +50,7 @@ export const clientDecodeProtoMap = {
   [ServiceToClientEvent.ackSendMessage]: AckSendMessage,
   [ServiceToClientEvent.newMessage]: MessageInfo,
   [ServiceToClientEvent.newConversation]: ConversationInfo,
+  [ServiceToClientEvent.sendFileUploadComplete]: SendFileUploadComplete,
 };
 
 export type ClientDecodeProtoMapKey = keyof typeof clientDecodeProtoMap;

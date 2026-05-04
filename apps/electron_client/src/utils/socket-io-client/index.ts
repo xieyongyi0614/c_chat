@@ -3,6 +3,7 @@ import logger from '../logger';
 import { storeTableClass } from '@c_chat/electron_client/db';
 import { ELECTRON_TO_CLIENT_CHANNELS, SOCKET_ERROR_CODE } from '@c_chat/shared-config';
 import { MessageHandler } from './message.handler';
+
 import { WebContentEvents } from '@c_chat/shared-types';
 import { ClientToServiceEvent, ServiceToClientEvent } from '@c_chat/shared-protobuf/protoMap';
 
@@ -123,13 +124,6 @@ export class SocketService extends MessageHandler {
 
     /** 接收到protobuf消息 */
     this.socket.on('message', this.dispatch.bind(this));
-
-    /** 连接socket认证失败 */
-    // this.socket.on('auth_error', (data) => {
-    //   console.log('auth_error', data);
-    //   MainWindowManager.showToast('error', data.message);
-    //   this.socket?.disconnect();
-    // });
   }
 
   /** 设置ping定时器 */
