@@ -1,5 +1,4 @@
 import { UploadStatusEnum } from '@c_chat/shared-types';
-import { db } from '@c_chat/shared-config';
 import { uploadTaskTableClass } from '../db';
 import { startUpload } from './uploadTaskRunner';
 
@@ -42,7 +41,7 @@ class UploadScheduler {
     uploadTaskTableClass.setRunning(taskId, true);
 
     try {
-      await startUpload(taskId, db.DEFAULT_WINDOW_ID);
+      await startUpload(taskId);
     } catch (e) {
       console.error('upload error', e);
     } finally {

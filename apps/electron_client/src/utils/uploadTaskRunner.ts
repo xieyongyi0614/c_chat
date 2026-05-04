@@ -15,12 +15,6 @@ import { readChunkAsBlob } from './calcFileHash';
 
 /** 与服务端 ChunkService + 合并队列搭配的并发度（分片已按序号落盘，可并行上传） */
 const CHUNK_UPLOAD_CONCURRENCY = 4;
-const MERGE_POLL_MS = 400;
-const MERGE_POLL_TIMEOUT_MS = 120_000;
-
-function sleep(ms: number) {
-  return new Promise<void>((r) => setTimeout(r, ms));
-}
 
 /**
  * 固定并发池：多个 worker 抢同一个游标，避免重复/遗漏下标。
@@ -86,13 +80,10 @@ export async function sendSocketMessageWithFile(
  */
 export async function startUpload(
   taskId: string,
-  windowId: number,
   uploadSession?: NonNullable<UploadTypes.PostUploadInitResponse['uploadSession']>,
 ) {
   const task = uploadTaskTableClass.getByTaskId(taskId);
   if (!task?.filePath || !task.uploadSessionId) return;
-
-  const effectiveWindowId = task.windowId ?? windowId;
 
   const session =
     uploadSession ??
@@ -150,51 +141,6 @@ export async function startUpload(
     const completeRes = await ApiClient.upload.uploadComplete({ uploadId: session.id });
     if (!completeRes?.queued) {
       throw new Error('触发合并失败');
-    }
-
-    /** 合并异步：File 记录使用 session 的 fileHash（与 init 时采样 hash 一致） */
-    const fingerprintHash = task.fileHash;
-    let fileId: string | undefined;
-    const deadline = Date.now() + MERGE_POLL_TIMEOUT_MS;
-    while (Date.now() < deadline) {
-      const hit = await ApiClient.upload.getFileByHash({
-        fileHash: fingerprintHash,
-        size: task.fileSize,
-      });
-      if (hit?.id) {
-        fileId = hit.id;
-        break;
-      }
-      await sleep(MERGE_POLL_MS);
-    }
-
-    if (!fileId) {
-      throw new Error('合并超时或未解析到 fileId');
-    }
-
-    uploadTaskTableClass.setFileId(taskId, fileId);
-    uploadTaskTableClass.updateStatus(taskId, UploadStatusEnum.success);
-
-    messageTableClass.updateFileIdByClientId(task.clientMsgId, fileId);
-
-    const msg = messageTableClass.getByClientMsgId(task.clientMsgId);
-    if (!msg) {
-      throw new Error('本地消息不存在');
-    }
-
-    const [sendErr] = await to(
-      sendSocketMessageWithFile(effectiveWindowId, {
-        conversationId: msg.conversationId,
-        clientMsgId: msg.clientMsgId,
-        fileId,
-        type: msg.type,
-        mediaGroupId: msg.mediaGroupId || undefined,
-        content: msg.content,
-      }),
-    );
-
-    if (sendErr) {
-      throw sendErr;
     }
   } catch (e) {
     console.error('startUpload error:', e);

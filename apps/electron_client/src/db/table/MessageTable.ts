@@ -135,6 +135,7 @@ export class MessageTable extends TableConnection {
       createTime,
       localTime,
       fileId,
+      fileUrl,
       mediaGroupId,
     } = msg;
     this?.run(sql, [
@@ -150,6 +151,7 @@ export class MessageTable extends TableConnection {
       createTime,
       localTime,
       fileId,
+      fileUrl,
       mediaGroupId,
     ]);
   }

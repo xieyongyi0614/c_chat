@@ -134,7 +134,6 @@ export class UploadTaskTable extends TableConnection {
       SET status = ?, update_time = ?
       WHERE id = ?
     `;
-
     this.run(sql, [status, Date.now(), id]);
   }
 
@@ -195,6 +194,15 @@ export class UploadTaskTable extends TableConnection {
     `;
 
     this.run(sql, [id]);
+  }
+  // ✅ 根据 uploadSessionId 查询
+  getByUploadSessionId(uploadSessionId: string) {
+    const sql = `
+      SELECT * FROM ${this.TABLE_NAME}
+      WHERE upload_session_id = ?
+      LIMIT 1
+    `;
+    return this.get<[string], LocalUploadTaskListItem>(sql, [uploadSessionId]) || null;
   }
   // ✅ 标记运行状态
   setRunning(id: string, running: boolean) {
@@ -263,5 +271,22 @@ export class UploadTaskTable extends TableConnection {
       WHERE id = ?
     `;
     this.run(sql, [error, Date.now(), id]);
+  }
+  updateFields(id: string, fields: Record<string, any>) {
+    const keys = Object.keys(fields);
+
+    if (keys.length === 0) return;
+
+    const setClause = keys.map((k) => `${k} = ?`).join(', ');
+
+    const sql = `
+      UPDATE ${this.TABLE_NAME}
+      SET ${setClause}, update_time = ?
+      WHERE id = ?
+    `;
+
+    const values = [...keys.map((k) => fields[k]), Date.now(), id];
+
+    this.run(sql, values);
   }
 }
