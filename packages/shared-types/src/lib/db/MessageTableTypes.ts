@@ -30,7 +30,7 @@ export enum MessageTypeEnum {
 export interface LocalMessageListItem {
   id: string;
   conversationId: string;
-  msgId: number;
+  msgId: number | null;
   clientMsgId: string;
   senderId: string;
   content: string;
@@ -40,9 +40,10 @@ export interface LocalMessageListItem {
   createTime: number;
   localTime: number;
   fileId?: string;
+  fileUrl?: string;
   mediaGroupId?: string;
   progress?: number;
-  files?: FileInfoListItem[];
+  // files?: FileInfoListItem[];
 }
 
 export enum MessageStatusEnum {

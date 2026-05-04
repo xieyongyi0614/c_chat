@@ -9,6 +9,7 @@ import '../ipc';
 import { initActions } from '../ipc/util';
 import { TrayManager } from './tray/trayManager';
 import { socketManager } from '../utils/socket-io-client';
+import { uploadScheduler } from '../utils/UploadScheduler';
 
 ApiClient.init();
 dbManager.initGlobalDb();
@@ -20,6 +21,7 @@ app.whenReady().then(() => {
   const trayManager = TrayManager.getInstance();
 
   initActions();
+  uploadScheduler.init();
 
   // 创建默认窗口
   windowManager.createWindow(db.DEFAULT_WINDOW_ID);

@@ -15,3 +15,5 @@ export const IPC_CONFIG = {
   // 主进程监听的 IPC 通道名称
   CHANNEL_NAME: 'c_chat_api',
 } as const;
+
+export const UPLOAD_CHUNK_SIZE = 2 * 1024 * 1024;

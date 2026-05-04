@@ -1,9 +1,11 @@
 import { HttpClient } from '../httpClient';
 import { AuthService } from './authService';
+import { UploadService } from './uploadService';
 
 export class ApiClient {
   public static instance: HttpClient;
   public static auth: AuthService;
+  public static upload: UploadService;
 
   constructor() {}
 
@@ -20,36 +22,7 @@ export class ApiClient {
 
       // 初始化各个服务
       this.auth = new AuthService(ApiClient.instance);
+      this.upload = new UploadService(ApiClient.instance);
     }
   }
-
-  // /**
-  //  * 设置认证令牌
-  //  */
-  // public setAuthToken(token: string): void {
-  //   this.httpClient.setAuthHeader(token);
-  // }
-
-  // /**
-  //  * 清除认证令牌
-  //  */
-  // public clearAuthToken(): void {
-  //   this.httpClient.clearAuthHeader();
-  // }
-
-  // /**
-  //  * 设置请求头
-  //  */
-  // public setHeader(name: string, value: string): void {
-  //   this.httpClient.setHeader(name, value);
-  // }
-
-  // /**
-  //  * 获取所有服务实例
-  //  */
-  // public getAllServices() {
-  //   return {
-  //     auth: this.auth,
-  //   };
-  // }
 }
