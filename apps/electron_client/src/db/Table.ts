@@ -44,7 +44,7 @@ export abstract class TableConnection {
   ): T | undefined {
     try {
       const result = this.db?.prepare(sql).get(params);
-      return result as T | undefined; // 使用类型断言，确保返回值符合泛型 T
+      return result ? this._camelcaseKeysByRow(result) : undefined;
     } catch (error) {
       console.error('Error executing get query:', error);
       throw error;
@@ -60,7 +60,7 @@ export abstract class TableConnection {
   protected all<T = Record<string, any>>(sql: string, params: unknown[] = []): T[] {
     try {
       const results = this.db?.prepare(sql).all(params);
-      return results as T[]; // 使用类型断言，确保返回值符合泛型 T[]
+      return results ? this._camelcaseKeysByRows(results as Record<string, any>[]) : [];
     } catch (error) {
       console.error('Error executing all query:', error, params);
       throw error;

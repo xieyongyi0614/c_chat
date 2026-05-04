@@ -6,7 +6,7 @@ import { TableBelong, TableConnection } from './Table';
 import { SmartTableProxy } from './SmartTableProxy';
 import { TableConnectionParams } from '@c_chat/shared-types';
 
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 export class DatabaseManager {
   private globalDb: BetterSqlite3.Database | undefined;
   private globalTables: Map<string, TableConnection> = new Map();

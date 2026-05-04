@@ -20,6 +20,7 @@ export class MessageTable extends TableConnection {
         update_time INTEGER,  
         local_time INTEGER,
         file_id TEXT,
+        file_url TEXT,
         media_group_id TEXT,
         UNIQUE(conversation_id, msg_id),
         UNIQUE(conversation_id, client_msg_id)
@@ -55,7 +56,7 @@ export class MessageTable extends TableConnection {
 
     if (beforeMsgId) {
       // 向上翻历史
-      rows = this.all(
+      rows = this.all<LocalMessageListItem>(
         `
         SELECT * FROM ${this.TABLE_NAME}
         WHERE conversation_id = ?
@@ -67,7 +68,7 @@ export class MessageTable extends TableConnection {
       );
     } else {
       // 首次加载
-      rows = this.all(
+      rows = this.all<LocalMessageListItem>(
         `
         SELECT * FROM ${this.TABLE_NAME}
         WHERE conversation_id = ?
@@ -79,17 +80,26 @@ export class MessageTable extends TableConnection {
     }
 
     // return rows.map(this.mapRowToRecord);
-    return this._camelcaseKeysByRows<LocalMessageListItem>(rows);
+    // return this._camelcaseKeysByRows<LocalMessageListItem>(rows);
+    return rows;
   }
   /**
    * 获取最新的一条消息
    */
   getLastMessage(conversationId: string) {
-    const row = this.get<[string]>(
+    const row = this.get<[string], LocalMessageListItem>(
       `SELECT * FROM ${this.TABLE_NAME} WHERE conversation_id = ? ORDER BY create_time DESC LIMIT 1`,
       [conversationId],
     );
-    return row ? this._camelcaseKeysByRow<LocalMessageListItem>(row) : undefined;
+    // return row ? this._camelcaseKeysByRow<LocalMessageListItem>(row) : undefined;
+    return row;
+  }
+
+  getByClientMsgId(clientMsgId: string) {
+    return this.get<[string], LocalMessageListItem>(
+      `SELECT * FROM ${this.TABLE_NAME} WHERE client_msg_id = ? LIMIT 1`,
+      [clientMsgId],
+    );
   }
   insert(msg: LocalMessageListItem) {
     // 🚀 SQLite UPSERT（关键）
@@ -107,9 +117,10 @@ export class MessageTable extends TableConnection {
     update_time,
     local_time,
     file_id,
+    file_url,
     media_group_id
   )
-  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `;
     const {
       id,
@@ -164,9 +175,10 @@ export class MessageTable extends TableConnection {
       create_time,
       local_time,
       file_id,
+      file_url,
       media_group_id
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 
     ON CONFLICT(conversation_id, client_msg_id) DO UPDATE SET
       msg_id = excluded.msg_id,
@@ -175,6 +187,7 @@ export class MessageTable extends TableConnection {
       update_time = COALESCE(excluded.update_time, messages.update_time),
       content = COALESCE(excluded.content, messages.content),
       file_id = COALESCE(excluded.file_id, messages.file_id),
+      file_url = COALESCE(excluded.file_url, messages.file_url),
       media_group_id = COALESCE(excluded.media_group_id, messages.media_group_id)
 
     ON CONFLICT(conversation_id, msg_id) DO UPDATE SET
@@ -198,6 +211,7 @@ export class MessageTable extends TableConnection {
           createTime,
           localTime,
           fileId,
+          fileUrl,
           mediaGroupId,
         } = msg;
         this?.run(sql, [
@@ -213,6 +227,7 @@ export class MessageTable extends TableConnection {
           createTime,
           localTime,
           fileId,
+          fileUrl,
           mediaGroupId,
         ]);
       }
@@ -228,45 +243,26 @@ export class MessageTable extends TableConnection {
     this.run(`UPDATE ${this.TABLE_NAME} SET status = ? WHERE id = ?`, [status, id]);
   }
 
+  updateMessageStateByClientId(clientMsgId: string, status: MessageStatusEnum) {
+    this.run(`UPDATE ${this.TABLE_NAME} SET status = ?, update_time = ? WHERE client_msg_id = ?`, [
+      status,
+      Date.now(),
+      clientMsgId,
+    ]);
+  }
+
+  updateFileIdByClientId(clientMsgId: string, fileId: string) {
+    this.run(`UPDATE ${this.TABLE_NAME} SET file_id = ?, update_time = ? WHERE client_msg_id = ?`, [
+      fileId,
+      Date.now(),
+      clientMsgId,
+    ]);
+  }
+
   /**
    * 删除消息
    */
   deleteMessage(id: string) {
     this.run(`DELETE FROM ${this.TABLE_NAME} WHERE id = ?`, [id]);
   }
-
-  // private mapRowToRecord(row: DBMessageListItem): LocalMessageListItem {
-  //   // const {
-  //   //   id,
-  //   //   conversation_id,
-  //   //   msg_id,
-  //   //   client_msg_id,
-  //   //   sender_id,
-  //   //   content,
-  //   //   type,
-  //   //   status,
-  //   //   create_time,
-  //   //   update_time,
-  //   //   local_time,
-  //   //   file_id,
-  //   //   media_group_id,
-  //   // } = row;
-  //   const record = snakeToCamelCase<LocalMessageListItem>(row);
-  //   return record;
-  //   // return {
-  //   //   id,
-  //   //   conversationId: conversation_id,
-  //   //   msgId: msg_id,
-  //   //   clientMsgId: client_msg_id,
-  //   //   senderId: sender_id,
-  //   //   content,
-  //   //   type,
-  //   //   status,
-  //   //   createTime: create_time,
-  //   //   updateTime: update_time,
-  //   //   localTime: local_time,
-  //   //   fileId: file_id,
-  //   //   mediaGroupId: media_group_id,
-  //   // };
-  // }
 }

@@ -68,7 +68,7 @@ export const useChatsData = () => {
     if (res) {
       // setMessageData(res);
       // addMsgList(res.list);
-      console.log('fetchMessageHistory', res.list.length);
+      console.log('fetchMessageHistory', res.list);
     }
   };
 

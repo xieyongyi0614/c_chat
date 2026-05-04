@@ -204,11 +204,11 @@ export class HttpClient {
   /**
    * 上传文件
    */
-  public async uploadFile(
+  public async uploadFile<T = any>(
     url: string,
     formData: FormData,
     config?: AxiosRequestConfig,
-  ): Promise<AxiosResponse> {
+  ): Promise<AxiosResponse<API.ApiResponse<T>>> {
     const defaultConfig: AxiosRequestConfig = {
       headers: {
         'Content-Type': 'multipart/form-data',
@@ -216,7 +216,7 @@ export class HttpClient {
       ...config,
     };
 
-    return this.axiosInstance.post(url, formData, defaultConfig);
+    return this.axiosInstance.post<API.ApiResponse<T>>(url, formData, defaultConfig);
   }
 
   /**

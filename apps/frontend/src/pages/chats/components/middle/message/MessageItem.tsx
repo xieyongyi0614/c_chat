@@ -45,7 +45,7 @@ const MessageItem = ({ msg, isRead }: MessageItemProps) => {
     return (
       <div className="relative">
         <img
-          src={msg.content}
+          src={`http://localhost:3001${msg.fileUrl}`}
           alt="图片"
           className={cn('max-h-60 w-full rounded-lg object-contain', showOverlay && 'opacity-60')}
         />

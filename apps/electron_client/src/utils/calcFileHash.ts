@@ -3,7 +3,7 @@ import crypto from 'crypto';
 
 const SAMPLE_SIZE = 256 * 1024; // 256KB
 
-export async function calcFingerprint(filePath: string) {
+export function calcSamplingHash(filePath: string) {
   const stat = fs.statSync(filePath);
   const size = stat.size;
 
@@ -71,4 +71,29 @@ export function calcFileHashWithProgress(
 
     stream.on('error', reject);
   });
+}
+
+export async function readChunkAsBlob(
+  filePath: string,
+  chunkIndex: number,
+  chunkSize: number,
+): Promise<Blob> {
+  const start = chunkIndex * chunkSize;
+  const end = start + chunkSize;
+
+  const stream = fs.createReadStream(filePath, {
+    start,
+    end: end - 1, // 注意：end 是包含的
+  });
+
+  const chunks: Buffer[] = [];
+
+  for await (const chunk of stream) {
+    chunks.push(chunk as Buffer);
+  }
+
+  const buffer = Buffer.concat(chunks);
+
+  // Node 18+ 支持 Blob
+  return new Blob([buffer]);
 }

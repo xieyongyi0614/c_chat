@@ -17,11 +17,11 @@ import {
 } from '@c_chat/shared-types';
 import { ClientToServiceEvent } from '@c_chat/shared-protobuf/protoMap';
 import { now } from 'lodash';
-import {
-  calcFileHashWithProgress,
-  calcFingerprint,
-} from '@c_chat/electron_client/utils/calcFileHash';
+import { calcSamplingHash } from '@c_chat/electron_client/utils/calcFileHash';
 import { DEFAULT_MESSAGE_PAGE_SIZE } from '@c_chat/shared-config';
+import { ApiClient } from '@c_chat/electron_client/utils/axios/service/apiService';
+import { sendSocketMessageWithFile } from '@c_chat/electron_client/utils/uploadTaskRunner';
+import { uploadScheduler } from '@c_chat/electron_client/utils/UploadScheduler';
 
 /** 获取本地消息历史 */
 addActionHandler('GetLocalMessageHistory', async (data) => {
@@ -77,7 +77,7 @@ const generateLocalMessageData = (data: Partial<LocalMessageListItem>): LocalMes
   return {
     id: uuidv4(),
     conversationId: data.conversationId ?? '',
-    msgId: data.msgId ?? -1,
+    msgId: data.msgId ?? null,
     clientMsgId: uuidv4(),
     senderId: data.senderId ?? '',
     content: data.content ?? '',
@@ -150,38 +150,16 @@ const handleSendFiles = async (params: SendMessageParams & ActionCtx, senderId: 
   const { files = [] } = params;
   const groupId = files.length > 1 ? uuidv4() : '';
 
-  const socketService = socketManager.getSocketService(params.windowId);
-
   const res = await Promise.all(
     files.map(async (file) => {
-      const clientMsgId = uuidv4();
+      const { filePath, fileName, fileSize, mimeType } = file;
       const taskId = uuidv4();
-      const fingerprint = await calcFingerprint(file.filePath);
-      const hash = await calcFileHashWithProgress(file?.filePath, {
-        onProgress: (percent, processedBytes, totalBytes) => {
-          console.log('progress', percent, processedBytes, totalBytes);
-        },
-      });
+      const fileHash = calcSamplingHash(filePath);
 
-      // ✅ 1. 创建 UploadTask
-      uploadTaskTableClass.insert({
-        id: taskId,
-        clientMsgId,
-
-        filePath: file.filePath,
-        fileName: file.fileName,
-        fileSize: file.fileSize,
-        mimeType: file.mimeType,
-        fingerprint,
-        fileHash: hash,
-
-        status: UploadStatusEnum.uploading,
-        progress: 0,
-        uploadedBytes: 0,
-
-        createTime: now(),
-        updateTime: now(),
-      });
+      const uploadInit = await ApiClient.upload.uploadInit({ fileName, fileHash, fileSize });
+      if (!uploadInit) {
+        throw new Error('上传失败');
+      }
 
       const localMessageData = generateLocalMessageData({
         ...params,
@@ -189,20 +167,68 @@ const handleSendFiles = async (params: SendMessageParams & ActionCtx, senderId: 
         status: MessageStatusEnum.sending,
         mediaGroupId: groupId,
       });
-      // ✅ 2. 插入本地 message（用于 UI）
+
+      console.log('uploadInit', uploadInit);
+      /** 秒传 */
+      if (uploadInit?.file?.id) {
+        localMessageData.fileId = uploadInit.file.id;
+        messageTableClass.insert(localMessageData);
+        const [sendErr] = await to(
+          sendSocketMessageWithFile(params.windowId, {
+            conversationId: localMessageData.conversationId,
+            clientMsgId: localMessageData.clientMsgId,
+            fileId: uploadInit.file.id,
+            type: localMessageData.type,
+            mediaGroupId: localMessageData.mediaGroupId || undefined,
+            content: localMessageData.content,
+          }),
+        );
+        if (sendErr) {
+          messageTableClass.updateMessageStateByClientId(
+            localMessageData.clientMsgId,
+            MessageStatusEnum.fail,
+          );
+          console.error('秒传后发送消息失败:', sendErr);
+          localMessageData.status = MessageStatusEnum.fail;
+        }
+        return localMessageData;
+      }
+
+      if (!uploadInit?.uploadSession?.id) {
+        return null;
+      }
+
+      uploadTaskTableClass.insert({
+        id: taskId,
+        clientMsgId: localMessageData.clientMsgId,
+        filePath,
+        fileName,
+        fileSize,
+        mimeType,
+        fileHash,
+        status: UploadStatusEnum.waiting,
+        progress: 0,
+        uploadedBytes: 0,
+        isRunning: 0,
+        uploadSessionId: uploadInit.uploadSession.id,
+        windowId: params.windowId,
+        chunkSize: uploadInit.uploadSession.chunkSize,
+        uploadedChunks: 0,
+        totalChunks: uploadInit.uploadSession.totalChunks,
+        isInstant: 0,
+        errorMessage: '',
+        createTime: now(),
+        updateTime: now(),
+      });
+
       messageTableClass.insert(localMessageData);
 
-      // 启动上传（不阻塞当前流程）
-      // startUpload(taskId, socketService, {
-      //   conversationId: params.conversationId ?? '',
-      //   clientMsgId,
-      //   mediaGroupId: groupId,
-      //   type: params.type,
-      // });
+      uploadScheduler.addTask(taskId);
+
       return localMessageData;
     }),
   );
-  return res;
+  return res.filter((item) => item !== null);
 };
 
 // async function startUpload(

@@ -46,10 +46,11 @@ message SendMessageRequest {
   optional string target_id = 4; // 私聊可选：对方 ID，用于首条消息自动创建会话
   string clientMsgId = 5;
   optional string mediaGroupId = 6;
+  optional string fileId = 7;  // 媒体文件id
 }
 message AckSendMessage{
   string clientMsgId = 1;
-  string status = 2;
+  string status = 2; 
 }
 
 // 消息信息
