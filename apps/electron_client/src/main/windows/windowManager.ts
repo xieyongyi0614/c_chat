@@ -30,11 +30,7 @@ export class WindowManager {
     minWidth: 800,
     minHeight: 600,
   };
-  // 认证窗口配置
-  private authWinOptions = {
-    width: 400,
-    height: 600,
-  };
+
   // 最大窗口数量
   private readonly MAX_WINDOWS = 10;
 
@@ -74,16 +70,12 @@ export class WindowManager {
     // 初始化窗口相关的数据
     this.initWindowData(targetWindowId);
 
-    // 检查是否已登录，决定窗口类型
-    // const isAuthenticated = !!storeTableClass.getAccessToken(targetWindowId);
-    // const otherOptions = isAuthenticated ?  : this.authWinOptions;
-
     const additionalArguments = [`${WINDOW_ID}=${targetWindowId}`];
 
     // 创建窗口
     const window = new BrowserWindow({
-      ...this.authWinOptions,
-      resizable: false,
+      ...this.defaultWinOptions,
+      resizable: true,
       maximizable: false,
       fullscreenable: false,
       show: false,
@@ -310,10 +302,10 @@ export class WindowManager {
    * 将窗口关联到指定的 windowId
    * 在 createWindow 中已经处理
    */
-  assignWindowToWindowId(window: BrowserWindow, windowId: number): void {
-    window.id = windowId;
-    this.windows.set(windowId, window);
-  }
+  // assignWindowToWindowId(window: BrowserWindow, windowId: number): void {
+  //   window.id = windowId;
+  //   this.windows.set(windowId, window);
+  // }
 
   /**
    * 检查指定 windowId 的窗口是否已登录
@@ -413,27 +405,6 @@ export class WindowManager {
    */
   static setRefreshToken(windowId: number, refreshToken: string): void {
     storeTableClass.setRefreshToken(refreshToken, windowId);
-  }
-
-  /**
-   * 应用窗口的认证状态（调整窗口大小等）
-   * @param windowId 窗口ID
-   * @param loggedIn 是否已登录
-   */
-  applyWindowAuthState(windowId: number, loggedIn: boolean): void {
-    const window = this.windows.get(windowId);
-    if (!window) return;
-
-    if (loggedIn) {
-      window.setResizable(true);
-      window.setMaximizable(true);
-      window.setFullScreenable(true);
-      window.setMinimumSize(this.defaultWinOptions.minWidth, this.defaultWinOptions.minHeight);
-      window.setSize(this.defaultWinOptions.width, this.defaultWinOptions.height);
-    } else {
-      window.setSize(this.authWinOptions.width, this.authWinOptions.height);
-    }
-    window.center();
   }
 
   /**

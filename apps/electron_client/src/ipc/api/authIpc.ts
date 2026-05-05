@@ -1,4 +1,3 @@
-import { WindowManager } from '@c_chat/electron_client/main/windows';
 import { storeTableClass } from '../../db';
 import { ApiClient } from '../../utils/axios/service/apiService';
 import logger from '../../utils/logger';
@@ -16,13 +15,7 @@ addActionHandler('SignIn', async (params) => {
     throw new Error('登录失败,不存在token');
   }
   storeTableClass.setAccessToken(res.access_token, params.windowId);
-  // 为该窗口初始化独立的 socket 连接
   await socketManager.initSocket(params.windowId);
-
-  // 更新窗口的认证状态
-  if (res.access_token) {
-    WindowManager.getInstance().applyWindowAuthState(params.windowId, true);
-  }
 });
 
 /** 自动登录 - 检查token并初始化socket连接 */
@@ -38,8 +31,14 @@ addActionHandler('AutoSignIn', async (params) => {
 });
 
 /** 注册 */
-addActionHandler('SignUp', (params) => {
-  return ApiClient.auth.signUp(params);
+addActionHandler('SignUp', async (params) => {
+  const res = await ApiClient.auth.signUp(params);
+  if (!res?.access_token) {
+    throw new Error('注册失败,不存在token');
+  }
+  storeTableClass.setAccessToken(res.access_token, params.windowId);
+  await socketManager.initSocket(params.windowId);
+  // return ;
 });
 
 /** 获取用户信息 */
