@@ -1,5 +1,5 @@
 export * from './globalStore';
 
 export * from './userStore';
-export * from './chatStore';
-export * from './messageStore';
+export * from './chat/chatStore';
+export * from './chat/messageStore';

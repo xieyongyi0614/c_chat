@@ -41,11 +41,11 @@ export type UploadFileByChunksResult = {
 };
 
 export type ReadLocalFileParams = {
-  filePath: string;
+  path: string;
 };
 
 export interface FileOperationPreloadTypes {
   SelectFiles: IpcMethod<SelectFilesParams | undefined, FileInfoListItem[]>;
-  ReadLocalFile: IpcMethod<ReadLocalFileParams, Uint8Array>;
+  ReadLocalFile: IpcMethod<ReadLocalFileParams, Uint8Array<ArrayBuffer>>;
   UploadFileByChunks: IpcMethod<UploadFileByChunksParams, UploadFileByChunksResult>;
 }

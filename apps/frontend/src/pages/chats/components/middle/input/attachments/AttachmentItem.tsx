@@ -1,8 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { Button, Card } from '@c_chat/ui';
 import { X } from 'lucide-react';
 import { FileCard } from './fileCard';
-import { bufferToPreviewUrl } from '@c_chat/shared-utils';
 import type { FileInfoListItem } from '@c_chat/shared-types';
 
 export function AttachmentItem({
@@ -15,17 +14,7 @@ export function AttachmentItem({
   const [previewOpen, setPreviewOpen] = useState(false);
 
   const previewUrl = item.url;
-  // const previewUrl = useMemo(() => {
-  //   if (item.fileType === 'image') {
-  //     if (item.buffer) {
-  //       return bufferToPreviewUrl({ buffer: item.buffer, type: item.fileType });
-  //     }
-  //     if (item.url) {
-  //       return item.url;
-  //     }
-  //     return;
-  //   }
-  // }, [item.buffer, item.fileType, item.url]);
+
   return (
     <Card className="relative w-28 h-28 overflow-hidden group p-0">
       {/* 删除按钮 */}

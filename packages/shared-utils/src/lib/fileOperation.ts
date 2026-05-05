@@ -1,4 +1,4 @@
-import { EXTENSION_TO_TYPE_MAP, fileMimeMap } from '@c_chat/shared-config';
+import { EXTENSION_TO_TYPE_MAP, fileMimeMap, fileTypeMap, fileTypes } from '@c_chat/shared-config';
 import { FileInfoListItem } from '@c_chat/shared-types';
 
 import { v4 as uuidv4 } from 'uuid';
@@ -20,7 +20,7 @@ export const bufferToFile = (file: { buffer: ArrayBuffer; type: string; name: st
   return realFile;
 };
 
-export const bufferToPreviewUrl = (file: { buffer: ArrayBuffer; type: string }) => {
+export const bufferToPreviewUrl = (file: { buffer: Uint8Array<ArrayBuffer>; type: string }) => {
   const blob = new Blob([file.buffer], { type: file.type });
   return URL.createObjectURL(blob);
 };
@@ -54,4 +54,14 @@ export const getSelectFileInfoByFile = async (file: File): Promise<FileInfoListI
     isFile: true,
     url: preview,
   };
+};
+
+export const getShowOpenDialogFilters = (types: (typeof fileTypes)[number][] | 'all') => {
+  const normalize = (exts: string[]) => exts.map((ext) => ext.replace(/^\./, ''));
+
+  const filters = types === 'all' ? [...fileTypes] : [];
+  return filters.map((t) => ({
+    name: t.charAt(0).toUpperCase() + t.slice(1),
+    extensions: normalize(fileTypeMap[t]),
+  }));
 };

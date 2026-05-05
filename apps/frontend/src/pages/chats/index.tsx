@@ -6,11 +6,10 @@ import type { UserTypes } from '@c_chat/shared-types';
 import { useChatsData } from './hooks/useChatsData';
 import { useChatStore } from '@c_chat/frontend/stores';
 import MiddleColumn from './components/middle/MiddleColumn';
-import { transformPagination } from '@c_chat/shared-utils';
 import LeftColumn, { type LeftColumnRef } from './components/left/LeftColumn';
 
 export function Chats() {
-  const { setSelectedConversation, setSelectedUserForDraft, setMessageData } = useChatStore();
+  const { setSelectedConversation, setSelectedUserForDraft } = useChatStore();
 
   useChatsData();
   const [createConversationDialogOpened, setCreateConversationDialog] = useState(false);
@@ -26,7 +25,6 @@ export function Chats() {
     } else {
       setSelectedConversation(null);
       setSelectedUserForDraft(user);
-      setMessageData({ pagination: transformPagination(), list: [] });
     }
   };
 

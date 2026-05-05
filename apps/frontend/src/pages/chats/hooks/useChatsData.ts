@@ -10,13 +10,8 @@ import { toast } from 'sonner';
 
 export const useChatsData = () => {
   const { userInfo } = useUserStore();
-  const {
-    conversationData,
-    setConversationData,
-    selectedConversation,
-    // setMessageData,
-    markConversationAsRead,
-  } = useChatStore();
+  const { conversationData, setConversationData, selectedConversation, markConversationAsRead } =
+    useChatStore();
   const { addMsgList } = useMessageStore();
 
   const fetchLocalConversationData = async (param?: GetLocalConversationListParams) => {
@@ -55,8 +50,6 @@ export const useChatsData = () => {
       return;
     }
     console.log('fetchLocalMessageHistory', res);
-    // debugger;
-    // const returnData = res.map((r) => snakeToCamelCase(r));
 
     addMsgList(res);
   };
@@ -65,9 +58,11 @@ export const useChatsData = () => {
     const [err, res] = await to(
       ipc.GetMessageHistory({ conversationId, pageSize: DEFAULT_MESSAGE_PAGE_SIZE }),
     );
+    if (err) {
+      console.log('fetchMessageHistory error', err);
+      return;
+    }
     if (res) {
-      // setMessageData(res);
-      // addMsgList(res.list);
       console.log('fetchMessageHistory', res.list);
     }
   };
