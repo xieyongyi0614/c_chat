@@ -1,8 +1,8 @@
 import React from 'react';
 import { RouterProvider, Navigate, createHashRouter, Outlet } from 'react-router-dom';
-import AuthForm from '@c_chat/frontend/components/auth/AuthForm';
 import { Chats } from '../pages/chats';
-import { CheckAuth } from '../components/auth/CheckAuth';
+import { CheckAuth } from '../pages/auth/CheckAuth';
+import AuthPage from '../pages/auth';
 
 const router = createHashRouter([
   {
@@ -17,11 +17,11 @@ const router = createHashRouter([
         children: [
           {
             path: 'sign-in',
-            element: <AuthForm />,
+            element: <AuthPage />,
           },
           {
             path: 'sign-up',
-            element: <AuthForm />,
+            element: <AuthPage />,
           },
         ],
       },

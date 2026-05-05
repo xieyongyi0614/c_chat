@@ -129,7 +129,7 @@ function FormMessage({ className, ...props }: React.ComponentProps<'p'>) {
     <p
       data-slot="form-message"
       id={formMessageId}
-      className={cn('text-sm text-destructive', className)}
+      className={cn('text-xs text-destructive', className)}
       {...props}
     >
       {body}
@@ -137,13 +137,4 @@ function FormMessage({ className, ...props }: React.ComponentProps<'p'>) {
   );
 }
 
-export {
-  useFormField,
-  Form,
-  FormItem,
-  FormLabel,
-  FormControl,
-  FormDescription,
-  FormMessage,
-  FormField,
-};
+export { Form, FormItem, FormLabel, FormControl, FormDescription, FormMessage, FormField };

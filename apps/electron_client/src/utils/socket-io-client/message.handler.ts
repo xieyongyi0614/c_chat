@@ -91,7 +91,7 @@ export class MessageHandler extends MessageHandlerRegistry {
       [ServiceToClientEvent.getUserInfoResponse]: (data) => {
         if (data.id) {
           this._sendToRenderer(ELECTRON_TO_CLIENT_CHANNELS.SocketConnSuccess, data);
-          WindowManager.getInstance().applyWindowAuthState(this.windowId, true);
+          // WindowManager.getInstance().applyWindowAuthState(this.windowId, true);
           storeTableClass.setUserInfo(
             { ...data, avatar_url: data?.avatarUrl ?? '', nickname: data?.nickname ?? '' },
             this.windowId,
@@ -107,7 +107,7 @@ export class MessageHandler extends MessageHandlerRegistry {
         const errorHandler = {
           [SOCKET_ERROR_CODE.UNAUTHORIZED]: () => {
             socket.disconnect();
-            WindowManager.getInstance().applyWindowAuthState(this.windowId, false);
+            // WindowManager.getInstance().applyWindowAuthState(this.windowId, false);
           },
         };
         errorHandler[errorCode as keyof typeof errorHandler]?.();

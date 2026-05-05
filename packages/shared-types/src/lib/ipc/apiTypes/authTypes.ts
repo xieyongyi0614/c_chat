@@ -15,7 +15,7 @@ export namespace AuthTypes {
     password: string;
     phone?: string;
     // 0-女, 1-男, 2-其他
-    gender?: string;
+    gender?: number;
   }
   export interface PostSignUpResponse {
     access_token: string;
