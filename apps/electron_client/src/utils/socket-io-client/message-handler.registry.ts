@@ -191,7 +191,7 @@ export abstract class MessageHandlerRegistry {
     const entry = this.pendingRequests.get(requestId);
     console.log(`客户端 ${this.windowId} 收到响应：${requestId}`);
     if (!entry) {
-      console.warn(`No waiter found for requestId: ${requestId}. Response might be stale.`);
+      // console.warn(`No waiter found for requestId: ${requestId}. Response might be stale.`);
       return;
     }
 

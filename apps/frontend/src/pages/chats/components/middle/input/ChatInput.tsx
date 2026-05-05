@@ -5,7 +5,7 @@ import { Button, Textarea } from '@c_chat/ui';
 
 import { AttachmentList } from './attachments/AttachmentList';
 import { EmojiPicker } from './EmojiPicker';
-import { getSelectFileInfoByFile, ipc, to } from '@c_chat/shared-utils';
+import { bufferToPreviewUrl, getSelectFileInfoByFile, ipc, to } from '@c_chat/shared-utils';
 import { toast } from 'sonner';
 import { useChatStore, useMessageStore } from '@c_chat/frontend/stores';
 import { MessageTypeEnum, type FileInfoListItem } from '@c_chat/shared-types';
@@ -14,7 +14,6 @@ export function ChatInput() {
   const {
     selectedConversation,
     selectedUserForDraft,
-    setMessageData,
     setSelectedConversation,
     upsertAndPinConversation,
   } = useChatStore();
@@ -23,28 +22,23 @@ export function ChatInput() {
   const [inputValue, setInputValue] = useState('');
   const [sending, setSending] = useState(false);
   const [attachments, setAttachments] = useState<FileInfoListItem[]>([]);
-  // const { list, addMany } = useAttachmentStore();
-
-  // const handleAddFiles = async (files: File[]) => {
-  //   const attachments = await Promise.all(files.map(createAttachmentFromFile));
-  //   // addMany(attachments);
-  // };
 
   const handleFileSelect = async () => {
-    const res = await ipc.SelectFiles({});
-    console.log(res, 'res');
-    setAttachments((state) => [...state, ...res]);
-  };
+    const files = await ipc.SelectFiles({});
 
-  // const handleSelectNativeFiles = async () => {
-  //   try {
-  //     const filePaths = await selectFilesByNativeDialog();
-  //     const attachments = filePaths.map(createAttachmentFromPath);
-  //     addMany(attachments);
-  //   } catch (error) {
-  //     // setHint(`本地选择失败：${(error as Error).message}`);
-  //   }
-  // };
+    const newFiles = await Promise.all(
+      files.map(async (file) => ({
+        ...file,
+        url: bufferToPreviewUrl({
+          buffer: await ipc.ReadLocalFile({ path: file.filePath }),
+          type: file.mimeType,
+        }),
+      })),
+    );
+    console.log('handleFileSelect', newFiles);
+
+    setAttachments((state) => [...state, ...newFiles]);
+  };
 
   const handlePaste = async (e: ClipboardEvent<HTMLTextAreaElement>) => {
     const items = e.clipboardData?.items;
@@ -100,13 +94,6 @@ export function ChatInput() {
       return;
     }
     addMsg(messageInfo);
-
-    // setMessageData((prev) => ({ ...prev, list: [...prev.list, messageInfo] }));
-    // if (isDraft && newConvo) {
-    //   setSelectedConversation(newConvo);
-    //   upsertAndPinConversation(newConvo);
-    //   return;
-    // }
 
     if (selectedConversation && messageInfo.conversationId === selectedConversation.id) {
       const updatedConvo = {

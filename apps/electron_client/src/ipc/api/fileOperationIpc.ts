@@ -1,17 +1,15 @@
 import { dialog, BrowserWindow } from 'electron';
 import { addActionHandler } from '../util';
-import { storeTableClass } from '../../db';
 import * as fs from 'fs';
 import * as path from 'path';
-import * as os from 'os';
 import { stat } from 'fs/promises';
 import {
   getFileTypeFromExtension,
   getMimeTypeFromExtension,
+  getShowOpenDialogFilters,
   to,
   uuidv4,
 } from '@c_chat/shared-utils';
-import { WindowManager } from '../../main/windows/windowManager';
 export type SelectUploadFilesParams = {
   filters?: Array<{ name: string; extensions: string[] }>;
   allowMultiSelect?: boolean;
@@ -39,23 +37,25 @@ export type UploadFileByChunksResult = {
   serverResponse?: any;
 };
 
-const DEFAULT_CHUNK_SIZE = 3 * 1024 * 1024; // 3MB
-const DEFAULT_UPLOAD_URL = 'http://localhost:3001/api/upload/chunk';
+export const allFilters = getShowOpenDialogFilters('all');
+
 /** 选择文件 */
 addActionHandler('SelectFiles', async (params) => {
+  const { allowMultiSelect = true, filters = allFilters } = params;
+  console.log(filters, 'filters');
   const browserWindow = BrowserWindow.getFocusedWindow() ?? undefined;
   if (!browserWindow) {
     return [];
   }
   const properties: Electron.OpenDialogOptions['properties'] = ['openFile'];
-  if (params.allowMultiSelect) {
+  if (allowMultiSelect) {
     properties.push('multiSelections');
   }
 
   const result = await dialog.showOpenDialog(browserWindow, {
     title: '选择要上传的文件',
     properties,
-    filters: params.filters,
+    filters,
   });
 
   if (result.canceled) {
@@ -74,6 +74,7 @@ addActionHandler('SelectFiles', async (params) => {
       const fileExtension = path.extname(filePath).toLowerCase();
 
       const fileType = getFileTypeFromExtension(fileExtension);
+      const mimeType = getMimeTypeFromExtension(fileExtension);
 
       return {
         id: uuidv4(),
@@ -81,12 +82,11 @@ addActionHandler('SelectFiles', async (params) => {
         fileName,
         fileSize: stats.size,
         fileType: fileType,
-        mimeType: getMimeTypeFromExtension(fileExtension),
+        mimeType,
         extension: fileExtension,
         lastModified: stats.mtime.getTime(),
         isDirectory: stats.isDirectory(),
         isFile: stats.isFile(),
-        bookmarks: result.bookmarks,
       };
     }),
   );
@@ -94,113 +94,12 @@ addActionHandler('SelectFiles', async (params) => {
   return fileInfos.filter((info) => info !== null);
 });
 
-export const readLocalFile = async (params: { filePath: string }) => {
-  if (!params?.filePath) {
+addActionHandler('ReadLocalFile', async (params) => {
+  const { path } = params;
+  if (!path) {
     throw new Error('缺少 filePath');
   }
 
-  const data = await fs.promises.readFile(params.filePath);
-  return new Uint8Array(data);
-};
-addActionHandler('ReadLocalFile', readLocalFile);
-
-addActionHandler('UploadFileByChunks', async (params) => {
-  const chunkSize =
-    params.chunkSize && params.chunkSize > 0 ? params.chunkSize : DEFAULT_CHUNK_SIZE;
-  const uploadUrl = params.uploadUrl ?? DEFAULT_UPLOAD_URL;
-  let filePath = params.filePath;
-
-  // 支持 buffer 上传（粘贴的图片）：先写入临时文件
-  if (!filePath && params.fileBuffer) {
-    const tempDir = path.join(os.tmpdir(), 'c_chat_uploads');
-    if (!fs.existsSync(tempDir)) {
-      fs.mkdirSync(tempDir, { recursive: true });
-    }
-    const tempFileName = params.fileName || `paste_${Date.now()}`;
-    filePath = path.join(tempDir, `${uuidv4()}_${tempFileName}`);
-    fs.writeFileSync(filePath, Buffer.from(params.fileBuffer));
-  }
-
-  if (!filePath) {
-    throw new Error('缺少文件路径或文件数据');
-  }
-
-  const stats = await fs.promises.stat(filePath);
-  if (!stats.isFile()) {
-    throw new Error('请选择一个有效文件');
-  }
-
-  const totalChunks = Math.max(1, Math.ceil(stats.size / chunkSize));
-  const uploadId = `${uuidv4()}_${Date.now()}`;
-  const fileName = path.basename(filePath);
-  const token = storeTableClass.getAccessToken(params.windowId);
-
-  let uploadedChunks = 0;
-  let serverResponse: any = null;
-
-  const readStream = fs.createReadStream(filePath, {
-    highWaterMark: chunkSize,
-  });
-
-  for await (const chunk of readStream) {
-    uploadedChunks += 1;
-    const form = new FormData();
-    form.append('uploadId', uploadId);
-    form.append('fileName', fileName);
-    form.append('chunkIndex', String(uploadedChunks));
-    form.append('totalChunks', String(totalChunks));
-    form.append('fileSize', String(stats.size));
-    if (params.description) form.append('description', params.description);
-    if (params.alt) form.append('alt', params.alt);
-    form.append('chunk', new Blob([chunk]), fileName);
-
-    const headers: Record<string, string> = {
-      ...(params.headers ?? {}),
-    };
-
-    if (token) {
-      headers.Authorization = `Bearer ${token}`;
-    }
-
-    const response = await fetch(uploadUrl, {
-      method: 'POST',
-      body: form,
-      headers,
-    });
-
-    const json = await response.json();
-    serverResponse = json;
-
-    if (!response.ok) {
-      throw new Error(json?.message || response.statusText || '文件分片上传失败');
-    }
-
-    // 发送上传进度到渲染进程
-    if (params.clientMsgId && params.windowId !== undefined) {
-      const progress = Math.round((uploadedChunks / totalChunks) * 100);
-      WindowManager.sendToWindow(params.windowId, 'uploadProgress', {
-        clientMsgId: params.clientMsgId,
-        progress,
-      });
-    }
-  }
-
-  // 清理临时文件（仅当是从 buffer 创建的）
-  if (params.fileBuffer && filePath) {
-    try {
-      fs.unlinkSync(filePath);
-    } catch {
-      // 忽略清理错误
-    }
-  }
-
-  return {
-    uploadId,
-    fileName,
-    fileSize: stats.size,
-    totalChunks,
-    uploadedChunks,
-    isComplete: true,
-    serverResponse,
-  } as UploadFileByChunksResult;
+  const data = await fs.promises.readFile(path);
+  return data;
 });

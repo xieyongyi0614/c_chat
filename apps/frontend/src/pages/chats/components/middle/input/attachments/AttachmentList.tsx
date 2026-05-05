@@ -8,6 +8,7 @@ export function AttachmentList({
   attachments: FileInfoListItem[];
   onRemove: (id: string) => void;
 }) {
+  console.log('AttachmentList', attachments);
   return (
     <div className="flex flex-wrap gap-3 p-2">
       {attachments.map((item) => (
