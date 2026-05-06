@@ -6,7 +6,6 @@ import { stat } from 'fs/promises';
 import {
   getFileTypeFromExtension,
   getMimeTypeFromExtension,
-  getShowOpenDialogFilters,
   to,
   uuidv4,
 } from '@c_chat/shared-utils';
@@ -37,12 +36,11 @@ export type UploadFileByChunksResult = {
   serverResponse?: any;
 };
 
-export const allFilters = getShowOpenDialogFilters('all');
+// export const allFilters = getShowOpenDialogFilters('all');
 
 /** 选择文件 */
 addActionHandler('SelectFiles', async (params) => {
-  const { allowMultiSelect = true, filters = allFilters } = params;
-  console.log(filters, 'filters');
+  const { allowMultiSelect = true } = params;
   const browserWindow = BrowserWindow.getFocusedWindow() ?? undefined;
   if (!browserWindow) {
     return [];
@@ -55,7 +53,7 @@ addActionHandler('SelectFiles', async (params) => {
   const result = await dialog.showOpenDialog(browserWindow, {
     title: '选择要上传的文件',
     properties,
-    filters,
+    // filters,
   });
 
   if (result.canceled) {

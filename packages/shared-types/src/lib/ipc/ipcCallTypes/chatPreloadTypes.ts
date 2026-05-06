@@ -1,6 +1,6 @@
 import { FileInfoListItem, IpcMethod } from '../ipcTypes';
 import { SocketTypes } from '../../socket.types';
-import { LocalConversationListItem, LocalMessageListItem, MessageTypeEnum } from '../../db';
+import { LocalConversationListItem, LocalMessageListItem } from '../../db';
 
 interface CreateConversationParams {
   targetId: string;
@@ -18,7 +18,6 @@ export type SendMessageParams = {
   conversationId?: string;
   targetId?: string;
   content: string;
-  type: MessageTypeEnum;
   files?: FileInfoListItem[];
   fileId?: string;
   mediaGroupId?: string;
@@ -50,6 +49,6 @@ export interface ChatPreloadTypes {
     GetMessageHistoryParams,
     SocketTypes.ResponseList<LocalMessageListItem>
   >;
-  SendMessage: IpcMethod<SendMessageParams, LocalMessageListItem>;
+  SendMessage: IpcMethod<SendMessageParams, LocalMessageListItem[]>;
   ReadMessage: IpcMethod<ReadMessageParams, ReadMessageResult>;
 }

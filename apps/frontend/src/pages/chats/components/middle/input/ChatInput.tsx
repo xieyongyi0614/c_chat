@@ -8,7 +8,7 @@ import { EmojiPicker } from './EmojiPicker';
 import { bufferToPreviewUrl, getSelectFileInfoByFile, ipc, to } from '@c_chat/shared-utils';
 import { toast } from 'sonner';
 import { useChatStore, useMessageStore } from '@c_chat/frontend/stores';
-import { MessageTypeEnum, type FileInfoListItem } from '@c_chat/shared-types';
+import { type FileInfoListItem } from '@c_chat/shared-types';
 
 export function ChatInput() {
   const {
@@ -17,7 +17,7 @@ export function ChatInput() {
     setSelectedConversation,
     upsertAndPinConversation,
   } = useChatStore();
-  const { addMsg } = useMessageStore();
+  const { addMsgList } = useMessageStore();
 
   const [inputValue, setInputValue] = useState('');
   const [sending, setSending] = useState(false);
@@ -70,41 +70,39 @@ export function ChatInput() {
     setInputValue((prev) => `${prev}${emoji}`);
   };
 
-  const sendMessageContent = async (
-    content: string,
-    files?: FileInfoListItem[],
-    messageType = MessageTypeEnum.Text,
-  ) => {
+  const sendMessageContent = async (content: string, files?: FileInfoListItem[]) => {
     if (!selectedConversation && !selectedUserForDraft) return;
     const isDraft = selectedUserForDraft && !selectedConversation;
 
     const sendMessageParams = {
       content,
-      type: messageType,
       files,
       ...(isDraft
         ? { targetId: selectedUserForDraft?.id }
         : { conversationId: selectedConversation?.id }),
     };
 
-    const [err, messageInfo] = await to(ipc.SendMessage(sendMessageParams));
+    const [err, messages] = await to(ipc.SendMessage(sendMessageParams));
     if (err) {
       console.error('Failed to send message:', err);
       toast.error('发送消息失败');
       return;
     }
-    addMsg(messageInfo);
+    addMsgList(messages);
 
-    if (selectedConversation && messageInfo.conversationId === selectedConversation.id) {
-      const updatedConvo = {
-        ...selectedConversation,
-        lastMsgContent: content,
-        lastMsgTime: messageInfo.createTime,
-        updateTime: messageInfo.createTime,
-      };
+    if (selectedConversation) {
+      const lastMsg = messages[messages.length - 1];
+      if (lastMsg.conversationId === selectedConversation.id) {
+        const updatedConvo = {
+          ...selectedConversation,
+          lastMsgContent: content,
+          lastMsgTime: lastMsg.createTime,
+          updateTime: lastMsg.createTime,
+        };
 
-      upsertAndPinConversation(updatedConvo);
-      setSelectedConversation(updatedConvo);
+        upsertAndPinConversation(updatedConvo);
+        setSelectedConversation(updatedConvo);
+      }
     }
     return true;
   };
@@ -116,18 +114,9 @@ export function ChatInput() {
       return;
     }
 
-    let messageType = MessageTypeEnum.Text;
     setSending(true);
 
-    if (attachments.length > 0) {
-      if (attachments.length === 1 && attachments[0].fileType === 'image') {
-        messageType = MessageTypeEnum.Image;
-      } else {
-        /** 多个附件，处理成多条消息 */
-      }
-    }
-
-    const res = await sendMessageContent(inputValue, attachments, messageType);
+    const res = await sendMessageContent(inputValue, attachments);
     setSending(false);
     if (!res) {
       return;
