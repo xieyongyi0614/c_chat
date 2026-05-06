@@ -14,6 +14,7 @@ import {
   RequiredNonNullable,
   SendMessageParams,
   UploadStatusEnum,
+  FileInfoListItem,
 } from '@c_chat/shared-types';
 import { ClientToServiceEvent } from '@c_chat/shared-protobuf/protoMap';
 import { now } from 'lodash';
@@ -98,29 +99,10 @@ addActionHandler('SendMessage', async (params) => {
   const senderInfo = socketService.getUserInfo();
 
   if (params.files && params.files?.length > 0) {
-    // const [err, res] = await to(ipc.ReadLocalFile({ filePath: params.files[0].filePath }));
-    // if (err) {
-    //   console.error('读取文件失败:', err);
-    // }
-    // console.log(res, 'ReadLocalFile');
     const res = await handleSendFiles(params, senderInfo?.id ?? '');
-    return res[0];
+    return res;
   }
-  // const localMessageData = {
-  //   id: uuidv4(),
-  //   conversationId: conversationId ?? '',
-  //   msgId: 0,
-  //   clientMsgId: uuidv4(),
-  //   senderId: senderInfo?.id ?? '',
-  //   content: params.content,
-  //   type: params.type,
-  //   status: MessageStatusEnum.sending,
-  //   createTime: now(),
-  //   localTime: now(),
-  //   updateTime: now(),
-  //   fileId: params.fileId || '',
-  //   mediaGroupId: '',
-  // };
+
   const localMessageData = generateLocalMessageData({
     ...params,
     senderId: senderInfo?.id ?? '',
@@ -143,92 +125,139 @@ addActionHandler('SendMessage', async (params) => {
     throw err || new Error('发送消息失败');
   }
 
-  return localMessageData;
+  return [localMessageData];
 });
 
 const handleSendFiles = async (params: SendMessageParams & ActionCtx, senderId: string) => {
   const { files = [] } = params;
-  const groupId = files.length > 1 ? uuidv4() : '';
 
-  const res = await Promise.all(
-    files.map(async (file) => {
-      const { filePath, fileName, fileSize, mimeType } = file;
-      const taskId = uuidv4();
-      const fileHash = calcSamplingHash(filePath);
-
-      const uploadInit = await ApiClient.upload.uploadInit({ fileName, fileHash, fileSize });
-      if (!uploadInit) {
-        throw new Error('上传失败');
+  const { imageFiles, otherFiles } = files.reduce<{
+    imageFiles: FileInfoListItem[];
+    otherFiles: FileInfoListItem[];
+  }>(
+    (acc, cur) => {
+      if (cur.fileType === 'image') {
+        acc.imageFiles.push(cur);
+      } else {
+        acc.otherFiles.push(cur);
       }
-
-      const localMessageData = generateLocalMessageData({
-        ...params,
-        senderId,
-        status: MessageStatusEnum.sending,
-        mediaGroupId: groupId,
-      });
-
-      console.log('uploadInit', uploadInit);
-      /** 秒传 */
-      if (uploadInit?.file?.id) {
-        localMessageData.fileId = uploadInit.file.id;
-        messageTableClass.insert(localMessageData);
-        const [sendErr] = await to(
-          sendSocketMessageWithFile(params.windowId, {
-            conversationId: localMessageData.conversationId,
-            clientMsgId: localMessageData.clientMsgId,
-            fileId: uploadInit.file.id,
-            type: localMessageData.type,
-            mediaGroupId: localMessageData.mediaGroupId || undefined,
-            content: localMessageData.content,
-          }),
-        );
-        if (sendErr) {
-          messageTableClass.updateMessageStateByClientId(
-            localMessageData.clientMsgId,
-            MessageStatusEnum.fail,
-          );
-          console.error('秒传后发送消息失败:', sendErr);
-          localMessageData.status = MessageStatusEnum.fail;
-        }
-        return localMessageData;
-      }
-
-      if (!uploadInit?.uploadSession?.id) {
-        return null;
-      }
-
-      uploadTaskTableClass.insert({
-        id: taskId,
-        clientMsgId: localMessageData.clientMsgId,
-        filePath,
-        fileName,
-        fileSize,
-        mimeType,
-        fileHash,
-        status: UploadStatusEnum.waiting,
-        progress: 0,
-        uploadedBytes: 0,
-        isRunning: 0,
-        uploadSessionId: uploadInit.uploadSession.id,
-        windowId: params.windowId,
-        chunkSize: uploadInit.uploadSession.chunkSize,
-        uploadedChunks: 0,
-        totalChunks: uploadInit.uploadSession.totalChunks,
-        isInstant: 0,
-        errorMessage: '',
-        createTime: now(),
-        updateTime: now(),
-      });
-
-      messageTableClass.insert(localMessageData);
-
-      uploadScheduler.addTask(taskId);
-
-      return localMessageData;
-    }),
+      return acc;
+    },
+    { imageFiles: [], otherFiles: [] },
   );
+
+  const res: (LocalMessageListItem | null)[] = [];
+
+  // 处理图片：使用相同的mediaGroupId
+  if (imageFiles.length > 0) {
+    const imageGroupId = uuidv4();
+    const imageResults = await Promise.all(
+      imageFiles.map(async (file) => {
+        return processSingleFile(
+          { ...params, type: MessageTypeEnum.Image },
+          senderId,
+          file,
+          imageGroupId,
+        );
+      }),
+    );
+    res.push(...imageResults);
+  }
+
+  // 处理其他文件：各自单独发送，不使用mediaGroupId
+  if (otherFiles.length > 0) {
+    const fileResults = await Promise.all(
+      otherFiles.map(async (file) =>
+        processSingleFile({ ...params, type: MessageTypeEnum.File }, senderId, file),
+      ),
+    );
+    res.push(...fileResults);
+  }
+
   return res.filter((item) => item !== null);
+};
+
+const processSingleFile = async (
+  params: SendMessageParams & ActionCtx & { type: MessageTypeEnum },
+  senderId: string,
+  file: FileInfoListItem,
+  mediaGroupId?: string,
+): Promise<LocalMessageListItem | null> => {
+  const { filePath, fileName, fileSize, mimeType } = file;
+  const taskId = uuidv4();
+
+  const fileHash = calcSamplingHash(filePath);
+
+  const uploadInit = await ApiClient.upload.uploadInit({ fileName, fileHash, fileSize });
+  if (!uploadInit) {
+    throw new Error('上传失败');
+  }
+
+  const localMessageData = generateLocalMessageData({
+    ...params,
+    senderId,
+    status: MessageStatusEnum.sending,
+    ...(mediaGroupId && { mediaGroupId }),
+  });
+
+  console.log('uploadInit', uploadInit);
+  /** 秒传 */
+  if (uploadInit?.file?.id) {
+    localMessageData.fileId = uploadInit.file.id;
+    messageTableClass.insert(localMessageData);
+    const [sendErr] = await to(
+      sendSocketMessageWithFile(params.windowId, {
+        conversationId: localMessageData.conversationId,
+        clientMsgId: localMessageData.clientMsgId,
+        fileId: uploadInit.file.id,
+        type: localMessageData.type,
+        mediaGroupId: localMessageData.mediaGroupId || undefined,
+        content: localMessageData.content,
+      }),
+    );
+    if (sendErr) {
+      messageTableClass.updateMessageStateByClientId(
+        localMessageData.clientMsgId,
+        MessageStatusEnum.fail,
+      );
+      console.error('秒传后发送消息失败:', sendErr);
+      localMessageData.status = MessageStatusEnum.fail;
+    }
+    return localMessageData;
+  }
+
+  if (!uploadInit?.uploadSession?.id) {
+    return null;
+  }
+
+  uploadTaskTableClass.insert({
+    id: taskId,
+    clientMsgId: localMessageData.clientMsgId,
+    filePath,
+    fileName,
+    fileSize,
+    mimeType,
+    fileHash,
+    status: UploadStatusEnum.waiting,
+    progress: 0,
+    uploadedBytes: 0,
+    isRunning: 0,
+    uploadSessionId: uploadInit.uploadSession.id,
+    windowId: params.windowId,
+    chunkSize: uploadInit.uploadSession.chunkSize,
+    uploadedChunks: 0,
+    totalChunks: uploadInit.uploadSession.totalChunks,
+    isInstant: 0,
+    errorMessage: '',
+    createTime: now(),
+    updateTime: now(),
+  });
+
+  messageTableClass.insert(localMessageData);
+
+  uploadScheduler.addTask(taskId);
+
+  return localMessageData;
 };
 
 /** 标记会话已读 */

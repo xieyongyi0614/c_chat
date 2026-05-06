@@ -9,28 +9,38 @@ export function calcSamplingHash(filePath: string) {
 
   const fd = fs.openSync(filePath, 'r');
 
-  const head = Buffer.alloc(SAMPLE_SIZE);
-  const middle = Buffer.alloc(SAMPLE_SIZE);
-  const tail = Buffer.alloc(SAMPLE_SIZE);
+  const hash = crypto.createHash('sha256');
 
-  // 头
-  fs.readSync(fd, head, 0, SAMPLE_SIZE, 0);
+  function readChunk(position: number) {
+    if (position < 0) position = 0;
 
-  // 中
-  const middlePos = Math.floor(size / 2);
-  fs.readSync(fd, middle, 0, SAMPLE_SIZE, middlePos);
+    const remaining = size - position;
+    const length = Math.min(SAMPLE_SIZE, remaining);
 
-  // 尾
-  const tailPos = size - SAMPLE_SIZE;
-  fs.readSync(fd, tail, 0, SAMPLE_SIZE, tailPos);
+    if (length <= 0) return;
+
+    const buffer = Buffer.alloc(length);
+    fs.readSync(fd, buffer, 0, length, position);
+    hash.update(buffer);
+  }
+
+  if (size <= SAMPLE_SIZE * 3) {
+    const buffer = fs.readFileSync(filePath);
+    hash.update(buffer);
+  } else {
+    // 头
+    readChunk(0);
+
+    // 中
+    readChunk(Math.floor(size / 2));
+
+    // 尾
+    readChunk(size - SAMPLE_SIZE);
+  }
+
+  hash.update(String(size));
 
   fs.closeSync(fd);
-
-  const hash = crypto.createHash('sha256');
-  hash.update(head);
-  hash.update(middle);
-  hash.update(tail);
-  hash.update(String(size));
 
   return hash.digest('hex');
 }
