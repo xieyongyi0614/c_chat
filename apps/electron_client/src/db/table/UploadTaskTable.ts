@@ -161,7 +161,7 @@ export class UploadTaskTable extends TableConnection {
   getPendingTasks() {
     const sql = `
       SELECT * FROM ${this.TABLE_NAME}
-      WHERE status IN (0, 1, 2)
+      WHERE status IN (0, 1, 2, -1)
       AND is_running = 0
       ORDER BY create_time ASC
     `;
