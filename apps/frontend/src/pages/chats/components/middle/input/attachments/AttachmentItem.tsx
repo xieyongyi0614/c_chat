@@ -24,9 +24,9 @@ export function AttachmentItem({
         className="absolute top-1 right-1 z-10 opacity-0 group-hover:opacity-100"
         onClick={() => {
           onRemove(item.id);
-          // if (previewUrl) {
-          //   URL.revokeObjectURL(previewUrl);
-          // }
+          if (previewUrl) {
+            URL.revokeObjectURL(previewUrl);
+          }
         }}
       >
         <X className="w-4 h-4" />

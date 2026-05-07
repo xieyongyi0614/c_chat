@@ -29,10 +29,13 @@ export function ChatInput() {
     const newFiles = await Promise.all(
       files.map(async (file) => ({
         ...file,
-        url: bufferToPreviewUrl({
-          buffer: await ipc.ReadLocalFile({ path: file.filePath }),
-          type: file.mimeType,
-        }),
+        url:
+          file.fileType === 'image'
+            ? bufferToPreviewUrl({
+                buffer: await ipc.ReadLocalFile({ path: file.filePath }),
+                type: file.mimeType,
+              })
+            : undefined,
       })),
     );
     console.log('handleFileSelect', newFiles);

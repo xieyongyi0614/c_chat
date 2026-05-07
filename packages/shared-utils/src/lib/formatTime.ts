@@ -209,7 +209,21 @@ export class ImTimeFormatter {
 
   static getDateKey(timestamp: number | string): string {
     const date = dayjs(Number(timestamp));
-    return date.format('D MMM, YYYY');
+    const now = dayjs();
+
+    if (date.isSame(now, 'day')) {
+      return '今天';
+    }
+
+    if (date.isSame(now.subtract(1, 'day'), 'day')) {
+      return '昨天';
+    }
+
+    if (date.year() === now.year()) {
+      return date.format('M月D日');
+    }
+
+    return date.format('YYYY年M月D日');
   }
 }
 
