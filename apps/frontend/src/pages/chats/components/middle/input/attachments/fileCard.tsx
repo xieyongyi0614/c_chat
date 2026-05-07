@@ -2,6 +2,7 @@ import type { FileInfoListItem } from '@c_chat/shared-types';
 import { FileIcon } from 'lucide-react';
 
 export function FileCard({ item }: { item: FileInfoListItem }) {
+  console.log(item, 'item');
   return (
     <div className="flex flex-col items-center justify-center w-full h-full text-xs p-2">
       <FileIcon className="w-6 h-6 mb-1" />

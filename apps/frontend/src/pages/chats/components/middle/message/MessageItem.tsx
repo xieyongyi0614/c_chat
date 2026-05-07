@@ -1,139 +1,105 @@
 import { memo } from 'react';
 import { cn } from '@c_chat/ui';
-import { formatCompactTime } from '@c_chat/shared-utils';
-import { MessageStatusEnum, type LocalMessageListItem } from '@c_chat/shared-types';
+import { MessageTypeEnum, type LocalMessageListItem } from '@c_chat/shared-types';
 import { useUserStore } from '@c_chat/frontend/stores';
+import TextMessage from './types/TextMessage';
+import ImageGroup from './types/ImageGroup';
+import FileMessage from './types/FileMessage';
+import VideoMessage from './types/VideoMessage';
+import AudioMessage from './types/AudioMessage';
+
+import MessageDate from './MessageDate';
 
 interface MessageItemProps {
-  msg: LocalMessageListItem;
+  messageOrGroup: LocalMessageListItem | LocalMessageListItem[];
   isRead: boolean;
 }
 
-const MessageItem = ({ msg, isRead }: MessageItemProps) => {
+const MessageItem = ({ messageOrGroup, isRead }: MessageItemProps) => {
   const userId = useUserStore((s) => s.userInfo?.id);
+  console.log('messageItem render');
+
+  const isGroup = Array.isArray(messageOrGroup);
+  const messages = isGroup ? messageOrGroup : [messageOrGroup];
+  const msg = messages[0];
   const isMe = msg.senderId === userId;
 
-  const renderStatusIcon = () => {
-    if (!isMe) return null;
-
-    if (msg.status === MessageStatusEnum.fail) {
-      return <span className="text-red-500 text-[10px] font-bold">!</span>;
-    }
-
-    if (msg.status === MessageStatusEnum.success) {
-      return isRead ? (
-        <span className="text-blue-400 text-[10px]">✓✓</span>
-      ) : (
-        <span className="text-[10px]">✓</span>
-      );
-    }
-
-    // uploading 或 sending：显示等待中
-    return <span className="opacity-40 text-[10px]">&#8226;</span>;
-  };
-
-  const renderTextContent = () => {
-    return <span className="whitespace-pre-wrap break-words">{msg.content}</span>;
-  };
-
-  const renderImageContent = () => {
-    const isUploading = msg.status === MessageStatusEnum.uploading;
-    const isSending = msg.status === MessageStatusEnum.sending;
-    const isFailed = msg.status === MessageStatusEnum.fail;
-    const showOverlay = isUploading || isSending || isFailed;
-
-    return (
-      <div className="relative">
-        <img
-          src={`http://localhost:3001${msg.fileUrl}`}
-          alt="图片"
-          className={cn('max-h-60 w-full rounded-lg object-contain', showOverlay && 'opacity-60')}
-        />
-
-        {/* 上传进度覆盖层 */}
-        {isUploading && (
-          <div className="absolute inset-0 rounded-lg flex flex-col items-center justify-center bg-black/20">
-            <div className="w-3/4 bg-white/40 rounded-full h-1.5 mb-1">
-              <div
-                className="bg-white h-full rounded-full transition-all duration-300"
-                style={{ width: `${msg.progress || 0}%` }}
-              />
-            </div>
-            <span className="text-white text-[10px]">{msg.progress || 0}%</span>
-          </div>
-        )}
-
-        {/* 发送中覆盖层 */}
-        {isSending && (
-          <div className="absolute inset-0 rounded-lg flex items-center justify-center bg-black/20">
-            <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
-          </div>
-        )}
-
-        {/* 失败覆盖层 */}
-        {isFailed && (
-          <div className="absolute inset-0 rounded-lg flex items-center justify-center bg-black/30">
-            <span className="text-white text-xs">发送失败</span>
-          </div>
-        )}
-      </div>
-    );
-  };
-
   const renderContent = () => {
-    if (msg.type === 1) {
-      return renderImageContent();
+    if (msg.type === MessageTypeEnum.Image) {
+      return <ImageGroup messages={messages} />;
     }
 
-    if (msg.type === 2) {
-      const fileName = msg.content.split('/').pop() || '文件';
-      return (
-        <a
-          href={msg.content}
-          target="_blank"
-          rel="noreferrer"
-          className="text-primary underline break-all"
-        >
-          {fileName}
-        </a>
-      );
+    // 单个消息的其他类型
+    if (messages.length !== 1) {
+      return <TextMessage content="消息错误" />;
     }
 
-    if (msg.type === 3) {
-      return (
-        <a
-          href={msg.content}
-          target="_blank"
-          rel="noreferrer"
-          className="text-primary underline break-all"
-        >
-          {msg.content}
-        </a>
-      );
+    const singleMsg = messages[0];
+
+    // 文本消息
+    if (singleMsg.type === MessageTypeEnum.Text) {
+      return <TextMessage content={singleMsg.content} />;
     }
 
-    return renderTextContent();
+    // 文件消息
+    if (singleMsg.type === MessageTypeEnum.File) {
+      return <FileMessage msg={singleMsg} isMe={isMe} isRead={isRead} />;
+    }
+
+    // 视频消息
+    if (singleMsg.type === MessageTypeEnum.Video) {
+      return <VideoMessage msg={singleMsg} isMe={isMe} isRead={isRead} />;
+    }
+
+    // 音频消息
+    if (singleMsg.type === MessageTypeEnum.Audio) {
+      return <AudioMessage msg={singleMsg} isMe={isMe} isRead={isRead} />;
+    }
+
+    // 默认显示为文本
+    return <TextMessage content={singleMsg.content || '未知消息'} />;
   };
+
+  // 对于非文本、非图片的内容，不需要背景气泡
+  const isContentTypeWithoutBubble = () => {
+    console.log(messages, messages.length, 'messages');
+
+    const type = messages[0].type;
+    if (messages.length === 1 && type === MessageTypeEnum.Text) {
+      return false;
+    }
+    return [
+      MessageTypeEnum.Image,
+      MessageTypeEnum.File,
+      MessageTypeEnum.Video,
+      MessageTypeEnum.Audio,
+    ].includes(type);
+  };
+
+  const withoutBubble = isContentTypeWithoutBubble();
 
   return (
     <div className={cn('flex w-full', isMe ? 'justify-end' : 'justify-start')}>
-      <div
-        className={cn(
-          'max-w-[70%] rounded-2xl px-3 py-2 shadow-sm',
-          isMe ? 'bg-primary text-primary-foreground rounded-br-sm' : 'bg-muted rounded-bl-sm',
-        )}
-      >
-        <div className="text-sm">{renderContent()}</div>
+      {withoutBubble ? (
+        <div className="max-w-[70%] relative group">
+          {renderContent()}
+          <MessageDate
+            className="absolute bottom-1 right-1 flex items-center gap-1 bg-black/50 rounded px-1.5 py-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+            msg={msg}
+            isRead={isRead}
+          />
+        </div>
+      ) : (
         <div
           className={cn(
-            'mt-1 flex items-center justify-end gap-1 text-[10px]',
-            isMe ? 'text-primary-foreground/70' : 'text-foreground/60',
+            'max-w-[70%] rounded-2xl px-3 py-2 shadow-sm',
+            isMe ? 'bg-primary text-primary-foreground rounded-br-sm' : 'bg-muted rounded-bl-sm',
           )}
         >
-          <span>{formatCompactTime(msg.createTime)}</span>
-          {isMe && <span className="inline-flex w-4 justify-center">{renderStatusIcon()}</span>}
+          <div className={'text-sm'}>{renderContent()}</div>
+          <MessageDate msg={msg} isRead={isRead} />
         </div>
-      </div>
+      )}
     </div>
   );
 };
