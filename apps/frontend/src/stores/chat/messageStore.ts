@@ -3,6 +3,8 @@ import type { LocalMessageListItem } from '@c_chat/shared-types';
 import { getDateKey } from '@c_chat/shared-utils';
 
 interface MessageStoreData {
+  /** 数据所属ID */
+  dataConversationId: string;
   // clientMsgId | mediaGroupId -> message[]
   msgMap: Record<string, LocalMessageListItem[]>;
   // dateKey -> clientMsgId | mediaGroupId
@@ -16,6 +18,7 @@ export interface MessageStoreType extends MessageStoreData {
 }
 
 export const useMessageStore = create<MessageStoreType>((set) => ({
+  dataConversationId: '',
   msgMap: {},
   groups: new Map(),
 
