@@ -91,7 +91,7 @@ export function ChatInput() {
       toast.error('发送消息失败');
       return;
     }
-    addMsgList(messages);
+    addMsgList(messages, 'realtime');
 
     if (selectedConversation) {
       const lastMsg = messages[messages.length - 1];
