@@ -7,7 +7,6 @@ interface ImageGroupProps {
 
 const ImageGroup = ({ messages }: ImageGroupProps) => {
   const count = messages.length;
-  console.log('ImageGroup', JSON.stringify(messages));
 
   const renderOverlay = (msg: LocalMessageListItem) => {
     const isUploading = msg.status === MessageStatusEnum.uploading;

@@ -1,7 +1,7 @@
 import { memo } from 'react';
 import { cn } from '@c_chat/ui';
-import { MessageTypeEnum, type LocalMessageListItem } from '@c_chat/shared-types';
-import { useUserStore } from '@c_chat/frontend/stores';
+import { MessageTypeEnum } from '@c_chat/shared-types';
+import { useMessageStore, useUserStore } from '@c_chat/frontend/stores';
 import TextMessage from './types/TextMessage';
 import ImageGroup from './types/ImageGroup';
 import FileMessage from './types/FileMessage';
@@ -11,18 +11,17 @@ import AudioMessage from './types/AudioMessage';
 import MessageDate from './MessageDate';
 
 interface MessageItemProps {
-  messageOrGroup: LocalMessageListItem | LocalMessageListItem[];
   isRead: boolean;
+  groupId: string;
 }
 
-const MessageItem = ({ messageOrGroup, isRead }: MessageItemProps) => {
+const MessageItem = ({ isRead, groupId }: MessageItemProps) => {
   const userId = useUserStore((s) => s.userInfo?.id);
-  console.log('messageItem render');
+  const messages = useMessageStore((s) => s.msgMap[groupId]);
 
-  const isGroup = Array.isArray(messageOrGroup);
-  const messages = isGroup ? messageOrGroup : [messageOrGroup];
   const msg = messages[0];
   const isMe = msg.senderId === userId;
+  console.log('render message item');
 
   const renderContent = () => {
     if (msg.type === MessageTypeEnum.Image) {
@@ -62,8 +61,6 @@ const MessageItem = ({ messageOrGroup, isRead }: MessageItemProps) => {
 
   // 对于非文本、非图片的内容，不需要背景气泡
   const isContentTypeWithoutBubble = () => {
-    console.log(messages, messages.length, 'messages');
-
     const type = messages[0].type;
     if (messages.length === 1 && type === MessageTypeEnum.Text) {
       return false;

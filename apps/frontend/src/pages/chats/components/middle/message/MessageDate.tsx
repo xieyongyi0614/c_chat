@@ -22,7 +22,7 @@ const MessageDate = (props: MessageDateProps) => {
       )}
     >
       <span>{formatCompactTime(msg.createTime)}</span>
-      {isMe && <MessageStatusIcon msg={msg} isRead={isRead} />}
+      {isMe && <MessageStatusIcon status={msg.status} isRead={isRead} />}
     </div>
   );
 };

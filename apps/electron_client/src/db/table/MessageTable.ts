@@ -72,7 +72,7 @@ export class MessageTable extends TableConnection {
         `
         SELECT * FROM ${this.TABLE_NAME}
         WHERE conversation_id = ?
-        ORDER BY msg_id DESC
+        ORDER BY local_time DESC
         LIMIT ?
         `,
         [conversationId, limit],

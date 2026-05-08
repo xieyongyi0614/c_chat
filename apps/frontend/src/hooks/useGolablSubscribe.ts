@@ -2,14 +2,18 @@ import { useEffect } from 'react';
 import { useChatStore, useMessageStore, useUserStore } from '../stores';
 import { ELECTRON_TO_CLIENT_CHANNELS } from '@c_chat/shared-config';
 import { toast } from 'sonner';
-import type { WebContentEvents, WebContentEventType, LocalMessageListItem } from '@c_chat/shared-types';
+import type {
+  WebContentEvents,
+  WebContentEventType,
+  LocalMessageListItem,
+} from '@c_chat/shared-types';
 import { useLastCallback } from './useLastCallback';
 
 /** 全局订阅监听 */
 export const useGlobalSubscribe = () => {
   const { userInfo, isSignedIn } = useUserStore();
   const { updateConversationSnapshot } = useChatStore();
-  const { updateMsg, addMsg } = useMessageStore();
+  const { updateMsg, addMsgList } = useMessageStore();
 
   const newMessageHandle = useLastCallback<WebContentEvents['newMessage']>((data) => {
     console.log('收到新消息:', data);
@@ -22,7 +26,7 @@ export const useGlobalSubscribe = () => {
         updateConversationSnapshot(data.conversationId, data.content, data.createTime);
         return;
       }
-      addMsg(data);
+      addMsgList([data], 'realtime');
       updateConversationSnapshot(data.conversationId, data.content, data.createTime);
     }
   });
