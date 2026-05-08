@@ -88,7 +88,9 @@ const generateLocalMessageData = (data: Partial<LocalMessageListItem>): LocalMes
     localTime: now(),
     updateTime: now(),
     fileId: data.fileId || '',
-    ...data,
+    fileUrl: data.fileUrl || '',
+    mediaGroupId: data.mediaGroupId || '',
+    progress: data.progress || 0,
   };
 };
 

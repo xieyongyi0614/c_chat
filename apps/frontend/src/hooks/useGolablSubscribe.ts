@@ -14,19 +14,21 @@ export const useGlobalSubscribe = () => {
   const { userInfo, isSignedIn } = useUserStore();
   const { updateConversationSnapshot } = useChatStore();
   const { updateMsg, addMsgList } = useMessageStore();
+  const selectedConversationId = useChatStore((s) => s.selectedConversation?.id);
 
   const newMessageHandle = useLastCallback<WebContentEvents['newMessage']>((data) => {
     console.log('收到新消息:', data);
     if (data) {
       const isOwnMessage = data.senderId === userInfo?.id;
+      const isCurrentConversation = selectedConversationId === data.conversationId;
 
       if (isOwnMessage) {
         console.log('收到自己发送的消息推送，更新数据');
-        updateMsg(data);
+        if (isCurrentConversation) updateMsg(data);
         updateConversationSnapshot(data.conversationId, data.content, data.createTime);
         return;
       }
-      addMsgList([data], 'realtime');
+      if (isCurrentConversation) addMsgList([data], 'realtime');
       updateConversationSnapshot(data.conversationId, data.content, data.createTime);
     }
   });
