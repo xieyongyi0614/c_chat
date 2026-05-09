@@ -5,6 +5,7 @@ import {
   db,
 } from '@c_chat/shared-config';
 import { app, BrowserWindow, shell } from 'electron';
+import EventEmitter from 'events';
 import path, { join } from 'path';
 import { storeTableClass } from '../../db';
 import { ApiClient } from '../../utils/axios/service/apiService';
@@ -35,6 +36,17 @@ export class WindowManager {
   private readonly MAX_WINDOWS = 10;
 
   private constructor() {}
+
+  // 事件发射器：对外广播窗口变更（创建/关闭）
+  private emitter: EventEmitter = new EventEmitter();
+
+  /**
+   * 订阅窗口变化事件
+   * @param listener 回调，会接收当前窗口数组
+   */
+  public onWindowChange(listener: (windows: BrowserWindow[]) => void) {
+    this.emitter.on('change', () => listener(this.getAllWindows()));
+  }
 
   public static getInstance(): WindowManager {
     if (!WindowManager.instance) {
@@ -411,7 +423,11 @@ export class WindowManager {
    * 通知外部组件窗口状态发生变化
    */
   private notifyWindowChange(): void {
-    // 这里可以通过广播事件等方式通知外部组件
-    // 目前暂时留空，后续可以实现具体的通知机制
+    // 通知订阅者窗口集合发生了变化
+    try {
+      this.emitter.emit('change');
+    } catch (err) {
+      console.warn('notifyWindowChange emit failed', err);
+    }
   }
 }
