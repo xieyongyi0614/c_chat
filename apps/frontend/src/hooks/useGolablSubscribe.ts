@@ -8,6 +8,7 @@ import type {
   LocalMessageListItem,
 } from '@c_chat/shared-types';
 import { useLastCallback } from './useLastCallback';
+import { generateLastMsgContent } from '../utils/lastMsgContentUtil';
 
 /** 全局订阅监听 */
 export const useGlobalSubscribe = () => {
@@ -25,11 +26,15 @@ export const useGlobalSubscribe = () => {
       if (isOwnMessage) {
         console.log('收到自己发送的消息推送，更新数据');
         if (isCurrentConversation) updateMsg(data);
-        updateConversationSnapshot(data.conversationId, data.content, data.createTime);
-        return;
+      } else {
+        if (isCurrentConversation) addMsgList([data], 'realtime');
       }
-      if (isCurrentConversation) addMsgList([data], 'realtime');
-      updateConversationSnapshot(data.conversationId, data.content, data.createTime);
+
+      updateConversationSnapshot(
+        data.conversationId,
+        generateLastMsgContent(data.content, data.type),
+        data.createTime,
+      );
     }
   });
 
