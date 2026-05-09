@@ -45,6 +45,13 @@ export class SocketService extends MessageHandler {
     super(windowId);
   }
 
+  /**
+   * 当前 socket 是否已连接
+   */
+  public isConnected(): boolean {
+    return !!this.socket?.connected;
+  }
+
   public getUserInfo() {
     return storeTableClass.getUserInfo(this.windowId);
   }
@@ -213,38 +220,6 @@ export class SocketService extends MessageHandler {
     }
   }
 
-  // ==================== IPC 通信 ====================
-  private setupIpcHandlers(): void {
-    // 渲染进程请求发送事件
-    // ipcMain.on('socket-emit', (event, eventName: string, data: any) => {
-    //   if (!this.socket?.connected) {
-    //     logger.warn(`[Socket] Emit failed - not connected: ${eventName}`);
-    //     return;
-    //   }
-    //   // 安全白名单机制（关键！）
-    //   if (!this.isValidEvent(eventName)) {
-    //     logger.error(`[Socket] Invalid emit event: ${eventName}`);
-    //     return;
-    //   }
-    //   logger.debug(`[Socket] Emitting: ${eventName}`, data);
-    //   this.socket.emit(eventName, data);
-    // });
-    // // 获取连接状态
-    // ipcMain.handle('socket-get-state', () => {
-    //   return {
-    //     connected: this.socket?.connected || false,
-    //     id: this.socket?.id || null,
-    //     attempts: this.reconnectAttempts,
-    //   };
-    // });
-  }
-
-  // private isValidEvent(eventName: string): boolean {
-  //   // 严格白名单（防止任意事件触发）
-  //   const allowedEvents = ['send-message', 'join-room', 'leave-room'];
-  //   return allowedEvents.includes(eventName);
-  // }
-
   // ==================== 生命周期管理 ====================
   /**
    * 安全断开（保留实例）
@@ -385,6 +360,16 @@ export class SocketManager {
    */
   public hasSocket(windowId: number): boolean {
     return this.sockets.has(windowId);
+  }
+
+  /**
+   * 检查指定窗口的 socket 是否处于已连接状态
+   * @param windowId 窗口ID
+   */
+  public isConnected(windowId: number): boolean {
+    const svc = this.sockets.get(windowId);
+    if (!svc) return false;
+    return typeof svc.isConnected === 'function' ? (svc as any).isConnected() : false;
   }
 }
 

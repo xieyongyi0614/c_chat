@@ -6,6 +6,12 @@
     "output": "release/${version}",
     "buildResources": "build"
   },
+  "extraResources": [
+    {
+      "from": "resources",
+      "to": "."
+    }
+  ],
   "extraMetadata": {
     "main": "dist/main/index.js"
   },

@@ -1,7 +1,8 @@
 import { app, Menu, MenuItemConstructorOptions, nativeImage, Tray } from 'electron';
 import { WindowManager } from '../windows';
 import { db } from '@c_chat/shared-config';
-import path from 'path';
+import { resolveResource } from '@c_chat/electron_client/utils/resolveResource';
+import { storeTableClass } from '@c_chat/electron_client/db';
 
 export class TrayManager {
   private tray: Tray | null = null;
@@ -11,6 +12,14 @@ export class TrayManager {
   private constructor() {
     this.windowManager = WindowManager.getInstance();
     this.initTray();
+
+    try {
+      this.windowManager.onWindowChange(() => {
+        this.updateTrayMenu();
+      });
+    } catch (err) {
+      console.log('updateTrayMenu error:', err);
+    }
   }
 
   public static getInstance(): TrayManager {
@@ -22,24 +31,18 @@ export class TrayManager {
 
   private initTray() {
     // 创建托盘图标
-    // const iconPath = path.join(process.resourcesPath, 'icon.png');
-    const iconPath = path.join(__dirname, '..', '..', 'src', 'main', 'tray', 'tray-icon.png');
-    console.log('iconPath:', iconPath);
+    const iconPath = resolveResource('logo.png');
     const icon = nativeImage.createFromPath(iconPath);
 
-    // 如果无法加载图标，使用默认图标
     if (icon.isEmpty()) {
       console.warn('Tray icon not found, using default icon');
     }
 
     this.tray = new Tray(icon.isEmpty() ? '' : iconPath);
 
-    // 设置托盘菜单
     this.updateTrayMenu();
 
-    // 托盘点击事件
     this.tray.on('click', () => {
-      // 点击托盘图标时激活主窗口
       const mainWindow = this.windowManager.getDefaultWindow();
       if (mainWindow) {
         if (mainWindow.isMinimized()) {
@@ -47,67 +50,48 @@ export class TrayManager {
         }
         mainWindow.focus();
       } else {
-        // 如果没有主窗口，则创建一个新的
         this.windowManager.createWindow(db.DEFAULT_WINDOW_ID);
       }
     });
 
-    // 应用退出时清理
     app.on('before-quit', () => {
       this.tray?.destroy();
     });
+  }
+  private generateWindowListItem(windowId: number) {
+    if (!windowId) {
+      return {
+        label: '未知窗口',
+        enabled: false,
+      };
+    }
+    const userInfo = WindowManager.getUserInfo(windowId);
+    const statusIcon = resolveResource(userInfo ? 'tray/green.png' : 'tray/red.png');
+    const accountText = userInfo ? ` ${userInfo.nickname || userInfo.email}` : '';
+
+    return {
+      label: `窗口 ${windowId}${accountText}`,
+      icon: nativeImage.createFromPath(statusIcon),
+      click: () => {
+        this.windowManager.focusWindow(windowId);
+      },
+    };
   }
 
   private updateTrayMenu() {
     if (!this.tray) return;
 
-    // 获取当前活动的窗口
-    const windows = this.windowManager.getAllWindows();
-    // const authenticatedWindows = this.windowManager.getAuthenticatedWindows();
-
-    // 构建托盘菜单
+    const stores = storeTableClass.getAllStore('access_token') ?? [];
+    const windowList =
+      stores.length > 0
+        ? stores.map((store) => this.generateWindowListItem(store.window_id))
+        : [this.generateWindowListItem(db.DEFAULT_WINDOW_ID)];
     const menuTemplate: MenuItemConstructorOptions[] = [
-      {
-        label: '新建窗口',
-        click: () => {
-          this.windowManager.createWindow();
-        },
-      },
-      {
-        type: 'separator',
-      },
-      {
-        label: '窗口列表',
-        submenu:
-          windows.length > 0
-            ? windows.map((window) => {
-                const windowId = this.windowManager.getWindowIdByBrowserWindow(window);
-                if (!windowId) return { label: '未知窗口', enabled: false };
-                const isAuthenticated = this.windowManager.isWindowAuthenticated(windowId);
-                const userInfo = WindowManager.getUserInfo(windowId);
-                const windowLabel =
-                  isAuthenticated && userInfo
-                    ? `窗口 ${windowId} (${userInfo.nickname || userInfo.email})`
-                    : `窗口 ${windowId} (未登录)`;
-
-                return {
-                  label: windowLabel,
-                  click: () => {
-                    this.windowManager.focusWindow(windowId);
-                  },
-                };
-              })
-            : [{ label: '暂无窗口', enabled: false }],
-      },
-      {
-        type: 'separator',
-      },
-      {
-        label: '退出',
-        click: () => {
-          app.quit();
-        },
-      },
+      { label: '新建窗口', click: () => this.windowManager.createWindow() },
+      { type: 'separator' },
+      { label: '窗口列表', submenu: windowList },
+      { type: 'separator' },
+      { label: '退出', click: () => app.quit() },
     ];
 
     const contextMenu = Menu.buildFromTemplate(menuTemplate);
@@ -124,7 +108,7 @@ export class TrayManager {
   /**
    * 重新初始化托盘（用于更新图标或菜单）
    */
-  reinitTray() {
+  reInitTray() {
     if (this.tray) {
       this.tray.destroy();
     }
