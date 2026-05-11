@@ -1,15 +1,10 @@
 import { socketManager } from '@c_chat/electron_client/utils/socket-io-client';
 import { messageTableClass, uploadTaskTableClass } from '../db';
 import { to } from '@c_chat/shared-utils';
-import {
-  MessageStatusEnum,
-  MessageTypeEnum,
-  UploadStatusEnum,
-  UploadTypes,
-} from '@c_chat/shared-types';
+import { MessageStatusEnum, UploadStatusEnum, UploadTypes } from '@c_chat/shared-types';
 import { ClientToServiceEvent } from '@c_chat/shared-protobuf/protoMap';
 import { SendMessageRequest } from '@c_chat/shared-protobuf';
-import { UPLOAD_CHUNK_SIZE } from '@c_chat/shared-config';
+import { MessageType, UPLOAD_CHUNK_SIZE } from '@c_chat/shared-config';
 import { ApiClient } from './axios/service/apiService';
 import { readChunkAsBlob } from './calcFileHash';
 
@@ -44,7 +39,7 @@ export async function sendSocketMessageWithFile(
     conversationId: string;
     clientMsgId: string;
     fileId: string;
-    type: MessageTypeEnum;
+    type: MessageType;
     mediaGroupId?: string;
     content?: string;
   },

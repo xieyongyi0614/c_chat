@@ -10,7 +10,6 @@ import { to, transformPagination, uuidv4 } from '@c_chat/shared-utils';
 import {
   LocalMessageListItem,
   MessageStatusEnum,
-  MessageTypeEnum,
   RequiredNonNullable,
   SendMessageParams,
   UploadStatusEnum,
@@ -19,7 +18,12 @@ import {
 import { ClientToServiceEvent } from '@c_chat/shared-protobuf/protoMap';
 import { now } from 'lodash';
 import { calcSamplingHash } from '@c_chat/electron_client/utils/calcFileHash';
-import { DEFAULT_MESSAGE_PAGE_SIZE } from '@c_chat/shared-config';
+import {
+  DEFAULT_MESSAGE_PAGE_SIZE,
+  MESSAGE_TYPE,
+  MessageType,
+  messageTypeMap,
+} from '@c_chat/shared-config';
 import { ApiClient } from '@c_chat/electron_client/utils/axios/service/apiService';
 import { sendSocketMessageWithFile } from '@c_chat/electron_client/utils/uploadTaskRunner';
 import { uploadScheduler } from '@c_chat/electron_client/utils/UploadScheduler';
@@ -61,6 +65,7 @@ addActionHandler('GetMessageHistory', async (data) => {
     res.list?.map((msg) => ({
       ...(msg as RequiredNonNullable<typeof msg>),
       state: 0,
+      type: msg.type as MessageType,
       status: MessageStatusEnum.success,
       updateTime: Number(msg.updateTime),
       localTime: Number(msg.createTime),
@@ -82,7 +87,7 @@ const generateLocalMessageData = (data: Partial<LocalMessageListItem>): LocalMes
     clientMsgId: uuidv4(),
     senderId: data.senderId ?? '',
     content: data.content ?? '',
-    type: data.type ?? MessageTypeEnum.Text,
+    type: data.type ?? MESSAGE_TYPE.Text,
     status: MessageStatusEnum.sending,
     createTime: now(),
     localTime: now(),
@@ -133,30 +138,29 @@ addActionHandler('SendMessage', async (params) => {
 const handleSendFiles = async (params: SendMessageParams & ActionCtx, senderId: string) => {
   const { files = [] } = params;
 
-  const { imageFiles, otherFiles } = files.reduce<{
-    imageFiles: FileInfoListItem[];
-    otherFiles: FileInfoListItem[];
-  }>(
+  const grouped = files.reduce<Record<'images' | 'others', FileInfoListItem[]>>(
     (acc, cur) => {
-      if (cur.fileType === 'image') {
-        acc.imageFiles.push(cur);
-      } else {
-        acc.otherFiles.push(cur);
+      switch (cur.fileType) {
+        case 'image':
+          acc.images.push(cur);
+          break;
+        default:
+          acc.others.push(cur);
+          break;
       }
       return acc;
     },
-    { imageFiles: [], otherFiles: [] },
+    { images: [], others: [] },
   );
 
   const res: (LocalMessageListItem | null)[] = [];
 
-  // 处理图片：使用相同的mediaGroupId
-  if (imageFiles.length > 0) {
+  if (grouped.images.length > 0) {
     const imageGroupId = uuidv4();
     const imageResults = await Promise.all(
-      imageFiles.map(async (file) => {
+      grouped.images.map(async (file) => {
         return processSingleFile(
-          { ...params, type: MessageTypeEnum.Image },
+          { ...params, type: MESSAGE_TYPE.Image },
           senderId,
           file,
           imageGroupId,
@@ -166,12 +170,15 @@ const handleSendFiles = async (params: SendMessageParams & ActionCtx, senderId: 
     res.push(...imageResults);
   }
 
-  // 处理其他文件：各自单独发送，不使用mediaGroupId
-  if (otherFiles.length > 0) {
+  if (grouped.others.length > 0) {
     const fileResults = await Promise.all(
-      otherFiles.map(async (file) =>
-        processSingleFile({ ...params, type: MessageTypeEnum.File }, senderId, file),
-      ),
+      grouped.others.map(async (file) => {
+        return processSingleFile(
+          { ...params, type: messageTypeMap[file.fileType] ?? MESSAGE_TYPE.File },
+          senderId,
+          file,
+        );
+      }),
     );
     res.push(...fileResults);
   }
@@ -180,7 +187,7 @@ const handleSendFiles = async (params: SendMessageParams & ActionCtx, senderId: 
 };
 
 const processSingleFile = async (
-  params: SendMessageParams & ActionCtx & { type: MessageTypeEnum },
+  params: SendMessageParams & ActionCtx & { type: MessageType },
   senderId: string,
   file: FileInfoListItem,
   mediaGroupId?: string,

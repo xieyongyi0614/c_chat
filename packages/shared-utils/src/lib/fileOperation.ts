@@ -1,8 +1,14 @@
-import { EXTENSION_TO_TYPE_MAP, fileMimeMap, fileTypeMap, fileTypes } from '@c_chat/shared-config';
+import {
+  EXTENSION_TO_TYPE_MAP,
+  fileMimeMap,
+  fileTypeMap,
+  FILE_TYPE,
+  FileType,
+} from '@c_chat/shared-config';
 import { FileInfoListItem } from '@c_chat/shared-types';
 
 import { v4 as uuidv4 } from 'uuid';
-export function getFileTypeFromExtension(extension: string): string {
+export function getFileTypeFromExtension(extension: string) {
   return EXTENSION_TO_TYPE_MAP[extension] || 'other';
 }
 
@@ -56,10 +62,10 @@ export const getSelectFileInfoByFile = async (file: File): Promise<FileInfoListI
   };
 };
 
-export const getShowOpenDialogFilters = (types: (typeof fileTypes)[number][] | 'all') => {
+export const getShowOpenDialogFilters = (types: FileType[] | 'all') => {
   const normalize = (exts: string[]) => exts.map((ext) => ext.replace(/^\./, ''));
 
-  const filters = types === 'all' ? [...fileTypes] : [];
+  const filters = types === 'all' ? Object.values(FILE_TYPE) : [];
   return filters.map((t) => ({
     name: t.charAt(0).toUpperCase() + t.slice(1),
     extensions: normalize(fileTypeMap[t]),

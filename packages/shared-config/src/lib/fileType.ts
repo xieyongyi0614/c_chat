@@ -1,6 +1,50 @@
-export const fileTypes = ['image', 'video', 'audio', 'document', 'archive', 'application'] as const;
+/** 0:文本, 1:图片, 2:文件, 3:音频, 4:视频 */
+export const MESSAGE_TYPE = {
+  Text: 0,
+  Image: 1,
+  File: 2,
+  Audio: 3,
+  Video: 4,
+  // Location: 5,
+  // Contact: 6,
+  // Sticker: 7,
+  // RedPacket: 8,
+  // System: 9,
+  // Call: 10,
+  // Reply: 11,
+  // Forward: 12,
+  // Poll: 13,
+  // Whiteboard: 14,
+  // Markdown: 15,
+} as const;
+export type MessageType = (typeof MESSAGE_TYPE)[keyof typeof MESSAGE_TYPE];
 
-export const fileTypeMap: Record<(typeof fileTypes)[number], string[]> = {
+export const FILE_TYPE = {
+  IMAGE: 'image',
+
+  VIDEO: 'video',
+
+  AUDIO: 'audio',
+
+  DOCUMENT: 'document',
+
+  ARCHIVE: 'archive',
+
+  APPLICATION: 'application',
+} as const;
+
+export type FileType = (typeof FILE_TYPE)[keyof typeof FILE_TYPE];
+
+export const messageTypeMap: Record<FileType, MessageType> = {
+  image: MESSAGE_TYPE.Image,
+  video: MESSAGE_TYPE.Video,
+  audio: MESSAGE_TYPE.Audio,
+  document: MESSAGE_TYPE.File,
+  archive: MESSAGE_TYPE.File,
+  application: MESSAGE_TYPE.File,
+};
+
+export const fileTypeMap: Record<FileType, string[]> = {
   image: ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp', '.svg'],
   video: ['.mp4', '.mov', '.avi', '.wmv', '.flv', '.mkv', '.webm'],
   audio: ['.mp3', '.wav', '.flac', '.aac', '.ogg', '.m4a'],
@@ -13,11 +57,11 @@ export const fileTypeMap: Record<(typeof fileTypes)[number], string[]> = {
 export const EXTENSION_TO_TYPE_MAP = Object.entries(fileTypeMap).reduce(
   (acc, [type, extensions]) => {
     extensions.forEach((ext) => {
-      acc[ext.toLowerCase()] = type as (typeof fileTypes)[number];
+      acc[ext.toLowerCase()] = type as FileType;
     });
     return acc;
   },
-  {} as Record<string, (typeof fileTypes)[number]>,
+  {} as Record<string, FileType>,
 );
 
 export const fileMimeMap: Record<string, string> = {

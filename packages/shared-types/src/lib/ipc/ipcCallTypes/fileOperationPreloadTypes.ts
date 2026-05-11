@@ -1,3 +1,4 @@
+import { FileType } from '@c_chat/shared-config';
 import { IpcMethod } from '../ipcTypes';
 
 export type SelectFilesParams = {
@@ -9,7 +10,7 @@ export interface FileInfoListItem {
   filePath: string;
   fileName: string;
   fileSize: number;
-  fileType: string;
+  fileType: FileType;
   mimeType: string;
   extension: string;
   lastModified: number;
