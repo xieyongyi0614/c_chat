@@ -1,4 +1,9 @@
-import { AuthPreloadTypes, ChatPreloadTypes, FileOperationPreloadTypes } from './ipcCallTypes';
+import {
+  AudioPreloadTypes,
+  AuthPreloadTypes,
+  ChatPreloadTypes,
+  FileOperationPreloadTypes,
+} from './ipcCallTypes';
 
 export * from './ipcCallTypes';
 
@@ -17,7 +22,10 @@ export interface IpcResponse<T = any> {
   error?: string;
 }
 
-export type IpcTypes = AuthPreloadTypes & ChatPreloadTypes & FileOperationPreloadTypes;
+export type IpcTypes = AuthPreloadTypes &
+  ChatPreloadTypes &
+  FileOperationPreloadTypes &
+  AudioPreloadTypes;
 
 export type IpcBridgeApi = {
   ipcCall: (message: IpcMessage) => Promise<IpcResponse>;

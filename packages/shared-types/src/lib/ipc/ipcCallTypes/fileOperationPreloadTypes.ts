@@ -16,6 +16,15 @@ export interface FileInfoListItem {
   isDirectory: boolean;
   isFile: boolean;
   url?: string;
+  metadata?: FileMetadata;
+}
+// | ImageMetadata | VideoMetadata;
+export type FileMetadata = VoiceMetadata;
+export interface VoiceMetadata {
+  type: 'voice';
+  duration: number;
+  waveform: number[];
+  codec?: string;
 }
 
 export type UploadFileByChunksParams = {

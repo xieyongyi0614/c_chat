@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@c_chat/shared-utils": "workspace:^",
+    "@c_chat/audio-core": "workspace:^",
     "@c_chat/ui": "workspace:*",
     "@hookform/resolvers": "^5.2.2",
     "ahooks": "^3.9.6",

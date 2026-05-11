@@ -32,7 +32,7 @@ export const useGlobalSubscribe = () => {
 
       updateConversationSnapshot(
         data.conversationId,
-        generateLastMsgContent(data.content, data.type),
+        generateLastMsgContent(data.type, data.content),
         data.createTime,
       );
     }

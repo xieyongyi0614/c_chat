@@ -5,8 +5,6 @@
 //   Fail = 2,
 // }
 
-import { FileInfoListItem } from '../ipc/ipcCallTypes';
-
 /** 0:文本, 1:图片, 2:文件, 3:音频, 4:视频 */
 export enum MessageTypeEnum {
   Text = 0,
