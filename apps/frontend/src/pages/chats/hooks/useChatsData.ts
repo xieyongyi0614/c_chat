@@ -51,7 +51,7 @@ export const useChatsData = () => {
     }
     console.log('fetchLocalMessageHistory', res);
 
-    addMsgList(res);
+    addMsgList(res, 'history');
   };
 
   const fetchMessageHistory = async (conversationId: string) => {

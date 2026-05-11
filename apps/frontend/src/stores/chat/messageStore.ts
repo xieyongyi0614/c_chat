@@ -26,7 +26,7 @@ export const useMessageStore = create<MessageStoreType>((set) => ({
     set({ msgMap: {}, groups: new Map() });
   },
 
-  addMsgList(msgs, mode = 'history') {
+  addMsgList(msgs, mode = 'realtime') {
     if (!msgs.length) return;
 
     set((state) => {

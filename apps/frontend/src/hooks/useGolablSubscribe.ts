@@ -27,7 +27,7 @@ export const useGlobalSubscribe = () => {
         console.log('收到自己发送的消息推送，更新数据');
         if (isCurrentConversation) updateMsg(data);
       } else {
-        if (isCurrentConversation) addMsgList([data], 'realtime');
+        if (isCurrentConversation) addMsgList([data]);
       }
 
       updateConversationSnapshot(

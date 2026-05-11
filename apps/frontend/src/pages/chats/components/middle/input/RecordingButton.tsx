@@ -7,7 +7,7 @@ import { ipc, to } from '@c_chat/shared-utils';
 import { useChatStore, useMessageStore } from '@c_chat/frontend/stores';
 import { toast } from 'sonner';
 import { generateLastMsgContent } from '@c_chat/frontend/utils/lastMsgContentUtil';
-import { MessageTypeEnum } from '@c_chat/shared-types';
+import { MESSAGE_TYPE } from '@c_chat/shared-config';
 const RecordingButton = () => {
   const {
     selectedConversation,
@@ -57,7 +57,7 @@ const RecordingButton = () => {
       if (lastMsg.conversationId === selectedConversation.id) {
         const updatedConvo = {
           ...selectedConversation,
-          lastMsgContent: generateLastMsgContent(MessageTypeEnum.Audio),
+          lastMsgContent: generateLastMsgContent(MESSAGE_TYPE.Audio),
           lastMsgTime: lastMsg.createTime,
           updateTime: lastMsg.createTime,
         };

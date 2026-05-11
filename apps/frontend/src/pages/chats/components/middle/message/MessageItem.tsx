@@ -1,6 +1,5 @@
 import { memo } from 'react';
 import { cn } from '@c_chat/ui';
-import { MessageTypeEnum } from '@c_chat/shared-types';
 import { useMessageStore, useUserStore } from '@c_chat/frontend/stores';
 import TextMessage from './types/TextMessage';
 import ImageGroup from './types/ImageGroup';
@@ -9,6 +8,7 @@ import VideoMessage from './types/VideoMessage';
 import AudioMessage from './types/AudioMessage';
 
 import MessageDate from './MessageDate';
+import { MESSAGE_TYPE } from '@c_chat/shared-config';
 
 interface MessageItemProps {
   isRead: boolean;
@@ -24,7 +24,7 @@ const MessageItem = ({ isRead, groupId }: MessageItemProps) => {
   console.log('render message item');
 
   const renderContent = () => {
-    if (msg.type === MessageTypeEnum.Image) {
+    if (msg.type === MESSAGE_TYPE.Image) {
       return <ImageGroup messages={messages} />;
     }
 
@@ -36,22 +36,22 @@ const MessageItem = ({ isRead, groupId }: MessageItemProps) => {
     const singleMsg = messages[0];
 
     // 文本消息
-    if (singleMsg.type === MessageTypeEnum.Text) {
+    if (singleMsg.type === MESSAGE_TYPE.Text) {
       return <TextMessage content={singleMsg.content} />;
     }
 
     // 文件消息
-    if (singleMsg.type === MessageTypeEnum.File) {
+    if (singleMsg.type === MESSAGE_TYPE.File) {
       return <FileMessage msg={singleMsg} isMe={isMe} isRead={isRead} />;
     }
 
     // 视频消息
-    if (singleMsg.type === MessageTypeEnum.Video) {
+    if (singleMsg.type === MESSAGE_TYPE.Video) {
       return <VideoMessage msg={singleMsg} isMe={isMe} isRead={isRead} />;
     }
 
     // 音频消息
-    if (singleMsg.type === MessageTypeEnum.Audio) {
+    if (singleMsg.type === MESSAGE_TYPE.Audio) {
       return <AudioMessage msg={singleMsg} isMe={isMe} isRead={isRead} />;
     }
 
@@ -62,15 +62,12 @@ const MessageItem = ({ isRead, groupId }: MessageItemProps) => {
   // 对于非文本、非图片的内容，不需要背景气泡
   const isContentTypeWithoutBubble = () => {
     const type = messages[0].type;
-    if (messages.length === 1 && type === MessageTypeEnum.Text) {
+    if (type === MESSAGE_TYPE.Text) {
       return false;
     }
-    return [
-      MessageTypeEnum.Image,
-      MessageTypeEnum.File,
-      MessageTypeEnum.Video,
-      MessageTypeEnum.Audio,
-    ].includes(type);
+    return [MESSAGE_TYPE.Image, MESSAGE_TYPE.File, MESSAGE_TYPE.Video, MESSAGE_TYPE.Audio].includes(
+      type,
+    );
   };
 
   const withoutBubble = isContentTypeWithoutBubble();
