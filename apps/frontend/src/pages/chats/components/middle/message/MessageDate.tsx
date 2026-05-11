@@ -1,6 +1,6 @@
 import { useUserStore } from '@c_chat/frontend/stores';
 import type { LocalMessageListItem } from '@c_chat/shared-types';
-import { formatCompactTime } from '@c_chat/shared-utils';
+import { formatChatTime } from '@c_chat/shared-utils';
 import { cn } from '@c_chat/ui';
 import { memo, type ComponentProps } from 'react';
 import MessageStatusIcon from './MessageStatusIcon';
@@ -21,7 +21,7 @@ const MessageDate = (props: MessageDateProps) => {
         className,
       )}
     >
-      <span>{formatCompactTime(msg.createTime)}</span>
+      <span>{formatChatTime(msg.createTime)}</span>
       {isMe && <MessageStatusIcon status={msg.status} isRead={isRead} />}
     </div>
   );

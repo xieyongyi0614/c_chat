@@ -9,6 +9,7 @@ import { bufferToPreviewUrl, getSelectFileInfoByFile, ipc, to } from '@c_chat/sh
 import { toast } from 'sonner';
 import { useChatStore, useMessageStore } from '@c_chat/frontend/stores';
 import { type FileInfoListItem } from '@c_chat/shared-types';
+import RecordingButton from './RecordingButton';
 
 export function ChatInput() {
   const {
@@ -163,15 +164,9 @@ export function ChatInput() {
             <Button type="button" variant="ghost" size="icon" onClick={handleFileSelect}>
               <Paperclip className="w-4 h-4" />
             </Button>
-            {/* <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              onClick={handleSelectNativeFiles}
-              title="Electron 本地文件"
-            >
-              <UploadCloud className="w-4 h-4" />
-            </Button> */}
+
+            <RecordingButton />
+
             <EmojiPicker onSelect={handleEmojiSelect} />
           </div>
 

@@ -5,6 +5,7 @@ export * from './lib/injected';
 export * from './lib/errorCode';
 export * from './lib/constants';
 export * from './lib/fileType';
+export * from './lib/toast.config';
 /** electron 渲染端口 */
 export const ELECTRON_RENDERER_PORT = 3000;
 

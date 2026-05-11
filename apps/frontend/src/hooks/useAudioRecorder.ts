@@ -1,0 +1,95 @@
+import { useEffect, useRef, useState } from 'react';
+
+import { AudioRecorder, AudioRecordError } from '@c_chat/audio-core';
+import { toast } from 'sonner';
+import { TOAST_ID } from '@c_chat/shared-config';
+
+export function useAudioRecorder() {
+  const recorderRef = useRef<AudioRecorder>(undefined);
+
+  const timerRef = useRef<number>(undefined);
+
+  const [isRecording, setIsRecording] = useState(false);
+
+  const [duration, setDuration] = useState(0);
+
+  const [waveform, setWaveform] = useState<number[]>([]);
+
+  const [error, setError] = useState<AudioRecordError | null>(null);
+
+  useEffect(() => {
+    return () => {
+      recorderRef.current?.cancel();
+
+      clearInterval(timerRef.current);
+    };
+  }, []);
+
+  const start = async () => {
+    try {
+      setError(null);
+
+      setWaveform([]);
+
+      setDuration(0);
+
+      const recorder = new AudioRecorder();
+
+      recorderRef.current = recorder;
+
+      await recorder.start();
+
+      setIsRecording(true);
+
+      recorder.onWaveform((data) => {
+        setWaveform([...data]);
+      });
+
+      const startTime = Date.now();
+
+      timerRef.current = window.setInterval(() => {
+        setDuration(Date.now() - startTime);
+      }, 100);
+    } catch (err: any) {
+      setError(err);
+      toast.error(err?.message || '未知错误', { id: err.code || TOAST_ID.UNKNOWN });
+      throw err;
+    }
+  };
+
+  const stop = async () => {
+    if (!recorderRef.current) {
+      return null;
+    }
+
+    clearInterval(timerRef.current);
+
+    setIsRecording(false);
+    try {
+      return recorderRef.current.stop();
+    } catch (err: any) {
+      toast.error(err?.message || '未知错误', { id: err.code || TOAST_ID.UNKNOWN });
+      throw err;
+    }
+  };
+
+  const cancel = () => {
+    recorderRef.current?.cancel();
+
+    clearInterval(timerRef.current);
+
+    setIsRecording(false);
+
+    setDuration(0);
+
+    setWaveform([]);
+  };
+
+  return {
+    isRecording,
+    duration,
+    waveform,
+    error,
+    recording: { start, stop, cancel },
+  };
+}
