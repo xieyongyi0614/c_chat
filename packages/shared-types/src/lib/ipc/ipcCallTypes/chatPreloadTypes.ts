@@ -45,10 +45,7 @@ export interface ChatPreloadTypes {
     SocketTypes.ResponseList<LocalConversationListItem>
   >;
   GetLocalMessageHistory: IpcMethod<GetMessageHistoryParams, LocalMessageListItem[]>;
-  GetMessageHistory: IpcMethod<
-    GetMessageHistoryParams,
-    SocketTypes.ResponseList<LocalMessageListItem>
-  >;
+  GetMessageHistory: IpcMethod<GetMessageHistoryParams, LocalMessageListItem[]>;
   SendMessage: IpcMethod<SendMessageParams, LocalMessageListItem[]>;
   ReadMessage: IpcMethod<ReadMessageParams, ReadMessageResult>;
 }

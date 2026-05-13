@@ -1,10 +1,10 @@
-/** 0:文本, 1:图片, 2:文件, 3:音频, 4:视频 */
+/** 0:文本, 1:图片, 2:视频, 3:文件, 4:音频 */
 export const MESSAGE_TYPE = {
   Text: 0,
   Image: 1,
-  File: 2,
-  Audio: 3,
-  Video: 4,
+  Video: 2,
+  File: 3,
+  Audio: 4,
   // Location: 5,
   // Contact: 6,
   // Sticker: 7,

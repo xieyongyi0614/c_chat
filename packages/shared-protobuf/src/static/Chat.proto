@@ -25,6 +25,30 @@ message TargetInfo {
   string name = 2;
   string avatar_url = 3;
 }
+
+// 上传后的文件实体（与库表 File 对应）
+message FileInfo {
+  string id = 1;
+  string file_name = 2;
+  string url = 3;
+  string mime_type = 4;
+  optional string ext = 5;
+  int64 size = 6;
+}
+
+// 消息附件元数据（波形、时长、缩略图等），与库表 Media 对应
+message MediaInfo {
+  string id = 1;
+  int32 type = 2; // 与消息 type 一致：0 文本无媒体时可不传
+  string file_id = 3;
+  FileInfo file = 4;
+  optional string file_url = 5;
+  optional string thumb_url = 6;
+  optional int32 width = 7;
+  optional int32 height = 8;
+  optional int32 duration_sec = 9;
+  repeated float waveform = 10;
+}
 // 会话信息
 message ConversationInfo {
   string id = 1;
@@ -46,7 +70,10 @@ message SendMessageRequest {
   optional string target_id = 4; // 私聊可选：对方 ID，用于首条消息自动创建会话
   string clientMsgId = 5;
   optional string mediaGroupId = 6;
-  optional string fileId = 7;  // 媒体文件id
+  optional string fileId = 7;  // 上传完成后的 File.id
+  optional int32 duration_sec = 8;   // 音视频时长（秒）
+  repeated float waveform = 9;       // 语音波形采样
+  optional string thumb_url = 10;    // 视频封面 / 自定义缩略图
 }
 message AckSendMessage{
   string clientMsgId = 1;
@@ -65,10 +92,8 @@ message MessageInfo {
   int64 create_time = 8;
   int64 update_time = 9;
   string client_msg_id = 10;
-  optional string fileId = 11;
-  optional string mediaGroupId = 12;
-  optional string file_url = 13;
-  optional string thumb_url = 14;
+  optional string mediaGroupId = 11;
+  optional MediaInfo media = 12; 
 }
 
 // 获取会话列表请求

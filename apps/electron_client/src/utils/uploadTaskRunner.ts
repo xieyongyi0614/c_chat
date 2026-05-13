@@ -4,7 +4,7 @@ import { to } from '@c_chat/shared-utils';
 import { MessageStatusEnum, UploadStatusEnum, UploadTypes } from '@c_chat/shared-types';
 import { ClientToServiceEvent } from '@c_chat/shared-protobuf/protoMap';
 import { SendMessageRequest } from '@c_chat/shared-protobuf';
-import { MessageType, UPLOAD_CHUNK_SIZE } from '@c_chat/shared-config';
+import { UPLOAD_CHUNK_SIZE } from '@c_chat/shared-config';
 import { ApiClient } from './axios/service/apiService';
 import { readChunkAsBlob } from './calcFileHash';
 
@@ -35,14 +35,7 @@ async function runChunkPool(
 /** WebSocket 发送带附件的消息（与 SendMessage IPC 一致） */
 export async function sendSocketMessageWithFile(
   windowId: number,
-  payload: {
-    conversationId: string;
-    clientMsgId: string;
-    fileId: string;
-    type: MessageType;
-    mediaGroupId?: string;
-    content?: string;
-  },
+  payload: Omit<SendMessageRequest, 'toJSON'>,
 ) {
   const socketService = socketManager.getSocketService(windowId);
   const [err, res] = await to(
@@ -56,6 +49,8 @@ export async function sendSocketMessageWithFile(
           clientMsgId: payload.clientMsgId,
           mediaGroupId: payload.mediaGroupId,
           fileId: payload.fileId,
+          durationSec: payload.durationSec,
+          waveform: payload.waveform,
         }),
       ).finish(),
     ),

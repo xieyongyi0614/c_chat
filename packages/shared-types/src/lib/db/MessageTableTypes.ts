@@ -12,11 +12,15 @@ export interface LocalMessageListItem {
   updateTime: number;
   createTime: number;
   localTime: number;
+  /** media */
   fileId?: string;
   fileUrl?: string;
   mediaGroupId?: string;
-  progress?: number;
-  // files?: FileInfoListItem[];
+  fileName?: string;
+  mimeType?: string;
+  fileSize?: number;
+  waveform?: number[];
+  duration?: number;
 }
 
 export enum MessageStatusEnum {

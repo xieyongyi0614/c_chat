@@ -1,4 +1,4 @@
-import { ELECTRON_TO_CLIENT_CHANNELS, SOCKET_ERROR_CODE } from '@c_chat/shared-config';
+import { ELECTRON_TO_CLIENT_CHANNELS, MessageType, SOCKET_ERROR_CODE } from '@c_chat/shared-config';
 import { CChatSocket, ClientToServerEvents, ServerToClientEvents } from '.';
 import { MessageHandlerRegistry } from './message-handler.registry';
 import { Socket } from 'socket.io-client';
@@ -123,9 +123,10 @@ export class MessageHandler extends MessageHandlerRegistry {
         }
         const newMsg = {
           ...data,
-          fileId: data?.fileId ?? '',
-          fileUrl: data.fileUrl ?? '',
+          fileId: data.media?.fileId ?? '',
+          fileUrl: data.media?.fileUrl ?? '',
           mediaGroupId: data?.mediaGroupId ?? '',
+          type: data.type as MessageType,
           status: MessageStatusEnum.success,
           createTime: Number(data.createTime),
           localTime: Number(data.updateTime),
@@ -167,12 +168,15 @@ export class MessageHandler extends MessageHandlerRegistry {
           }
 
           const msg = messageTableClass.getByClientMsgId(task.clientMsgId);
+          console.log('sendFileUploadComplete waveform', typeof msg?.waveform, msg?.waveform);
           if (msg) {
             const [sendErr] = await to(
               sendSocketMessageWithFile(task.windowId ?? 1, {
                 conversationId: msg.conversationId,
                 clientMsgId: msg.clientMsgId,
                 fileId,
+                durationSec: msg.duration,
+                waveform: msg.waveform ?? [],
                 type: msg.type,
                 mediaGroupId: msg.mediaGroupId || undefined,
                 content: msg.content,
