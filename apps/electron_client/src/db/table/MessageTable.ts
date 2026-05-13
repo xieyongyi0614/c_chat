@@ -4,7 +4,28 @@ import { DEFAULT_MESSAGE_PAGE_SIZE } from '@c_chat/shared-config';
 
 export class MessageTable extends TableConnection {
   readonly TABLE_NAME = 'messages';
-
+  private readonly fields = [
+    'id',
+    'conversation_id',
+    'msg_id',
+    'client_msg_id',
+    'sender_id',
+    'content',
+    'type',
+    'status',
+    'create_time',
+    'update_time',
+    'local_time',
+    'media_group_id',
+    // media
+    'file_id',
+    'file_url',
+    'file_name',
+    'mime_type',
+    'file_size',
+    'duration',
+    'waveform',
+  ] as const;
   createTable() {
     const sql = `
       CREATE TABLE IF NOT EXISTS ${this.TABLE_NAME} (
@@ -21,6 +42,11 @@ export class MessageTable extends TableConnection {
         local_time INTEGER,
         file_id TEXT,
         file_url TEXT,
+        file_name TEXT,
+        mime_type TEXT,
+        file_size INTEGER,
+        waveform TEXT,
+        duration INTEGER,
         media_group_id TEXT,
         UNIQUE(conversation_id, msg_id),
         UNIQUE(conversation_id, client_msg_id)
@@ -46,7 +72,29 @@ export class MessageTable extends TableConnection {
       ON ${this.TABLE_NAME}(client_msg_id)
     `);
   }
-
+  private buildValues(msg: LocalMessageListItem) {
+    return [
+      msg.id,
+      msg.conversationId,
+      msg.msgId,
+      msg.clientMsgId,
+      msg.senderId,
+      msg.content,
+      msg.type,
+      msg.status,
+      msg.createTime,
+      msg.updateTime,
+      msg.localTime,
+      msg.mediaGroupId,
+      msg.fileId,
+      msg.fileUrl,
+      msg.fileName,
+      msg.mimeType,
+      msg.fileSize,
+      msg.duration,
+      msg.waveform ? JSON.stringify(msg.waveform) : null,
+    ];
+  }
   getMessagesByConversationId(
     conversationId: string,
     limit = DEFAULT_MESSAGE_PAGE_SIZE,
@@ -79,9 +127,7 @@ export class MessageTable extends TableConnection {
       );
     }
 
-    // return rows.map(this.mapRowToRecord);
-    // return this._camelcaseKeysByRows<LocalMessageListItem>(rows);
-    return rows;
+    return rows.map(this.transformWaveformByRow);
   }
   /**
    * 获取最新的一条消息
@@ -91,69 +137,66 @@ export class MessageTable extends TableConnection {
       `SELECT * FROM ${this.TABLE_NAME} WHERE conversation_id = ? ORDER BY create_time DESC LIMIT 1`,
       [conversationId],
     );
-    // return row ? this._camelcaseKeysByRow<LocalMessageListItem>(row) : undefined;
-    return row;
+    return row ? this.transformWaveformByRow(row) : undefined;
   }
 
   getByClientMsgId(clientMsgId: string) {
-    return this.get<[string], LocalMessageListItem>(
+    const row = this.get<[string], LocalMessageListItem>(
       `SELECT * FROM ${this.TABLE_NAME} WHERE client_msg_id = ? LIMIT 1`,
       [clientMsgId],
     );
+    return row ? this.transformWaveformByRow(row) : undefined;
   }
   insert(msg: LocalMessageListItem) {
-    // 🚀 SQLite UPSERT（关键）
+    const placeholders = this.fields.map(() => '?').join(', ');
+
     const sql = `
-  INSERT INTO ${this.TABLE_NAME} (
-    id,
-    conversation_id,
-    msg_id,
-    client_msg_id,
-    sender_id,
-    content,
-    type,
-    status,
-    create_time,
-    update_time,
-    local_time,
-    file_id,
-    file_url,
-    media_group_id
-  )
-  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO ${this.TABLE_NAME} (
+      ${this.fields.join(', ')}
+    )
+    VALUES (${placeholders})
   `;
-    const {
-      id,
-      conversationId,
-      msgId,
-      clientMsgId,
-      senderId,
-      content,
-      type,
-      status,
-      updateTime,
-      createTime,
-      localTime,
-      fileId,
-      fileUrl,
-      mediaGroupId,
-    } = msg;
-    this?.run(sql, [
-      id,
-      conversationId,
-      msgId,
-      clientMsgId,
-      senderId,
-      content,
-      type,
-      status,
-      updateTime,
-      createTime,
-      localTime,
-      fileId,
-      fileUrl,
-      mediaGroupId,
-    ]);
+    this.run(sql, this.buildValues(msg));
+  }
+
+  private buildUpsertSql() {
+    const fields = this.fields.join(', ');
+
+    const placeholders = this.fields.map(() => '?').join(', ');
+
+    const updateFields = [
+      'msg_id',
+      'status',
+      'content',
+      'update_time',
+      'file_id',
+      'file_url',
+      'file_name',
+      'mime_type',
+      'file_size',
+      'duration',
+      'waveform',
+      'media_group_id',
+    ];
+
+    const updateSql = updateFields
+      .map((field) => `${field} = COALESCE(excluded.${field}, ${this.TABLE_NAME}.${field})`)
+      .join(',\n');
+
+    return `
+      INSERT INTO ${this.TABLE_NAME} (
+        ${fields}
+      )
+      VALUES (${placeholders})
+  
+      ON CONFLICT(conversation_id, client_msg_id)
+      DO UPDATE SET
+        ${updateSql}
+  
+      ON CONFLICT(conversation_id, msg_id)
+      DO UPDATE SET
+        ${updateSql}
+    `;
   }
 
   /**
@@ -162,76 +205,11 @@ export class MessageTable extends TableConnection {
   upsertMessages(msgs: LocalMessageListItem[]) {
     if (msgs.length === 0) return;
 
-    // 🚀 SQLite UPSERT（关键）
-    const sql = `
-    INSERT INTO ${this.TABLE_NAME} (
-      id,
-      conversation_id,
-      msg_id,
-      client_msg_id,
-      sender_id,
-      content,
-      type,
-      status,
-      update_time,
-      create_time,
-      local_time,
-      file_id,
-      file_url,
-      media_group_id
-    )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-
-    ON CONFLICT(conversation_id, client_msg_id) DO UPDATE SET
-      msg_id = excluded.msg_id,
-      status = excluded.status,
-      create_time = COALESCE(excluded.create_time, messages.create_time),
-      update_time = COALESCE(excluded.update_time, messages.update_time),
-      content = COALESCE(excluded.content, messages.content),
-      file_id = COALESCE(excluded.file_id, messages.file_id),
-      file_url = COALESCE(excluded.file_url, messages.file_url),
-      media_group_id = COALESCE(excluded.media_group_id, messages.media_group_id)
-
-    ON CONFLICT(conversation_id, msg_id) DO UPDATE SET
-      client_msg_id = COALESCE(excluded.client_msg_id, messages.client_msg_id),
-      status = excluded.status,
-      content = COALESCE(excluded.content, messages.content)
-  `;
+    const sql = this.buildUpsertSql();
 
     const transaction = this.db?.transaction((items: LocalMessageListItem[]) => {
       for (const msg of items) {
-        const {
-          id,
-          conversationId,
-          msgId,
-          clientMsgId,
-          senderId,
-          content,
-          type,
-          status,
-          updateTime,
-          createTime,
-          localTime,
-          fileId,
-          fileUrl,
-          mediaGroupId,
-        } = msg;
-        this?.run(sql, [
-          id,
-          conversationId,
-          msgId,
-          clientMsgId,
-          senderId,
-          content,
-          type,
-          status,
-          updateTime,
-          createTime,
-          localTime,
-          fileId,
-          fileUrl,
-          mediaGroupId,
-        ]);
+        this.run(sql, this.buildValues(msg));
       }
     });
 
@@ -266,5 +244,11 @@ export class MessageTable extends TableConnection {
    */
   deleteMessage(id: string) {
     this.run(`DELETE FROM ${this.TABLE_NAME} WHERE id = ?`, [id]);
+  }
+  transformWaveformByRow(row: LocalMessageListItem) {
+    return {
+      ...row,
+      waveform: row.waveform && typeof row.waveform === 'string' ? JSON.parse(row.waveform) : null,
+    };
   }
 }

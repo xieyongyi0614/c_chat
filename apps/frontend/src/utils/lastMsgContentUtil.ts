@@ -12,9 +12,9 @@ export const generateLastMsgContent = (type: MessageType, content?: string) => {
   const typeMap: Record<number, string> = {
     [MESSAGE_TYPE.Text]: '',
     [MESSAGE_TYPE.Image]: '[图片]',
+    [MESSAGE_TYPE.Video]: '[视频]',
     [MESSAGE_TYPE.File]: '[文件]',
     [MESSAGE_TYPE.Audio]: '[音频]',
-    [MESSAGE_TYPE.Video]: '[视频]',
   };
   return typeMap[type] || '[消息]';
 };

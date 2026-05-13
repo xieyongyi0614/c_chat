@@ -2,11 +2,7 @@ import { useEffect } from 'react';
 import { useChatStore, useMessageStore, useUserStore } from '../stores';
 import { ELECTRON_TO_CLIENT_CHANNELS } from '@c_chat/shared-config';
 import { toast } from 'sonner';
-import type {
-  WebContentEvents,
-  WebContentEventType,
-  LocalMessageListItem,
-} from '@c_chat/shared-types';
+import type { WebContentEvents, WebContentEventType } from '@c_chat/shared-types';
 import { useLastCallback } from './useLastCallback';
 import { generateLastMsgContent } from '../utils/lastMsgContentUtil';
 
@@ -40,7 +36,8 @@ export const useGlobalSubscribe = () => {
 
   const uploadProgressHandle = useLastCallback<WebContentEvents['uploadProgress']>((data) => {
     if (data?.clientMsgId) {
-      updateMsg({ clientMsgId: data.clientMsgId, progress: data.progress } as LocalMessageListItem);
+      // updateMsg({ clientMsgId: data.clientMsgId, progress: data.progress } as LocalMessageListItem);
+      console.log('上传进度:', data);
     }
   });
 

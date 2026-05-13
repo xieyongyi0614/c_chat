@@ -63,7 +63,7 @@ export const useChatsData = () => {
       return;
     }
     if (res) {
-      console.log('fetchMessageHistory', res.list);
+      console.log('fetchMessageHistory', res);
     }
   };
 

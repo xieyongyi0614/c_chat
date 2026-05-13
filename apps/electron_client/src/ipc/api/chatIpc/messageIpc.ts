@@ -6,11 +6,10 @@ import {
   SendMessageRequest,
 } from '@c_chat/shared-protobuf';
 import { conversationTableClass, messageTableClass, uploadTaskTableClass } from '../../../db';
-import { to, transformPagination, uuidv4 } from '@c_chat/shared-utils';
+import { to, uuidv4 } from '@c_chat/shared-utils';
 import {
   LocalMessageListItem,
   MessageStatusEnum,
-  RequiredNonNullable,
   SendMessageParams,
   UploadStatusEnum,
   FileInfoListItem,
@@ -55,17 +54,26 @@ addActionHandler('GetMessageHistory', async (data) => {
   );
 
   if (err) {
-    return {
-      list: [],
-      pagination: transformPagination(params.pagination),
-    };
+    return [];
   }
+
   // 更新本地缓存
-  const records =
+  const records: LocalMessageListItem[] =
     res.list?.map((msg) => ({
-      ...(msg as RequiredNonNullable<typeof msg>),
-      state: 0,
+      id: msg.id!,
+      conversationId: msg.conversationId!,
+      msgId: msg.msgId!,
+      clientMsgId: msg.clientMsgId!,
+      senderId: msg.senderId!,
+      content: msg.content ?? '',
+      state: msg.state,
       type: msg.type as MessageType,
+      fileName: msg.media?.file?.fileName ?? '',
+      fileUrl: msg.media?.file?.url ?? '',
+      mimeType: msg.media?.file?.mimeType ?? '',
+      fileSize: Number(msg.media?.file?.size ?? 0),
+      waveform: msg.media?.waveform ?? [],
+      duration: msg.media?.durationSec ?? 0,
       status: MessageStatusEnum.success,
       updateTime: Number(msg.updateTime),
       localTime: Number(msg.createTime),
@@ -74,10 +82,7 @@ addActionHandler('GetMessageHistory', async (data) => {
   if (records.length > 0) {
     messageTableClass.upsertMessages(records);
   }
-  return {
-    list: records,
-    pagination: transformPagination(params.pagination),
-  };
+  return records;
 });
 const generateLocalMessageData = (data: Partial<LocalMessageListItem>): LocalMessageListItem => {
   return {
@@ -95,7 +100,11 @@ const generateLocalMessageData = (data: Partial<LocalMessageListItem>): LocalMes
     fileId: data.fileId || '',
     fileUrl: data.fileUrl || '',
     mediaGroupId: data.mediaGroupId || '',
-    progress: data.progress || 0,
+    fileName: data?.fileName ?? '',
+    mimeType: data?.mimeType ?? '',
+    fileSize: Number(data?.fileSize ?? 0),
+    waveform: data.waveform ?? [],
+    duration: data.duration ?? 0,
   };
 };
 
@@ -204,6 +213,9 @@ const processSingleFile = async (
 
   const localMessageData = generateLocalMessageData({
     ...params,
+    waveform: file.metadata?.waveform ?? [],
+    mimeType: file.mimeType,
+    duration: file.metadata?.duration ?? 0,
     senderId,
     status: MessageStatusEnum.sending,
     ...(mediaGroupId && { mediaGroupId }),
