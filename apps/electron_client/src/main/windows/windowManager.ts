@@ -279,6 +279,7 @@ export class WindowManager {
   private initWindowData(windowId: number): void {
     // 初始化访问令牌
     const accessToken = storeTableClass.getAccessToken(windowId);
+
     if (accessToken) {
       ApiClient.instance.setAuthHeader(accessToken);
     }

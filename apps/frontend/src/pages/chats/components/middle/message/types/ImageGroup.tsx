@@ -1,5 +1,6 @@
 import { memo } from 'react';
 import { MessageStatusEnum, type LocalMessageListItem } from '@c_chat/shared-types';
+import { formatFileUrl } from '@c_chat/frontend/common/formatFileUrl';
 
 interface ImageGroupProps {
   messages: LocalMessageListItem[];
@@ -57,11 +58,7 @@ const ImageGroup = ({ messages }: ImageGroupProps) => {
         className="relative overflow-hidden rounded-xl bg-gray-100"
         style={containerStyle}
       >
-        <img
-          src={`http://localhost:3001${msg.fileUrl}`}
-          alt={`图片 ${idx + 1}`}
-          className={`${imgClass}`}
-        />
+        <img src={formatFileUrl(msg.fileUrl)} alt={`图片 ${idx + 1}`} className={`${imgClass}`} />
         {renderOverlay(msg)}
       </div>
     );

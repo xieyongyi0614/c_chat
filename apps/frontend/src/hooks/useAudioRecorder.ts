@@ -66,7 +66,9 @@ export function useAudioRecorder() {
 
     setIsRecording(false);
     try {
-      return recorderRef.current.stop();
+      const result = await recorderRef.current.stop();
+      const durationSec = Math.max(1, Math.round(duration / 1000));
+      return { ...result, duration: durationSec };
     } catch (err: any) {
       toast.error(err?.message || '未知错误', { id: err.code || TOAST_ID.UNKNOWN });
       throw err;

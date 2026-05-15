@@ -14,28 +14,6 @@ export type SelectUploadFilesParams = {
   allowMultiSelect?: boolean;
 };
 
-export type UploadFileByChunksParams = {
-  filePath?: string;
-  fileBuffer?: number[];
-  fileName?: string;
-  uploadUrl?: string;
-  chunkSize?: number;
-  description?: string;
-  alt?: string;
-  headers?: Record<string, string>;
-  clientMsgId?: string;
-};
-
-export type UploadFileByChunksResult = {
-  uploadId: string;
-  fileName: string;
-  fileSize: number;
-  totalChunks: number;
-  uploadedChunks: number;
-  isComplete: boolean;
-  serverResponse?: any;
-};
-
 // export const allFilters = getShowOpenDialogFilters('all');
 
 /** 选择文件 */

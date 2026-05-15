@@ -24,31 +24,10 @@ export type FileMetadata = VoiceMetadata;
 export interface VoiceMetadata {
   type: 'voice';
   duration: number;
-  waveform: number[];
+  waveform: string;
   codec?: string;
+  size: number;
 }
-
-export type UploadFileByChunksParams = {
-  filePath?: string;
-  fileBuffer?: number[];
-  fileName?: string;
-  uploadUrl?: string;
-  chunkSize?: number;
-  description?: string;
-  alt?: string;
-  headers?: Record<string, string>;
-  clientMsgId?: string;
-};
-
-export type UploadFileByChunksResult = {
-  uploadId: string;
-  fileName: string;
-  fileSize: number;
-  totalChunks: number;
-  uploadedChunks: number;
-  isComplete: boolean;
-  serverResponse?: any;
-};
 
 export type ReadLocalFileParams = {
   path: string;
@@ -57,5 +36,4 @@ export type ReadLocalFileParams = {
 export interface FileOperationPreloadTypes {
   SelectFiles: IpcMethod<SelectFilesParams | undefined, FileInfoListItem[]>;
   ReadLocalFile: IpcMethod<ReadLocalFileParams, Uint8Array<ArrayBuffer>>;
-  UploadFileByChunks: IpcMethod<UploadFileByChunksParams, UploadFileByChunksResult>;
 }

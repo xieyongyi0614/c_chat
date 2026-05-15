@@ -4,6 +4,7 @@ export * from './lib/json';
 export * from './lib/common';
 export * from './lib/formatTime';
 export * from './lib/fileOperation';
+export * from './lib/waveform';
 
 export { to } from 'await-to-js';
 

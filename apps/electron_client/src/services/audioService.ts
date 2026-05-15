@@ -3,7 +3,7 @@ import path from 'path';
 import ffmpeg from 'fluent-ffmpeg';
 import ffmpegPath from 'ffmpeg-static';
 import { app } from 'electron';
-import { getFileTypeFromExtension, uuidv4 } from '@c_chat/shared-utils';
+import { encodeWaveformToBase64, getFileTypeFromExtension, uuidv4 } from '@c_chat/shared-utils';
 import { FileInfoListItem } from '@c_chat/shared-types';
 
 ffmpeg.setFfmpegPath(ffmpegPath!);
@@ -48,7 +48,7 @@ export class AudioService {
     // 删除 temp
     fs.unlinkSync(tempPath);
     const fileType = getFileTypeFromExtension(outputExt);
-
+    console.log('saveVoice', stat);
     return {
       id,
       filePath: outputPath,
@@ -63,6 +63,8 @@ export class AudioService {
       metadata: {
         type: 'voice',
         ...metadata,
+        size: stat.size,
+        waveform: encodeWaveformToBase64(metadata.waveform),
       },
     };
   }

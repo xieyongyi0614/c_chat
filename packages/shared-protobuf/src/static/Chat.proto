@@ -47,7 +47,7 @@ message MediaInfo {
   optional int32 width = 7;
   optional int32 height = 8;
   optional int32 duration_sec = 9;
-  repeated float waveform = 10;
+  optional string waveform = 10;
 }
 // 会话信息
 message ConversationInfo {
@@ -72,7 +72,7 @@ message SendMessageRequest {
   optional string mediaGroupId = 6;
   optional string fileId = 7;  // 上传完成后的 File.id
   optional int32 duration_sec = 8;   // 音视频时长（秒）
-  repeated float waveform = 9;       // 语音波形采样
+  optional string waveform = 9;       // 语音波形采样
   optional string thumb_url = 10;    // 视频封面 / 自定义缩略图
 }
 message AckSendMessage{
