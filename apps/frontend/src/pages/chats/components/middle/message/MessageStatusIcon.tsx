@@ -1,5 +1,6 @@
 import { MessageStatusEnum } from '@c_chat/shared-types';
-import { Check, CheckCheck } from 'lucide-react';
+import { cn } from '@c_chat/ui';
+import { Check, CheckCheck, CircleAlert, Clock } from 'lucide-react';
 import { memo } from 'react';
 
 interface MessageStatusIconProps {
@@ -8,20 +9,16 @@ interface MessageStatusIconProps {
 }
 const MessageStatusIcon = (props: MessageStatusIconProps) => {
   const { status, isRead } = props;
+  const iconStyle = 'h-3.5 w-3.5 text-[var(--message-green)]';
 
   return (
     <span className="inline-flex w-4 justify-center">
       {status === MessageStatusEnum.fail && (
-        <span className="text-red-500 text-[10px] font-bold">!</span>
+        <CircleAlert className={cn(iconStyle, 'text-[var(--destructive)]')} />
       )}
       {status === MessageStatusEnum.success &&
-        (isRead ? (
-          // <span className="text-blue-400 text-[10px]">✓✓</span>
-          <CheckCheck className="h-3.5 w-3.5 text-[#4CAF50]" />
-        ) : (
-          // <span className="text-[10px]">✓</span>
-          <Check className="h-3.5 w-3.5 text-[#4CAF50]" />
-        ))}
+        (isRead ? <CheckCheck className={iconStyle} /> : <Check className={iconStyle} />)}
+      {status === MessageStatusEnum.sending && <Clock className={iconStyle} />}
     </span>
   );
 };
