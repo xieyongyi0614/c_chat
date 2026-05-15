@@ -72,7 +72,7 @@ addActionHandler('GetMessageHistory', async (data) => {
       fileUrl: msg.media?.file?.url ?? '',
       mimeType: msg.media?.file?.mimeType ?? '',
       fileSize: Number(msg.media?.file?.size ?? 0),
-      waveform: msg.media?.waveform ?? [],
+      waveform: msg.media?.waveform ?? '',
       duration: msg.media?.durationSec ?? 0,
       status: MessageStatusEnum.success,
       updateTime: Number(msg.updateTime),
@@ -103,7 +103,7 @@ const generateLocalMessageData = (data: Partial<LocalMessageListItem>): LocalMes
     fileName: data?.fileName ?? '',
     mimeType: data?.mimeType ?? '',
     fileSize: Number(data?.fileSize ?? 0),
-    waveform: data.waveform ?? [],
+    waveform: data.waveform,
     duration: data.duration ?? 0,
   };
 };
@@ -213,7 +213,7 @@ const processSingleFile = async (
 
   const localMessageData = generateLocalMessageData({
     ...params,
-    waveform: file.metadata?.waveform ?? [],
+    waveform: file.metadata?.waveform,
     mimeType: file.mimeType,
     duration: file.metadata?.duration ?? 0,
     senderId,
@@ -234,6 +234,7 @@ const processSingleFile = async (
         type: localMessageData.type,
         mediaGroupId: localMessageData.mediaGroupId || undefined,
         content: localMessageData.content,
+        waveform: localMessageData.waveform,
       }),
     );
     if (sendErr) {

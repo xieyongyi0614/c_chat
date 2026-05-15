@@ -11,6 +11,7 @@ export const useGlobalSubscribe = () => {
   const { userInfo, isSignedIn } = useUserStore();
   const { updateConversationSnapshot } = useChatStore();
   const { updateMsg, addMsgList } = useMessageStore();
+
   const selectedConversationId = useChatStore((s) => s.selectedConversation?.id);
 
   const newMessageHandle = useLastCallback<WebContentEvents['newMessage']>((data) => {

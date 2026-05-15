@@ -38,4 +38,6 @@ export interface AudioPlayerState {
   duration: number;
 
   playbackRate: number;
+
+  progressMap: Record<string, number>;
 }

@@ -1,93 +1,106 @@
-import { memo } from 'react';
-import { MessageStatusEnum, type LocalMessageListItem } from '@c_chat/shared-types';
-import { formatCompactTime } from '@c_chat/shared-utils';
+import useWaveformCanvas from '@c_chat/frontend/hooks/useWaveformCanvas';
+import type { LocalMessageListItem, VoiceMetadata } from '@c_chat/shared-types';
 import { cn } from '@c_chat/ui';
-import { Music, Play } from 'lucide-react';
+import { Pause, Play } from 'lucide-react';
+import { memo, useRef } from 'react';
+import MessageDate from '../MessageDate';
+import { formatFileUrl } from '@c_chat/frontend/common/formatFileUrl';
+import { audioPlayerManager } from '@c_chat/audio-core';
+import { useAudioMessage } from '@c_chat/frontend/hooks/useAudioMessage';
 
 interface AudioMessageProps {
-  msg: LocalMessageListItem;
+  audioUrl: string;
+  voice: Pick<VoiceMetadata, 'waveform' | 'duration'>;
+
   isMe: boolean;
-  isRead: boolean;
+
+  senderName?: string;
+
+  forwarded?: boolean;
+  msg: LocalMessageListItem;
 }
 
-const AudioMessage = ({ msg, isMe, isRead }: AudioMessageProps) => {
-  const getStatusIcon = () => {
-    if (!isMe) return null;
+function AudioMessage({ audioUrl, voice, isMe, senderName, forwarded, msg }: AudioMessageProps) {
+  const { playing, currentTime, duration } = useAudioMessage(msg.clientMsgId);
+  const waveformCanvasRef = useWaveformCanvas(voice, currentTime / duration, isMe);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  console.log('msg', msg.clientMsgId, audioUrl, playing, currentTime, duration);
 
-    if (msg.status === MessageStatusEnum.fail) {
-      return <span className="text-red-500 text-[10px] font-bold">!</span>;
+  const totalDuration = voice.duration ?? 196;
+
+  const togglePlay = async () => {
+    const audio = audioRef.current;
+    console.log(audioRef.current, 'audioRef.current');
+    if (!audio) return;
+    if (playing) {
+      // audio.pause();
+      audioPlayerManager.pause();
+      // setPlaying(false);
+    } else {
+      // await audio.play();
+      await audioPlayerManager.play(msg.clientMsgId, audio.src);
+      // setPlaying(true);
     }
-
-    if (msg.status === MessageStatusEnum.success) {
-      return isRead ? (
-        <span className="text-blue-400 text-[10px]">✓✓</span>
-      ) : (
-        <span className="text-[10px]">✓</span>
-      );
-    }
-
-    return <span className="opacity-40 text-[10px]">&#8226;</span>;
   };
 
-  const fileName = msg.content.split('/').pop() || '音频文件';
-  const isUploading = msg.status === MessageStatusEnum.uploading;
+  const formatTime = (sec: number) => {
+    const m = Math.floor(sec / 60);
+    const s = Math.floor(sec % 60);
+
+    return `${m}:${String(s).padStart(2, '0')}`;
+  };
 
   return (
-    <div className="w-full max-w-xs">
-      <div
-        className={cn(
-          'flex items-center gap-3 p-3 rounded-lg',
-          'bg-gradient-to-r from-purple-500/10 to-blue-500/10 dark:from-purple-500/20 dark:to-blue-500/20',
-          'border border-purple-200/50 dark:border-purple-800/50',
-        )}
-      >
-        {/* 音频播放按钮 */}
-        <div className="flex-shrink-0 flex items-center justify-center w-10 h-10 rounded-full bg-purple-500 hover:bg-purple-600 transition-colors">
-          <a
-            href={`http://localhost:3001${msg.content}`}
-            target="_blank"
-            rel="noreferrer"
-            className="flex items-center justify-center w-full h-full"
-          >
-            <Play className="w-5 h-5 text-white fill-white" />
-          </a>
-        </div>
+    <div className={cn('group relative')}>
+      <audio ref={audioRef} src={formatFileUrl(audioUrl)} preload="metadata" />
 
-        {/* 音频信息 */}
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium truncate text-foreground">{fileName}</p>
-          {isUploading ? (
-            <div className="mt-1 flex items-center gap-2">
-              <div className="flex-1 h-1 bg-gray-300 dark:bg-gray-600 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-purple-500 transition-all duration-300"
-                  style={{ width: `${msg.progress || 0}%` }}
-                />
-              </div>
-              <span className="text-[10px] text-gray-500">{msg.progress || 0}%</span>
-            </div>
-          ) : (
-            <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
-              <Music className="w-3 h-3" />
-              {msg.status === MessageStatusEnum.fail ? '上传失败' : '已上传'}
-            </p>
+      {forwarded && senderName && (
+        <div className="mb-2 text-[13px] font-medium text-[#53BDEB]">
+          Forwarded from {senderName}
+        </div>
+      )}
+
+      <div className="flex items-center gap-3">
+        {/* play button */}
+        <button
+          onClick={togglePlay}
+          className={cn(
+            'flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-all',
+            isMe ? 'bg-[#4CAF50]' : 'bg-[#53BDEB]',
+            playing && 'scale-95',
           )}
+        >
+          {playing ? (
+            <Pause className="ml-[1px] h-5 w-5 fill-white text-white" />
+          ) : (
+            <Play className="ml-[2px] h-5 w-5 fill-white text-white" />
+          )}
+        </button>
+
+        {/* waveform */}
+        <div className="flex min-w-0 flex-1 flex-col">
+          <div className="flex h-8 items-center gap-[2px]" draggable={false}>
+            <canvas ref={waveformCanvasRef} />
+          </div>
+
+          {/* bottom info */}
+          <div className="mt-1 flex items-center justify-between text-[11px] text-black/55">
+            <div className="flex items-center gap-1">
+              <span>{formatTime(currentTime)}</span>
+
+              <span>/</span>
+
+              <span>{formatTime(totalDuration)}</span>
+
+              {playing && <div className="ml-1 h-1.5 w-1.5 rounded-full bg-[#4CAF50]" />}
+            </div>
+
+            <MessageDate time={msg.createTime} status={msg.status} isMe={isMe} isRead={true} />
+          </div>
         </div>
-
-        {/* 状态标识 */}
-        {isMe && (
-          <span className="flex-shrink-0 inline-flex w-4 justify-center text-[10px]">
-            {getStatusIcon()}
-          </span>
-        )}
-      </div>
-
-      {/* 时间 */}
-      <div className="text-[10px] text-gray-400 dark:text-gray-600 mt-1">
-        {formatCompactTime(msg.createTime)}
       </div>
     </div>
   );
-};
+}
 
 export default memo(AudioMessage);

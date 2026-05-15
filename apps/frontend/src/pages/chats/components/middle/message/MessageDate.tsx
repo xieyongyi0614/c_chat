@@ -1,29 +1,28 @@
-import { useUserStore } from '@c_chat/frontend/stores';
-import type { LocalMessageListItem } from '@c_chat/shared-types';
+import type { MessageStatusEnum } from '@c_chat/shared-types';
 import { formatChatTime } from '@c_chat/shared-utils';
 import { cn } from '@c_chat/ui';
 import { memo, type ComponentProps } from 'react';
 import MessageStatusIcon from './MessageStatusIcon';
 
 interface MessageDateProps extends ComponentProps<'div'> {
-  msg: LocalMessageListItem;
+  time: number;
+  status: MessageStatusEnum;
+  isMe: boolean;
   isRead: boolean;
 }
 const MessageDate = (props: MessageDateProps) => {
-  const { msg, isRead, className } = props;
-  const userId = useUserStore((s) => s.userInfo?.id);
-  const isMe = msg.senderId === userId;
+  const { time, status, isMe, isRead, className } = props;
   return (
-    <div
+    <span
       className={cn(
-        'mt-1 flex items-center justify-end gap-1 text-[10px]',
-        isMe ? 'text-primary-foreground/70' : 'text-foreground/60',
+        'float-right ml-2 inline-flex items-center gap-1 text-[12px]',
+        isMe ? 'text-black/55' : 'text-foreground/60',
         className,
       )}
     >
-      <span>{formatChatTime(msg.createTime)}</span>
-      {isMe && <MessageStatusIcon status={msg.status} isRead={isRead} />}
-    </div>
+      <span>{formatChatTime(time)}</span>
+      {isMe && <MessageStatusIcon status={status} isRead={isRead} />}
+    </span>
   );
 };
 export default memo(MessageDate);

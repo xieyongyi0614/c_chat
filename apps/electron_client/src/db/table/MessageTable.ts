@@ -92,7 +92,7 @@ export class MessageTable extends TableConnection {
       msg.mimeType,
       msg.fileSize,
       msg.duration,
-      msg.waveform ? JSON.stringify(msg.waveform) : null,
+      msg.waveform,
     ];
   }
   getMessagesByConversationId(
@@ -127,7 +127,7 @@ export class MessageTable extends TableConnection {
       );
     }
 
-    return rows.map(this.transformWaveformByRow);
+    return rows;
   }
   /**
    * 获取最新的一条消息
@@ -137,7 +137,7 @@ export class MessageTable extends TableConnection {
       `SELECT * FROM ${this.TABLE_NAME} WHERE conversation_id = ? ORDER BY create_time DESC LIMIT 1`,
       [conversationId],
     );
-    return row ? this.transformWaveformByRow(row) : undefined;
+    return row;
   }
 
   getByClientMsgId(clientMsgId: string) {
@@ -145,7 +145,7 @@ export class MessageTable extends TableConnection {
       `SELECT * FROM ${this.TABLE_NAME} WHERE client_msg_id = ? LIMIT 1`,
       [clientMsgId],
     );
-    return row ? this.transformWaveformByRow(row) : undefined;
+    return row;
   }
   insert(msg: LocalMessageListItem) {
     const placeholders = this.fields.map(() => '?').join(', ');
@@ -244,11 +244,5 @@ export class MessageTable extends TableConnection {
    */
   deleteMessage(id: string) {
     this.run(`DELETE FROM ${this.TABLE_NAME} WHERE id = ?`, [id]);
-  }
-  transformWaveformByRow(row: LocalMessageListItem) {
-    return {
-      ...row,
-      waveform: row.waveform && typeof row.waveform === 'string' ? JSON.parse(row.waveform) : null,
-    };
   }
 }

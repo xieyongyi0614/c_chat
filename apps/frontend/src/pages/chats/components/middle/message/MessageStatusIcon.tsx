@@ -1,4 +1,5 @@
 import { MessageStatusEnum } from '@c_chat/shared-types';
+import { Check, CheckCheck } from 'lucide-react';
 import { memo } from 'react';
 
 interface MessageStatusIconProps {
@@ -15,9 +16,11 @@ const MessageStatusIcon = (props: MessageStatusIconProps) => {
       )}
       {status === MessageStatusEnum.success &&
         (isRead ? (
-          <span className="text-blue-400 text-[10px]">✓✓</span>
+          // <span className="text-blue-400 text-[10px]">✓✓</span>
+          <CheckCheck className="h-3.5 w-3.5 text-[#4CAF50]" />
         ) : (
-          <span className="text-[10px]">✓</span>
+          // <span className="text-[10px]">✓</span>
+          <Check className="h-3.5 w-3.5 text-[#4CAF50]" />
         ))}
     </span>
   );

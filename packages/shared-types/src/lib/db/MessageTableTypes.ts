@@ -19,7 +19,7 @@ export interface LocalMessageListItem {
   fileName?: string;
   mimeType?: string;
   fileSize?: number;
-  waveform?: number[];
+  waveform?: string;
   duration?: number;
 }
 

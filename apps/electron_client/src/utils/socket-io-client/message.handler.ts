@@ -15,7 +15,12 @@ import {
   storeTableClass,
   uploadTaskTableClass,
 } from '../../db';
-import { MessageStatusEnum, UploadStatusEnum, WebContentEvents } from '@c_chat/shared-types';
+import {
+  LocalMessageListItem,
+  MessageStatusEnum,
+  UploadStatusEnum,
+  WebContentEvents,
+} from '@c_chat/shared-types';
 import { WindowManager } from '@c_chat/electron_client/main/windows';
 import { to } from '@c_chat/shared-utils';
 import { sendSocketMessageWithFile } from '../uploadTaskRunner';
@@ -121,8 +126,15 @@ export class MessageHandler extends MessageHandlerRegistry {
         if (!data) {
           return;
         }
-        const newMsg = {
+        // let waveform: LocalMessageListItem['waveform'];
+        // if (data.media?.waveform) {
+        //   const packed = Uint8Array.from(Buffer.from(data.media?.waveform, 'base64'));
+        //   waveform = decodeWaveform(packed);
+        // }
+
+        const newMsg: LocalMessageListItem = {
           ...data,
+          waveform: data.media?.waveform ?? '',
           fileId: data.media?.fileId ?? '',
           fileUrl: data.media?.fileUrl ?? '',
           mediaGroupId: data?.mediaGroupId ?? '',
@@ -176,7 +188,7 @@ export class MessageHandler extends MessageHandlerRegistry {
                 clientMsgId: msg.clientMsgId,
                 fileId,
                 durationSec: msg.duration,
-                waveform: msg.waveform ?? [],
+                waveform: msg.waveform,
                 type: msg.type,
                 mediaGroupId: msg.mediaGroupId || undefined,
                 content: msg.content,
