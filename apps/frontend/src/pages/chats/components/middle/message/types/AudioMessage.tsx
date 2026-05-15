@@ -66,7 +66,7 @@ function AudioMessage({ audioUrl, voice, isMe, senderName, forwarded, msg }: Aud
           onClick={togglePlay}
           className={cn(
             'flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-all',
-            isMe ? 'bg-[#4CAF50]' : 'bg-[#53BDEB]',
+            isMe ? 'bg-[var(--message-green)]' : 'bg-[#53BDEB]',
             playing && 'scale-95',
           )}
         >
@@ -92,7 +92,9 @@ function AudioMessage({ audioUrl, voice, isMe, senderName, forwarded, msg }: Aud
 
               <span>{formatTime(totalDuration)}</span>
 
-              {playing && <div className="ml-1 h-1.5 w-1.5 rounded-full bg-[#4CAF50]" />}
+              {playing && (
+                <div className="ml-1 h-1.5 w-1.5 rounded-full bg-[var(--message-green)]" />
+              )}
             </div>
 
             <MessageDate time={msg.createTime} status={msg.status} isMe={isMe} isRead={true} />

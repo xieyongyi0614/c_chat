@@ -31,17 +31,15 @@ const MessageItem = ({ isRead, groupId }: MessageItemProps) => {
       return <TextMessage content="消息错误" />;
     }
 
-    const singleMsg = messages[0];
-
-    if (singleMsg.type === MESSAGE_TYPE.File) {
-      return <FileMessage msg={singleMsg} isMe={isMe} isRead={isRead} />;
+    if (msg.type === MESSAGE_TYPE.File) {
+      return <FileMessage msg={msg} isMe={isMe} isRead={isRead} />;
     }
 
-    if (singleMsg.type === MESSAGE_TYPE.Video) {
-      return <VideoMessage msg={singleMsg} isMe={isMe} isRead={isRead} />;
+    if (msg.type === MESSAGE_TYPE.Video) {
+      return <VideoMessage msg={msg} isMe={isMe} isRead={isRead} />;
     }
 
-    if (singleMsg.type === MESSAGE_TYPE.Audio) {
+    if (msg.type === MESSAGE_TYPE.Audio) {
       return (
         <AudioMessage
           audioUrl={msg.fileUrl ?? ''}
@@ -55,7 +53,7 @@ const MessageItem = ({ isRead, groupId }: MessageItemProps) => {
       );
     }
 
-    return <TextMessage content={singleMsg.content || '未知消息'} />;
+    return <TextMessage content={msg.content || '未知消息'} />;
   };
 
   return (
@@ -68,7 +66,7 @@ const MessageItem = ({ isRead, groupId }: MessageItemProps) => {
         )}
       >
         {renderContent()}
-        {msg.type !== MESSAGE_TYPE.Audio && (
+        {msg.type === MESSAGE_TYPE.Text && (
           <MessageDate
             time={msg.createTime}
             status={msg.status}
