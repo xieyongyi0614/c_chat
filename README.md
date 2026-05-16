@@ -61,7 +61,7 @@ pnpm run package
 - [x] **文件传输** - 支持图片、文档、音视频等文件分享
 - [ ] **云端存储** - 文件云同步，跨设备访问
 - [ ] **文件预览** - 图片、文档在线预览功能
-- [ ] **断点续传** - 大文件分片上传，支持断点续传
+- [x] **断点续传** - 大文件分片上传，支持断点续传
 
 ### 🎧 通讯功能
 
@@ -107,10 +107,11 @@ pnpm run package
 
 ## 部分页面截图
 
-1.  登录页面
-    [<img src="./docs/img/login.png" height=300>](./docs/img/login.png)
+1.  登录注册页面<br />
+    [<img src="./docs/img/signIn.png" height=300>](./docs/img/signIn.png)
+    [<img src="./docs/img/signUp.png" height=300>](./docs/img/signUp.png)
 
-2.  聊天页面
+2.  聊天页面<br />
     [<img src="./docs/img/chat.png" height=300>](./docs/img/chat.png)
 
 ## 📞 联系方式
