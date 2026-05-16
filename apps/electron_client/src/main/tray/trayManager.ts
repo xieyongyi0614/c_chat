@@ -74,7 +74,10 @@ export class TrayManager {
       label: `窗口 ${windowId}${accountText}`,
       icon: nativeImage.createFromPath(statusIcon),
       click: () => {
-        this.windowManager.focusWindow(windowId);
+        const res = this.windowManager.focusWindow(windowId);
+        if (!res) {
+          this.windowManager.createWindow(windowId);
+        }
       },
     };
   }
