@@ -27,17 +27,30 @@ export function ChatInput() {
   const handleFileSelect = async () => {
     const files = await ipc.SelectFiles({});
 
-    const newFiles = await Promise.all(
-      files.map(async (file) => ({
-        ...file,
-        url:
-          file.fileType === 'image'
-            ? bufferToPreviewUrl({
-                buffer: await ipc.ReadLocalFile({ path: file.filePath }),
-                type: file.mimeType,
-              })
-            : undefined,
-      })),
+    const newFiles: FileInfoListItem[] = await Promise.all(
+      files.map(async (file) => {
+        let metadata: FileInfoListItem['metadata'];
+        if (file.fileType === 'audio') {
+          const audioInfo = await ipc.getAudioInfoByLocalPath({ filePath: file.filePath });
+          metadata = {
+            ...audioInfo,
+            waveform: audioInfo.waveformBase64,
+            type: 'audio',
+            size: file.fileSize,
+          };
+        }
+        return {
+          ...file,
+          metadata,
+          url:
+            file.fileType === 'image'
+              ? bufferToPreviewUrl({
+                  buffer: await ipc.ReadLocalFile({ path: file.filePath }),
+                  type: file.mimeType,
+                })
+              : undefined,
+        };
+      }),
     );
     console.log('handleFileSelect', newFiles);
 

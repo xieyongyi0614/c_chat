@@ -1,4 +1,4 @@
-import type { VoiceMetadata } from '@c_chat/shared-types';
+import type { AudioMetadata } from '@c_chat/shared-types';
 import { useLayoutEffect, useMemo, useRef } from 'react';
 import {
   MAX_EMPTY_WAVEFORM_POINTS,
@@ -8,7 +8,7 @@ import {
 import { decodeWaveformFromBase64, interpolateArray } from '@c_chat/shared-utils';
 const AVG_VOICE_DURATION = 10;
 const useWaveformCanvas = (
-  voice?: Pick<VoiceMetadata, 'duration' | 'waveform'>,
+  voice?: Pick<AudioMetadata, 'duration' | 'waveform'>,
   playProgress = 0,
   isOwn = false,
   isReverse = false,

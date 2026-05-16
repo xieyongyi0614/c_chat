@@ -1,22 +1,30 @@
-export function decodeWaveform(encoded5bit: Uint8Array) {
-  const bitsCount = encoded5bit.length * 8;
-  const valuesCount = Math.floor(bitsCount / 5);
-  if (!valuesCount) {
-    return [];
-  }
+export function decodeWaveform(bytes: Uint8Array): number[] {
+  const result: number[] = [];
 
-  const result = new Array<number>(valuesCount);
-  const bitsData = encoded5bit;
-  for (let i = 0, l = valuesCount - 1; i !== l; ++i) {
-    const byteIndex = Math.floor((i * 5) / 8);
-    const bitShift = Math.floor((i * 5) % 8);
-    const value = bitsData[byteIndex] + (bitsData[byteIndex + 1] << 8);
-    result[i] = (value >> bitShift) & 0x1f;
+  const totalBits = bytes.length * 8;
+
+  const count = Math.floor(totalBits / 5);
+
+  let bitOffset = 0;
+
+  for (let i = 0; i < count; i++) {
+    const byteIndex = bitOffset >> 3;
+
+    const bitIndex = bitOffset & 7;
+
+    let value = (bytes[byteIndex] >> bitIndex) & 0x1f;
+
+    /**
+     * 跨字节
+     */
+    if (bitIndex > 3) {
+      value |= (bytes[byteIndex + 1] << (8 - bitIndex)) & 0x1f;
+    }
+
+    result.push(value);
+
+    bitOffset += 5;
   }
-  const lastByteIndex = Math.floor(((valuesCount - 1) * 5) / 8);
-  const lastBitShift = Math.floor(((valuesCount - 1) * 5) % 8);
-  const lastValue = bitsData[lastByteIndex] + (bitsData[lastByteIndex + 1] << 8);
-  result[valuesCount - 1] = (lastValue >> lastBitShift) & 0x1f;
 
   return result;
 }
@@ -69,28 +77,25 @@ export function encodeWaveform(waveform: number[]): Uint8Array {
   }
 
   const bitCount = waveform.length * 5;
-
   const byteCount = Math.ceil(bitCount / 8);
 
   const result = new Uint8Array(byteCount);
 
-  for (let i = 0; i < waveform.length; i++) {
-    // 保证只取低 5 bit
-    const value = waveform[i] & 0x1f;
+  let bitOffset = 0;
 
-    const bitIndex = i * 5;
+  for (const raw of waveform) {
+    const value = Math.max(0, Math.min(31, raw | 0));
 
-    const byteIndex = Math.floor(bitIndex / 8);
+    const byteIndex = bitOffset >> 3;
+    const bitIndex = bitOffset & 7;
 
-    const bitShift = bitIndex % 8;
+    result[byteIndex] |= (value << bitIndex) & 0xff;
 
-    // 写入当前 byte
-    result[byteIndex] |= value << bitShift;
-
-    // 如果跨 byte
-    if (bitShift > 3) {
-      result[byteIndex + 1] |= value >> (8 - bitShift);
+    if (bitIndex > 3) {
+      result[byteIndex + 1] |= value >> (8 - bitIndex);
     }
+
+    bitOffset += 5;
   }
 
   return result;

@@ -1,5 +1,5 @@
 import useWaveformCanvas from '@c_chat/frontend/hooks/useWaveformCanvas';
-import type { LocalMessageListItem, VoiceMetadata } from '@c_chat/shared-types';
+import type { AudioMetadata, LocalMessageListItem } from '@c_chat/shared-types';
 import { cn } from '@c_chat/ui';
 import { Pause, Play } from 'lucide-react';
 import { memo, useRef } from 'react';
@@ -10,7 +10,7 @@ import { useAudioMessage } from '@c_chat/frontend/hooks/useAudioMessage';
 
 interface AudioMessageProps {
   audioUrl: string;
-  voice: Pick<VoiceMetadata, 'waveform' | 'duration'>;
+  voice: Pick<AudioMetadata, 'waveform' | 'duration'>;
 
   isMe: boolean;
 
@@ -24,22 +24,16 @@ function AudioMessage({ audioUrl, voice, isMe, senderName, forwarded, msg }: Aud
   const { playing, currentTime, duration } = useAudioMessage(msg.clientMsgId);
   const waveformCanvasRef = useWaveformCanvas(voice, currentTime / duration, isMe);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  console.log('msg', msg.clientMsgId, audioUrl, playing, currentTime, duration);
 
   const totalDuration = voice.duration ?? 196;
 
   const togglePlay = async () => {
     const audio = audioRef.current;
-    console.log(audioRef.current, 'audioRef.current');
     if (!audio) return;
     if (playing) {
-      // audio.pause();
       audioPlayerManager.pause();
-      // setPlaying(false);
     } else {
-      // await audio.play();
       await audioPlayerManager.play(msg.clientMsgId, audio.src);
-      // setPlaying(true);
     }
   };
 

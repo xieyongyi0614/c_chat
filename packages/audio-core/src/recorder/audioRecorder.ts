@@ -50,7 +50,7 @@ export class AudioRecorder {
 
       this.analyser = this.audioContext.createAnalyser();
 
-      this.analyser.fftSize = 2048;
+      this.analyser.fftSize = 256;
 
       source.connect(this.analyser);
 
