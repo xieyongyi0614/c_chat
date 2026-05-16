@@ -66,7 +66,8 @@ export class TrayManager {
       };
     }
     const userInfo = WindowManager.getUserInfo(windowId);
-    const statusIcon = resolveResource(userInfo ? 'tray/green.png' : 'tray/red.png');
+    const window = this.windowManager.getWindow(windowId);
+    const statusIcon = resolveResource(userInfo && window ? 'tray/green.png' : 'tray/red.png');
     const accountText = userInfo ? ` ${userInfo.nickname || userInfo.email}` : '';
 
     return {
@@ -84,7 +85,7 @@ export class TrayManager {
     const stores = storeTableClass.getAllStore('access_token') ?? [];
     const windowList =
       stores.length > 0
-        ? stores.map((store) => this.generateWindowListItem(store.window_id))
+        ? stores.map((store) => this.generateWindowListItem(store.windowId))
         : [this.generateWindowListItem(db.DEFAULT_WINDOW_ID)];
     const menuTemplate: MenuItemConstructorOptions[] = [
       { label: '新建窗口', click: () => this.windowManager.createWindow() },

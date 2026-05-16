@@ -1,11 +1,10 @@
-import BetterSqlite3 from 'better-sqlite3';
 import { EventTableConnection } from '../EventTable';
 import { db } from '@c_chat/shared-config';
 import { AuthTypes, StoreTableTypes } from '@c_chat/shared-types';
 import { safeJsonParse, safeJsonStringify } from '@c_chat/shared-utils';
 import { OsData } from '@c_chat/electron_client/utils/osData';
 
-const DEFAULT_LANGUAGE = 'en';
+// const DEFAULT_LANGUAGE = 'en';
 
 export class StoreTable extends EventTableConnection<StoreTableTypes.StoreItem> {
   readonly TABLE_NAME = db.tableNames.STORE_TABLE;
@@ -170,7 +169,7 @@ export class StoreTable extends EventTableConnection<StoreTableTypes.StoreItem> 
 
   getAllStore<T = unknown>(
     key: StoreTableTypes.StoreKey,
-  ): Array<{ window_id: number; value: T; expiry: string | null }> {
+  ): Array<{ windowId: number; value: T; expiry: string | null }> {
     const query = `SELECT value, expiry, window_id FROM ${this.TABLE_NAME} WHERE key = ?`;
     const results = this.all<Omit<StoreTableTypes.StoreItem, 'key'>>(query, [key]);
 
@@ -183,10 +182,10 @@ export class StoreTable extends EventTableConnection<StoreTableTypes.StoreItem> 
 
     for (const result of results) {
       if (result.expiry && new Date(result.expiry) < currentTime) {
-        this.deleteStore(key, result.window_id);
+        this.deleteStore(key, result.windowId);
       } else {
         validResults.push({
-          window_id: result.window_id,
+          windowId: result.windowId,
           value: safeJsonParse<T>(result.value) as T,
           expiry: result.expiry,
           key,

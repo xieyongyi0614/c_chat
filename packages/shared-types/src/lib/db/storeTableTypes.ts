@@ -5,7 +5,7 @@ export namespace StoreTableTypes {
 
   export type StoreItem = {
     key: StoreKey;
-    window_id: number;
+    windowId: number;
     value: string;
     expiry: string;
   };
