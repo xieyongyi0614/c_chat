@@ -20,9 +20,9 @@ export interface FileInfoListItem {
   metadata?: FileMetadata;
 }
 // | ImageMetadata | VideoMetadata;
-export type FileMetadata = VoiceMetadata;
-export interface VoiceMetadata {
-  type: 'voice';
+export type FileMetadata = AudioMetadata;
+export interface AudioMetadata {
+  type: 'audio';
   duration: number;
   waveform: string;
   codec?: string;

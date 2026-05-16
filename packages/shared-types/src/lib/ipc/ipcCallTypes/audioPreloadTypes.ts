@@ -18,6 +18,25 @@ export interface SaveVoiceResponse {
   size: number;
 }
 
+export interface GetAudioInfoByLocalPathParams {
+  filePath: string;
+}
+
+export interface AudioWaveformInfo {
+  duration: number;
+
+  sampleRate: number;
+
+  channels: number;
+
+  bitrate: number;
+
+  waveform: number[];
+
+  waveformBase64: string;
+}
+
 export interface AudioPreloadTypes {
   saveVoice: IpcMethod<SaveVoiceParams | undefined, FileInfoListItem>;
+  getAudioInfoByLocalPath: IpcMethod<GetAudioInfoByLocalPathParams, AudioWaveformInfo>;
 }

@@ -221,7 +221,6 @@ const processSingleFile = async (
     ...(mediaGroupId && { mediaGroupId }),
   });
 
-  console.log('uploadInit', uploadInit);
   /** 秒传 */
   if (uploadInit?.file?.id) {
     localMessageData.fileId = uploadInit.file.id;

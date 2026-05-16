@@ -6,3 +6,8 @@ const audioService = new AudioService();
 addActionHandler('saveVoice', (params) => {
   return audioService.saveVoice(params.buffer, params.metadata);
 });
+
+addActionHandler('getAudioInfoByLocalPath', async (params) => {
+  const { filePath } = params;
+  return audioService.getAudioInfo(filePath);
+});

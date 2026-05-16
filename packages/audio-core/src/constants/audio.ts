@@ -3,4 +3,4 @@ export const AUDIO_MIME = {
   OUTPUT: 'audio/ogg',
 };
 
-export const MAX_WAVEFORM_COUNT = 50;
+export const MAX_WAVEFORM_COUNT = 80;
