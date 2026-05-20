@@ -48,6 +48,12 @@ export class StoreTable extends EventTableConnection<StoreTableTypes.StoreItem> 
     this.setStore(db.store.REFRESH_TOKEN, refreshToken, { windowId });
   }
 
+  clearAuthData(windowId: number) {
+    this.deleteStore(db.store.ACCESS_TOKEN, windowId);
+    this.deleteStore(db.store.REFRESH_TOKEN, windowId);
+    this.deleteStore(db.store.USER_INFO, windowId);
+  }
+
   getOsData() {
     return this.getStore<OsData>(db.store.OS_DATA, { windowId: db.GLOBAL_WINDOW_ID });
   }

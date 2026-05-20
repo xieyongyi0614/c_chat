@@ -3,6 +3,7 @@ import { RouterProvider, Navigate, createHashRouter, Outlet } from 'react-router
 import { Chats } from '../pages/chats';
 import { CheckAuth } from '../pages/auth/CheckAuth';
 import AuthPage from '../pages/auth';
+import Layout from '../layout';
 
 const router = createHashRouter([
   {
@@ -27,7 +28,7 @@ const router = createHashRouter([
       },
       {
         path: '/',
-        // element: <Layout />,
+        element: <Layout />,
         children: [
           {
             index: true,
