@@ -1,5 +1,5 @@
 import { Outlet } from 'react-router-dom';
-import { LeftSidebar } from './widgets/LeftSidebar';
+import { LeftSidebar } from './components/LeftSidebar';
 import { useUserStore } from '@c_chat/frontend/stores';
 
 const Layout: React.FC = () => {

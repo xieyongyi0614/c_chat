@@ -7,6 +7,10 @@ export interface AuthPreloadTypes {
   SignIn: IpcMethod<AuthTypes.PostSignInParams, void>;
   SignUp: IpcMethod<AuthTypes.PostSignUpParams, void>;
   GetUserInfo: () => Promise<AuthTypes.GetUserInfoResponse | undefined>;
+  UpdateUserProfile: IpcMethod<
+    AuthTypes.UpdateUserProfileParams,
+    AuthTypes.GetUserInfoResponse | undefined
+  >;
   AutoSignIn: () => Promise<void>;
   Logout: () => Promise<void>;
   GetUserList: IpcMethod<GetUserListParams, SocketTypes.ResponseList<UserTypes.UserListItem>>;

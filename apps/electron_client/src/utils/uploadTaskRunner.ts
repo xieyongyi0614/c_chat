@@ -142,7 +142,10 @@ async function startUploadInContext(
       );
     });
 
-    const completeRes = await ApiClient.upload.uploadComplete({ uploadId: session.id });
+    const completeRes = await ApiClient.upload.uploadComplete({
+      uploadId: session.id,
+      usage: 'message',
+    });
     if (!completeRes?.queued) {
       throw new Error('触发合并失败');
     }

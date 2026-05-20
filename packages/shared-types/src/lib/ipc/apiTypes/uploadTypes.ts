@@ -45,12 +45,16 @@ export namespace UploadTypes {
     fileId?: string;
   }
 
-  /** 与 modules/upload 一致：全部入队后触发后台 merge */
+  export type UploadCompleteUsage = 'file' | 'message';
+
+  /** 与 modules/upload 一致：全部分片落盘后触发合并 */
   export interface PostUploadCompleteParams {
     uploadId: string;
+    usage?: UploadCompleteUsage;
   }
   export interface PostUploadCompleteResponse {
     queued: boolean;
+    file?: GetFileByHashResponse;
   }
 
   /** GET /upload/status?uploadId= 已落盘的分片下标（与 .chunk 文件名一致，从 0 起） */
