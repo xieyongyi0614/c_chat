@@ -2,7 +2,7 @@
   "name": "@c_chat/shared-config",
   "version": "0.0.0",
   "scripts": {
-    "dev": "vite build --watch",
+    "dev": "vite build --watch --mode development",
     "build": "vite build"
   },
   "type": "module",

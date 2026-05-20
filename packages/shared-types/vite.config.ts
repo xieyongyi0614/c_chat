@@ -3,7 +3,7 @@ import { resolve } from 'path';
 import dts from 'vite-plugin-dts';
 
 // https://vite.dev/config/
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [
     dts({
       entryRoot: 'src',
@@ -23,6 +23,6 @@ export default defineConfig({
     },
     sourcemap: true,
     outDir: 'dist',
-    emptyOutDir: true,
+    emptyOutDir: mode !== 'development',
   },
-});
+}));

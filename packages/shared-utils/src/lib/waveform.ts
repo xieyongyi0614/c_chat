@@ -1,3 +1,12 @@
+type RuntimeBuffer = {
+  from(value: string, encoding: 'base64'): Uint8Array;
+  from(value: Uint8Array): { toString(encoding: 'base64'): string };
+};
+
+function getRuntimeBuffer(): RuntimeBuffer | undefined {
+  return (globalThis as typeof globalThis & { Buffer?: RuntimeBuffer }).Buffer;
+}
+
 export function decodeWaveform(bytes: Uint8Array): number[] {
   const result: number[] = [];
 
@@ -49,9 +58,11 @@ export function interpolateArray(data: number[], fitCount: number) {
 }
 
 export function base64ToUint8Array(base64: string): Uint8Array {
+  const buffer = getRuntimeBuffer();
+
   // Node / Electron
-  if (typeof Buffer !== 'undefined') {
-    return Uint8Array.from(Buffer.from(base64, 'base64'));
+  if (buffer) {
+    return Uint8Array.from(buffer.from(base64, 'base64'));
   }
 
   // Browser
@@ -102,9 +113,11 @@ export function encodeWaveform(waveform: number[]): Uint8Array {
 }
 
 export function uint8ArrayToBase64(bytes: Uint8Array): string {
+  const buffer = getRuntimeBuffer();
+
   // Node / Electron
-  if (typeof Buffer !== 'undefined') {
-    return Buffer.from(bytes).toString('base64');
+  if (buffer) {
+    return buffer.from(bytes).toString('base64');
   }
 
   // Browser

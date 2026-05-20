@@ -4,22 +4,10 @@
     "declaration": true,
     "declarationMap": true,
     "outDir": "./dist",
+    "rootDir": "./src",
     "noEmit": true,
-    "paths": {
-      "@c_chat/shared-protobuf": [
-        "../shared-protobuf/src/index.d.ts"
-      ],
-      "@c_chat/shared-config": [
-        "../shared-config/src/index.ts"
-      ]
-    },
     "baseUrl": "."
   },
-  "include": [
-    "src"
-  ],
-  "exclude": [
-    "node_modules",
-    "dist"
-  ]
+  "include": ["src"],
+  "exclude": ["node_modules", "dist"]
 }
