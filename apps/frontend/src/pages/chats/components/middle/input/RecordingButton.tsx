@@ -6,15 +6,8 @@ import { Mic, StopCircle, X } from 'lucide-react';
 import { ipc, to } from '@c_chat/shared-utils';
 import { useChatStore, useMessageStore } from '@c_chat/frontend/stores';
 import { toast } from 'sonner';
-import { generateLastMsgContent } from '@c_chat/frontend/utils/lastMsgContentUtil';
-import { MESSAGE_TYPE } from '@c_chat/shared-config';
 const RecordingButton = () => {
-  const {
-    selectedConversation,
-    selectedUserForDraft,
-    setSelectedConversation,
-    upsertAndPinConversation,
-  } = useChatStore();
+  const { selectedConversation, selectedUserForDraft } = useChatStore();
   const { addMsgList } = useMessageStore();
 
   const { isRecording, recording, duration } = useAudioRecorder();
@@ -51,21 +44,6 @@ const RecordingButton = () => {
     }
 
     addMsgList(messages);
-
-    if (selectedConversation) {
-      const lastMsg = messages[messages.length - 1];
-      if (lastMsg.conversationId === selectedConversation.id) {
-        const updatedConvo = {
-          ...selectedConversation,
-          lastMsgContent: generateLastMsgContent(MESSAGE_TYPE.Audio),
-          lastMsgTime: lastMsg.createTime,
-          updateTime: lastMsg.createTime,
-        };
-
-        upsertAndPinConversation(updatedConvo);
-        setSelectedConversation(updatedConvo);
-      }
-    }
   };
 
   return (

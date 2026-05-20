@@ -25,7 +25,7 @@ export namespace AuthTypes {
     id: string;
     email: string;
     nickname: string | null;
-    avatar_url: string | null;
+    avatarUrl: string | null;
     state: number;
   }
 }

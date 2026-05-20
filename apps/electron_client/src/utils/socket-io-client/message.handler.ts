@@ -2,7 +2,7 @@ import { ELECTRON_TO_CLIENT_CHANNELS, MessageType, SOCKET_ERROR_CODE } from '@c_
 import { CChatSocket, ClientToServerEvents, ServerToClientEvents } from '.';
 import { MessageHandlerRegistry } from './message-handler.registry';
 import { Socket } from 'socket.io-client';
-import { Command } from '@c_chat/shared-protobuf';
+import { Command, NewUpdateMessage } from '@c_chat/shared-protobuf';
 import {
   ClientDecodeProtoMapKey,
   ClientDecodeProtoCallback,
@@ -16,8 +16,11 @@ import {
   uploadTaskTableClass,
 } from '../../db';
 import {
+  ConversationTypeEnum,
+  LocalConversationListItem,
   LocalMessageListItem,
   MessageStatusEnum,
+  RequiredNonNullable,
   UploadStatusEnum,
   WebContentEvents,
 } from '@c_chat/shared-types';
@@ -68,7 +71,10 @@ export class MessageHandler extends MessageHandlerRegistry {
   }
 
   /** 渲染进程通信 */
-  protected _sendToRenderer(channel: string, data?: unknown): void {
+  protected _sendToRenderer<T extends keyof WebContentEvents>(
+    channel: T,
+    data?: Parameters<WebContentEvents[T]>[0],
+  ): void {
     const window = WindowManager.getInstance().getWindow(this.windowId);
     if (!window) {
       throw new Error(`窗口${this.windowId}不存在`);
@@ -95,12 +101,14 @@ export class MessageHandler extends MessageHandlerRegistry {
     const responseHandler: Partial<ClientDecodeProtoCallback> = {
       [ServiceToClientEvent.getUserInfoResponse]: (data) => {
         if (data.id) {
-          this._sendToRenderer(ELECTRON_TO_CLIENT_CHANNELS.SocketConnSuccess, data);
+          const userInfo = {
+            ...data,
+            avatarUrl: data?.avatarUrl ?? '',
+            nickname: data?.nickname ?? '',
+          };
+          this._sendToRenderer(ELECTRON_TO_CLIENT_CHANNELS.SocketConnSuccess, userInfo);
           // WindowManager.getInstance().applyWindowAuthState(this.windowId, true);
-          storeTableClass.setUserInfo(
-            { ...data, avatar_url: data?.avatarUrl ?? '', nickname: data?.nickname ?? '' },
-            this.windowId,
-          );
+          storeTableClass.setUserInfo(userInfo, this.windowId);
         } else {
           // MainWindowManager.showToast('error', '登录失败，请检查用户名和密码');
           WindowManager.showToast(this.windowId, 'error', '登录失败，请检查用户名和密码');
@@ -121,46 +129,118 @@ export class MessageHandler extends MessageHandlerRegistry {
         console.log('socket error', data);
       },
 
-      [ServiceToClientEvent.newMessage]: (data) => {
-        console.log('收到实时消息推送:', data);
+      [ServiceToClientEvent.newUpdateMessage]: (data) => {
+        console.log('收到实时消息更新', data);
         if (!data) {
           return;
         }
-        // let waveform: LocalMessageListItem['waveform'];
-        // if (data.media?.waveform) {
-        //   const packed = Uint8Array.from(Buffer.from(data.media?.waveform, 'base64'));
-        //   waveform = decodeWaveform(packed);
-        // }
 
-        const newMsg: LocalMessageListItem = {
-          ...data,
-          waveform: data.media?.waveform ?? '',
-          fileId: data.media?.fileId ?? '',
-          fileUrl: data.media?.fileUrl ?? '',
-          mediaGroupId: data?.mediaGroupId ?? '',
-          type: data.type as MessageType,
-          status: MessageStatusEnum.success,
-          createTime: Number(data.createTime),
-          localTime: Number(data.updateTime),
-          updateTime: Number(data.updateTime),
-        };
-        // 1. 写入本地消息表
-        messageTableClass.upsertMessages([newMsg]);
+        const { messages, conversations } = data;
+        const updateConvos = new Map<
+          string,
+          Pick<LocalConversationListItem, 'lastMsgContent' | 'lastMsgTime' | 'updateTime'>
+        >();
 
-        // 2. 更新本地会话表快照
-        const convo = conversationTableClass.getConversation(newMsg.conversationId);
-        if (convo) {
-          const newConvo = {
-            ...convo,
-            lastMsgContent: newMsg.content,
-            lastMsgTime: newMsg.createTime,
-            updateTime: newMsg.updateTime,
-          };
-          conversationTableClass.upsertConversations([newConvo]);
+        const newMessages: LocalMessageListItem[] =
+          messages?.map((update) => {
+            const {
+              id,
+              conversationId,
+              msgId,
+              clientMsgId,
+              senderId,
+              content,
+              media,
+              mediaGroupId,
+              type,
+              createTime,
+              updateTime,
+            } = update as RequiredNonNullable<NewUpdateMessage['messages'][number]>;
+            const numCreateTime = Number(createTime);
+            const numUpdateTime = Number(updateTime);
+
+            updateConvos.set(conversationId, {
+              lastMsgContent: content,
+              lastMsgTime: numCreateTime,
+              updateTime: numUpdateTime,
+            });
+
+            return {
+              id,
+              conversationId,
+              msgId,
+              clientMsgId,
+              senderId,
+              content,
+              waveform: media?.waveform ?? '',
+              fileId: media?.fileId ?? '',
+              fileUrl: media?.fileUrl ?? media?.file?.url ?? '',
+              fileName: media?.file?.fileName ?? '',
+              mimeType: media?.file?.mimeType ?? '',
+              fileSize: Number(media?.file?.size ?? 0),
+              duration: media?.durationSec ?? 0,
+              mediaGroupId: mediaGroupId ?? '',
+              type: type as MessageType,
+              status: MessageStatusEnum.success,
+              createTime: numCreateTime,
+              localTime: numUpdateTime,
+              updateTime: numUpdateTime,
+            };
+          }) ?? [];
+
+        messageTableClass.upsertMessages(newMessages);
+
+        const pushedConversations: LocalConversationListItem[] =
+          conversations?.map((convo) => ({
+            id: convo.id ?? '',
+            type: convo.type ?? ConversationTypeEnum.Single,
+            targetId: convo.targetInfo?.id ?? '',
+            targetName: convo.targetInfo?.name ?? '',
+            targetAvatar: convo.targetInfo?.avatarUrl ?? '',
+            lastMsgContent: convo.lastMsgContent ?? '',
+            lastMsgTime: Number(convo.lastMsgTime ?? 0),
+            unreadCount: convo.unreadCount ?? 0,
+            lastReadMessageId: convo.lastReadMessageId ?? 0,
+            updateTime: Number(convo.updateTime ?? 0),
+            createTime: Number(convo.createTime ?? 0),
+          })) ?? [];
+
+        const localConvos = conversationTableClass.getConversationByIds(
+          Array.from(updateConvos.keys()),
+        );
+        const currentUserId = storeTableClass.getUserInfo(this.windowId)?.id;
+        const conversationById = new Map<string, LocalConversationListItem>();
+
+        for (const convo of localConvos) {
+          conversationById.set(convo.id, { ...convo, ...updateConvos.get(convo.id) });
         }
 
-        // 3. 通知渲染进程刷新 UI
-        this._sendToRenderer(ELECTRON_TO_CLIENT_CHANNELS.newMessage, newMsg);
+        for (const convo of pushedConversations) {
+          const existing = conversationById.get(convo.id);
+          const shouldReplace =
+            !existing ||
+            (Boolean(convo.targetId) && convo.targetId !== currentUserId) ||
+            !existing.targetId ||
+            existing.targetId === currentUserId;
+
+          if (shouldReplace) {
+            conversationById.set(convo.id, {
+              ...existing,
+              ...convo,
+              ...updateConvos.get(convo.id),
+            });
+          }
+        }
+
+        const nextConversations = Array.from(conversationById.values());
+        if (nextConversations.length > 0) {
+          conversationTableClass.upsertConversations(nextConversations);
+        }
+
+        this._sendToRenderer(ELECTRON_TO_CLIENT_CHANNELS.newUpdateMessage, {
+          messages: newMessages,
+          conversations: nextConversations,
+        });
       },
       [ServiceToClientEvent.sendFileUploadComplete]: async (data) => {
         const { uploadId, fileId } = data ?? {};
@@ -215,7 +295,7 @@ export class MessageHandler extends MessageHandlerRegistry {
           handle(data as never);
           return;
         }
-        // console.log(`subscribeToEvent ${e}：`, data);
+        // console.log(`subscribeToEvent ${e}锛歚, data);
       });
     });
   }

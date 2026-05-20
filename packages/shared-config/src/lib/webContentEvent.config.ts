@@ -8,7 +8,7 @@ export const ELECTRON_TO_CLIENT_CHANNELS = {
   SocketDisconnected: 'socketDisconnected',
   SocketReconnecting: 'socketReconnecting',
 
-  newMessage: 'newMessage',
+  newUpdateMessage: 'newUpdateMessage',
 
   /** 上传进度 */
   uploadProgress: 'uploadProgress',

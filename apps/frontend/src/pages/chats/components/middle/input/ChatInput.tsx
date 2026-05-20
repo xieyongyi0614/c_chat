@@ -12,12 +12,7 @@ import { type FileInfoListItem } from '@c_chat/shared-types';
 import RecordingButton from './RecordingButton';
 
 export function ChatInput() {
-  const {
-    selectedConversation,
-    selectedUserForDraft,
-    setSelectedConversation,
-    upsertAndPinConversation,
-  } = useChatStore();
+  const { selectedConversation, selectedUserForDraft } = useChatStore();
   const { addMsgList } = useMessageStore();
 
   const [inputValue, setInputValue] = useState('');
@@ -106,21 +101,6 @@ export function ChatInput() {
       return;
     }
     addMsgList(messages);
-
-    if (selectedConversation) {
-      const lastMsg = messages[messages.length - 1];
-      if (lastMsg.conversationId === selectedConversation.id) {
-        const updatedConvo = {
-          ...selectedConversation,
-          lastMsgContent: content,
-          lastMsgTime: lastMsg.createTime,
-          updateTime: lastMsg.createTime,
-        };
-
-        upsertAndPinConversation(updatedConvo);
-        setSelectedConversation(updatedConvo);
-      }
-    }
     return true;
   };
 

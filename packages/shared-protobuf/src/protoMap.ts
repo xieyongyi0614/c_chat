@@ -4,7 +4,6 @@ import {
   UserInfo,
   ConversationInfo,
   SendMessageRequest,
-  MessageInfo,
   GetConversationListRequest,
   GetConversationListResponse,
   GetMessageHistoryRequest,
@@ -14,6 +13,7 @@ import {
   ErrorResult,
   AckSendMessage,
   SendFileUploadComplete,
+  NewUpdateMessage,
 } from '.';
 
 /** 服务端发送socket事件 */
@@ -28,7 +28,7 @@ export const ServiceToClientEvent = {
   ReadMessageResponse: 'ReadMessageResponse',
 
   ackSendMessage: 'ackSendMessage',
-  newMessage: 'newMessage',
+  newUpdateMessage: 'newUpdateMessage',
   newConversation: 'newConversation',
 
   sendFileUploadComplete: 'sendFileUploadComplete',
@@ -48,7 +48,7 @@ export const clientDecodeProtoMap = {
   // [ServiceToClientEvent.createConversation]: ConversationInfo,
 
   [ServiceToClientEvent.ackSendMessage]: AckSendMessage,
-  [ServiceToClientEvent.newMessage]: MessageInfo,
+  [ServiceToClientEvent.newUpdateMessage]: NewUpdateMessage,
   [ServiceToClientEvent.newConversation]: ConversationInfo,
   [ServiceToClientEvent.sendFileUploadComplete]: SendFileUploadComplete,
 };
