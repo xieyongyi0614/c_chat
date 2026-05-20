@@ -12,7 +12,7 @@ export const useChatsData = () => {
   const { userInfo } = useUserStore();
   const { conversationData, setConversationData, selectedConversation, markConversationAsRead } =
     useChatStore();
-  const { addMsgList } = useMessageStore();
+  const { addMsgList, clear, setDataConversationId } = useMessageStore();
 
   const fetchLocalConversationData = async (param?: GetLocalConversationListParams) => {
     const [err, res] = await to(ipc.GetLocalConversationList(param));
@@ -98,6 +98,12 @@ export const useChatsData = () => {
 
   useEffect(() => {
     if (selectedConversation) {
+      const shouldReload =
+        useMessageStore.getState().dataConversationId !== selectedConversation.id;
+      if (shouldReload) {
+        clear();
+        setDataConversationId(selectedConversation.id);
+      }
       fetchLocalMessageHistory(selectedConversation.id);
       fetchMessageHistory(selectedConversation.id);
       if ((selectedConversation.unreadCount ?? 0) > 0) {

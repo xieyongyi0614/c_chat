@@ -68,6 +68,21 @@ export class ConversationTable extends TableConnection {
     return row ? this.mapRowToRecord(row) : undefined;
   }
 
+  getConversationByIds(ids: string[]): LocalConversationListItem[] {
+    if (!ids.length) {
+      return [];
+    }
+
+    const placeholders = ids.map(() => '?').join(',');
+
+    const rows = this.all<DBConversationListItem>(
+      `SELECT * FROM ${this.TABLE_NAME} WHERE id IN (${placeholders})`,
+      ids,
+    );
+
+    return rows.map((row) => this.mapRowToRecord(row));
+  }
+
   /**
    * 获取最近更新时间
    */

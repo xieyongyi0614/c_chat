@@ -139,3 +139,8 @@ message SendFileUploadComplete{
   string uploadId = 1;
   string fileId = 2;
 }
+message NewUpdateMessage{
+  repeated MessageInfo messages = 1;
+  repeated UserInfo users = 2;
+  repeated ConversationInfo conversations = 3;
+}

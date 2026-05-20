@@ -215,7 +215,7 @@ Command { event, userId, client, requestId, payload[] }
 ### protoMap.ts 关键映射
 
 - **ClientToServiceEvent**：`ping`, `getUserInfo`, `getUserList`, `sendMessage`, `getConversationList`, `getMessageHistory`, `readMessage` 等
-- **ServiceToClientEvent**：`pong`, `getUserInfoResponse`, `newMessage`, `ackSendMessage`, `getConversationListResponse` 等
+- **ServiceToClientEvent**：`pong`, `getUserInfoResponse`, `newUpdateMessage`, `ackSendMessage`, `getConversationListResponse` 等
 - **ClientPaddingRequestsEvent**：客户端请求→期望响应的事件配对
 
 ---

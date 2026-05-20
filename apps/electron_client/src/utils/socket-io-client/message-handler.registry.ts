@@ -74,11 +74,13 @@ export abstract class MessageHandlerRegistry {
             //     '==========================    end    ========================================',
             //   );
             // }
-            this.resolveOrRejectWaiter(
-              command.requestId,
-              decodedResult?.toJSON() || decodedResult,
-              null,
-            );
+            if (command.requestId) {
+              this.resolveOrRejectWaiter(
+                command.requestId,
+                decodedResult?.toJSON() || decodedResult,
+                null,
+              );
+            }
 
             callback(decodedResult?.toJSON() || decodedResult);
           } catch (err) {

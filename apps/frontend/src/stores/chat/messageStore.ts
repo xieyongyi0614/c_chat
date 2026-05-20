@@ -12,7 +12,9 @@ interface MessageStoreData {
 }
 
 export interface MessageStoreType extends MessageStoreData {
+  setDataConversationId: (conversationId: string) => void;
   updateMsg: (newMsg: LocalMessageListItem) => void;
+  updateMsgs: (newMsgs: LocalMessageListItem[]) => void;
   addMsgList: (msgs: LocalMessageListItem[], mode?: 'history' | 'realtime') => void;
   clear: () => void;
 }
@@ -24,6 +26,9 @@ export const useMessageStore = create<MessageStoreType>((set) => ({
 
   clear() {
     set({ msgMap: {}, groups: new Map() });
+  },
+  setDataConversationId(conversationId) {
+    set({ dataConversationId: conversationId });
   },
 
   addMsgList(msgs, mode = 'realtime') {
@@ -68,8 +73,10 @@ export const useMessageStore = create<MessageStoreType>((set) => ({
   updateMsg(newMsg) {
     set((state) => {
       const key = newMsg.mediaGroupId || newMsg.clientMsgId;
-
-      const newMsgMapItem = [...(state.msgMap[key] ?? [])];
+      const oldKey = Object.keys(state.msgMap).find((itemKey) =>
+        state.msgMap[itemKey]?.some((msg) => msg.clientMsgId === newMsg.clientMsgId),
+      );
+      const newMsgMapItem = [...(state.msgMap[oldKey ?? key] ?? [])];
       const index = newMsgMapItem.findIndex((msg) => msg.clientMsgId === newMsg.clientMsgId);
       if (index === -1) {
         newMsgMapItem.push(newMsg);
@@ -77,11 +84,64 @@ export const useMessageStore = create<MessageStoreType>((set) => ({
         newMsgMapItem[index] = { ...newMsgMapItem[index], ...newMsg };
       }
 
+      const nextMsgMap = { ...state.msgMap };
+      if (oldKey && oldKey !== key) {
+        delete nextMsgMap[oldKey];
+      }
+      nextMsgMap[key] = newMsgMapItem.sort((a, b) => b.msgId! - a.msgId!);
+
       return {
-        msgMap: {
-          ...state.msgMap,
-          [key]: newMsgMapItem.sort((a, b) => b.msgId! - a.msgId!),
-        },
+        msgMap: nextMsgMap,
+      };
+    });
+  },
+
+  updateMsgs(msgs) {
+    set((state) => {
+      const nextMsgMap = { ...state.msgMap };
+      const nextGroups = new Map(state.groups);
+
+      for (const newMsg of msgs) {
+        const key = newMsg.mediaGroupId || newMsg.clientMsgId;
+        const oldKey = Object.keys(nextMsgMap).find((itemKey) =>
+          nextMsgMap[itemKey]?.some((msg) => msg.clientMsgId === newMsg.clientMsgId),
+        );
+
+        const currentList = [...(nextMsgMap[oldKey ?? key] ?? [])];
+
+        const index = currentList.findIndex((msg) => msg.clientMsgId === newMsg.clientMsgId);
+
+        if (index === -1) {
+          currentList.push(newMsg);
+        } else {
+          currentList[index] = {
+            ...currentList[index],
+            ...newMsg,
+          };
+        }
+
+        currentList.sort((a, b) => (b.msgId ?? 0) - (a.msgId ?? 0));
+
+        if (oldKey && oldKey !== key) {
+          delete nextMsgMap[oldKey];
+          for (const [dateKey, group] of nextGroups.entries()) {
+            if (group.includes(oldKey)) {
+              nextGroups.set(
+                dateKey,
+                Array.from(
+                  new Set(group.map((groupKey) => (groupKey === oldKey ? key : groupKey))),
+                ),
+              );
+            }
+          }
+        }
+
+        nextMsgMap[key] = currentList;
+      }
+
+      return {
+        msgMap: nextMsgMap,
+        groups: nextGroups,
       };
     });
   },

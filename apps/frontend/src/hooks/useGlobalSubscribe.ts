@@ -2,49 +2,67 @@ import { useEffect } from 'react';
 import { useChatStore, useMessageStore, useUserStore } from '../stores';
 import { ELECTRON_TO_CLIENT_CHANNELS } from '@c_chat/shared-config';
 import { toast } from 'sonner';
-import type { WebContentEvents, WebContentEventType } from '@c_chat/shared-types';
+import type {
+  LocalMessageListItem,
+  WebContentEvents,
+  WebContentEventType,
+} from '@c_chat/shared-types';
 import { useLastCallback } from './useLastCallback';
-import { generateLastMsgContent } from '../utils/lastMsgContentUtil';
 
 /** 全局订阅监听 */
 export const useGlobalSubscribe = () => {
   const { userInfo, isSignedIn } = useUserStore();
-  const { updateConversationSnapshot } = useChatStore();
-  const { updateMsg, addMsgList } = useMessageStore();
+  const { upsertAndPinConversation } = useChatStore();
+  const { updateMsgs, addMsgList } = useMessageStore();
+  const dataConversationId = useMessageStore((s) => s.dataConversationId);
+  const hasSelectedDraft = useChatStore((s) => Boolean(s.selectedUserForDraft));
 
-  const selectedConversationId = useChatStore((s) => s.selectedConversation?.id);
+  const newUpdateMessageHandle = useLastCallback<WebContentEvents['newUpdateMessage']>((data) => {
+    console.log('收到 updates', data);
+    const { messages, conversations } = data;
 
-  const newMessageHandle = useLastCallback<WebContentEvents['newMessage']>((data) => {
-    console.log('收到新消息:', data);
-    if (data) {
-      const isOwnMessage = data.senderId === userInfo?.id;
-      const isCurrentConversation = selectedConversationId === data.conversationId;
+    if (messages?.length) {
+      const ownUpdates: LocalMessageListItem[] = [];
+      const incomingAdds: LocalMessageListItem[] = [];
 
-      if (isOwnMessage) {
-        console.log('收到自己发送的消息推送，更新数据');
-        if (isCurrentConversation) updateMsg(data);
-      } else {
-        if (isCurrentConversation) addMsgList([data]);
+      for (const msg of messages) {
+        const isOwnMessage = msg.senderId === userInfo?.id;
+        const isCurrentConversation =
+          msg.conversationId === dataConversationId || (isOwnMessage && hasSelectedDraft);
+
+        if (!isCurrentConversation) {
+          continue;
+        }
+        if (isOwnMessage) {
+          ownUpdates.push(msg);
+        } else {
+          incomingAdds.push(msg);
+        }
       }
 
-      updateConversationSnapshot(
-        data.conversationId,
-        generateLastMsgContent(data.type, data.content),
-        data.createTime,
-      );
+      if (ownUpdates.length > 0) {
+        updateMsgs(ownUpdates);
+      }
+      if (incomingAdds.length > 0) {
+        addMsgList(incomingAdds);
+      }
+    }
+
+    if (conversations?.length) {
+      conversations.forEach((conversation) => {
+        upsertAndPinConversation(conversation);
+      });
     }
   });
 
   const uploadProgressHandle = useLastCallback<WebContentEvents['uploadProgress']>((data) => {
     if (data?.clientMsgId) {
-      // updateMsg({ clientMsgId: data.clientMsgId, progress: data.progress } as LocalMessageListItem);
       console.log('上传进度:', data);
     }
   });
 
-  const subscribeAll = (subscriptions: ReturnType<WebContentEventType['on']>[]) => {
-    return () => subscriptions.forEach((unSub) => unSub());
-  };
+  const subscribeAll = (subscriptions: ReturnType<WebContentEventType['on']>[]) => () =>
+    subscriptions.forEach((unSub) => unSub());
 
   useEffect(() => {
     window.c_chat.on(ELECTRON_TO_CLIENT_CHANNELS.Toast, (type, message) => {
@@ -62,9 +80,7 @@ export const useGlobalSubscribe = () => {
   useEffect(() => {
     if (isSignedIn()) {
       const unSubscriptions = [
-        // 监听实时消息推送
-        window.c_chat.on(ELECTRON_TO_CLIENT_CHANNELS.newMessage, newMessageHandle),
-        // 监听上传进度
+        window.c_chat.on(ELECTRON_TO_CLIENT_CHANNELS.newUpdateMessage, newUpdateMessageHandle),
         window.c_chat.on(ELECTRON_TO_CLIENT_CHANNELS.uploadProgress, uploadProgressHandle),
       ];
       return subscribeAll(unSubscriptions);

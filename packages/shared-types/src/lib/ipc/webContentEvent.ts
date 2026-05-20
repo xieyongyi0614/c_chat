@@ -2,7 +2,7 @@ import { ELECTRON_TO_CLIENT_CHANNELS } from '@c_chat/shared-config';
 import { ErrorResult } from '@c_chat/shared-protobuf';
 import { AuthTypes } from './apiTypes';
 import { SocketTypes } from '../socket.types';
-import { LocalMessageListItem } from '../db';
+import { LocalConversationListItem, LocalMessageListItem } from '../db';
 type Unsubscribe = () => void;
 export interface WebContentEventType {
   on: <T extends keyof WebContentEvents>(channel: T, callback: WebContentEvents[T]) => Unsubscribe;
@@ -10,15 +10,25 @@ export interface WebContentEventType {
   off: (channel: string, callback: (data: any) => void) => void;
 }
 
-const { SocketConnSuccess, SocketDisconnected, ERROR, SocketReconnecting, Toast, newMessage, uploadProgress } =
-  ELECTRON_TO_CLIENT_CHANNELS;
+const {
+  SocketConnSuccess,
+  SocketDisconnected,
+  ERROR,
+  SocketReconnecting,
+  Toast,
+  newUpdateMessage,
+  uploadProgress,
+} = ELECTRON_TO_CLIENT_CHANNELS;
 
 export interface WebContentEvents {
   [SocketConnSuccess]: (data: AuthTypes.GetUserInfoResponse) => void;
   [SocketDisconnected]: (data: any) => void;
   [ERROR]: (error: Partial<Pick<ErrorResult, 'errorCode' | 'errorMessage'>>) => void;
   [SocketReconnecting]: (error: SocketTypes.WebContentEvents.SocketReconnectingType) => void;
-  [newMessage]: (data: LocalMessageListItem) => void;
+  [newUpdateMessage]: (data: {
+    messages?: LocalMessageListItem[];
+    conversations?: LocalConversationListItem[];
+  }) => void;
   [uploadProgress]: (data: { clientMsgId: string; progress: number }) => void;
 
   [Toast]: (type: 'success' | 'error' | 'info' | 'warning' | 'loading', message: string) => void;
