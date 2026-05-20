@@ -3,9 +3,9 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "main": "./src/index.ts",
-  "module": "./src/index.ts",
-  "types": "./src/index.ts",
+  "main": "./dist/index.es.js",
+  "module": "./dist/index.es.js",
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -19,7 +19,7 @@
   ],
   "scripts": {
     "test": "vite",
-    "dev": "vite build --watch",
+    "dev": "vite build --watch --mode development",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",

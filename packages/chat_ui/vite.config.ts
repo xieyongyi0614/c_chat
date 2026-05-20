@@ -5,7 +5,7 @@ import dts from 'vite-plugin-dts';
 import tailwindcss from '@tailwindcss/vite';
 
 // https://vite.dev/config/
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [
     tailwindcss(),
     react({
@@ -51,6 +51,6 @@ export default defineConfig({
     },
     sourcemap: true,
     outDir: 'dist',
-    emptyOutDir: true,
+    emptyOutDir: mode !== 'development',
   },
-});
+}));
