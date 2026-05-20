@@ -109,6 +109,7 @@ export class MessageHandler extends MessageHandlerRegistry {
           this._sendToRenderer(ELECTRON_TO_CLIENT_CHANNELS.SocketConnSuccess, userInfo);
           // WindowManager.getInstance().applyWindowAuthState(this.windowId, true);
           storeTableClass.setUserInfo(userInfo, this.windowId);
+          WindowManager.getInstance().notifyWindowStateChange();
         } else {
           // MainWindowManager.showToast('error', '登录失败，请检查用户名和密码');
           WindowManager.showToast(this.windowId, 'error', '登录失败，请检查用户名和密码');

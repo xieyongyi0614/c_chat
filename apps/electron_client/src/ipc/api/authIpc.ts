@@ -7,6 +7,11 @@ import { GetUserList } from '@c_chat/shared-protobuf';
 import { to, transformPageParams, transformPagination } from '@c_chat/shared-utils';
 import { UserTypes } from '@c_chat/shared-types';
 import { ClientToServiceEvent } from '@c_chat/shared-protobuf/protoMap';
+import { WindowManager } from '@c_chat/electron_client/main/windows';
+
+const notifyWindowStateChange = () => {
+  WindowManager.getInstance().notifyWindowStateChange();
+};
 
 /** 登录 */
 addActionHandler('SignIn', async (params) => {
@@ -15,6 +20,7 @@ addActionHandler('SignIn', async (params) => {
     throw new Error('登录失败,不存在token');
   }
   storeTableClass.setAccessToken(res.access_token, params.windowId);
+  notifyWindowStateChange();
   await socketManager.initSocket(params.windowId);
 });
 
@@ -34,6 +40,7 @@ addActionHandler('AutoSignIn', async (params) => {
 addActionHandler('Logout', async (params) => {
   socketManager.destroySocket(params.windowId);
   storeTableClass.clearAuthData(params.windowId);
+  notifyWindowStateChange();
 });
 
 /** 注册 */
@@ -43,6 +50,7 @@ addActionHandler('SignUp', async (params) => {
     throw new Error('注册失败,不存在token');
   }
   storeTableClass.setAccessToken(res.access_token, params.windowId);
+  notifyWindowStateChange();
   await socketManager.initSocket(params.windowId);
   // return ;
 });
@@ -66,6 +74,7 @@ addActionHandler('UpdateUserProfile', async (params) => {
   });
   if (userInfo) {
     storeTableClass.setUserInfo(userInfo, params.windowId);
+    notifyWindowStateChange();
   }
   return userInfo;
 });
