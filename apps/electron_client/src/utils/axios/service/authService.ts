@@ -69,6 +69,23 @@ export class AuthService extends BaseService {
     return response.data.data;
   }
 
+  /**
+   * 更新用户信息
+   */
+  public async updateUserProfile(params: AuthTypes.UpdateUserProfileParams & ActionCtx) {
+    const [err, response] = await this.apiTool(
+      this.httpClient.patch<AuthTypes.GetUserInfoResponse>('/users/profile', {
+        nickname: params.nickname,
+        avatarUrl: params.avatarUrl,
+      }),
+    );
+    if (err) {
+      console.error('更新用户信息失败:', err.message);
+      return;
+    }
+    return response.data.data;
+  }
+
   //TODO 未对接
 
   // /**

@@ -2,6 +2,12 @@ import { BaseService } from './baseService';
 import { HttpClient } from '../httpClient';
 import { UploadTypes } from '@c_chat/shared-types';
 import { UPLOAD_CHUNK_SIZE } from '@c_chat/shared-config';
+import fs from 'fs';
+import path from 'path';
+import {
+  calcFileHashWithProgress,
+  readChunkAsBlob,
+} from '@c_chat/electron_client/utils/calcFileHash';
 
 export class UploadService extends BaseService {
   private chunkSize = UPLOAD_CHUNK_SIZE;
@@ -96,5 +102,52 @@ export class UploadService extends BaseService {
       return;
     }
     return response.data.data;
+  }
+
+  public async uploadFileByPath(filePath: string) {
+    const stat = fs.statSync(filePath);
+    const fileName = path.basename(filePath);
+    const fileSize = stat.size;
+    const fileHash = await calcFileHashWithProgress(filePath);
+
+    const uploadInit = await this.uploadInit({ fileName, fileHash, fileSize });
+    if (!uploadInit) {
+      throw new Error('文件上传初始化失败');
+    }
+
+    if (uploadInit.file?.url) {
+      return uploadInit.file;
+    }
+
+    const session = uploadInit.uploadSession;
+    if (!session?.id) {
+      throw new Error('文件上传会话创建失败');
+    }
+
+    const chunkSize = Number(session.chunkSize ?? this.chunkSize);
+    const totalChunks = Math.max(1, Number(session.totalChunks ?? Math.ceil(fileSize / chunkSize)));
+
+    for (let idx = 0; idx < totalChunks; idx++) {
+      const chunk = await readChunkAsBlob(filePath, idx, chunkSize);
+      const chunkRes = await this.uploadChunk({
+        uploadId: session.id,
+        chunkIndex: idx,
+        chunk,
+        fileName,
+        totalChunks,
+        fileSize,
+      });
+
+      if (!chunkRes?.ok) {
+        throw new Error('文件分片上传失败');
+      }
+    }
+
+    const completeRes = await this.uploadComplete({ uploadId: session.id, usage: 'file' });
+    if (!completeRes?.file?.url) {
+      throw new Error('文件合并失败');
+    }
+
+    return completeRes.file;
   }
 }

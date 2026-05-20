@@ -18,7 +18,7 @@ export type SelectUploadFilesParams = {
 
 /** 选择文件 */
 addActionHandler('SelectFiles', async (params) => {
-  const { allowMultiSelect = true } = params;
+  const { allowMultiSelect = true, filters } = params;
   const browserWindow = BrowserWindow.getFocusedWindow() ?? undefined;
   if (!browserWindow) {
     return [];
@@ -31,7 +31,7 @@ addActionHandler('SelectFiles', async (params) => {
   const result = await dialog.showOpenDialog(browserWindow, {
     title: '选择要上传的文件',
     properties,
-    // filters,
+    filters,
   });
 
   if (result.canceled) {

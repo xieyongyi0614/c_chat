@@ -5,6 +5,9 @@ import type { AuthTypes } from '@c_chat/shared-types';
 type UserState = {
   userInfo: AuthTypes.GetUserInfoResponse | null;
   setUserInfo: (userInfo: AuthTypes.GetUserInfoResponse | null) => void;
+  updateUserProfile: (
+    params: AuthTypes.UpdateUserProfileParams,
+  ) => Promise<AuthTypes.GetUserInfoResponse | undefined>;
   isSignedIn: () => boolean;
   refreshUserInfo: () => Promise<AuthTypes.GetUserInfoResponse | undefined>;
   logout: () => Promise<void>;
@@ -16,6 +19,14 @@ export const useUserStore = create<UserState>((set, get) => ({
 
   setUserInfo: async (userInfo) => {
     set({ userInfo });
+  },
+
+  updateUserProfile: async (params) => {
+    const userInfo = await ipc.UpdateUserProfile(params);
+    if (userInfo) {
+      set({ userInfo });
+    }
+    return userInfo;
   },
 
   refreshUserInfo: async () => {

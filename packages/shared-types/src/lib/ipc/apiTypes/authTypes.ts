@@ -28,6 +28,13 @@ export namespace AuthTypes {
     avatarUrl: string | null;
     state: number;
   }
+
+  export interface UpdateUserProfileParams {
+    nickname?: string;
+    avatarUrl?: string;
+    /** Renderer passes a local file path; main process uploads it through UploadService first. */
+    avatarFilePath?: string;
+  }
 }
 
 export namespace UserTypes {

@@ -52,6 +52,24 @@ addActionHandler('GetUserInfo', () => {
   return ApiClient.auth.getUserInfo();
 });
 
+/** 更新用户信息 */
+addActionHandler('UpdateUserProfile', async (params) => {
+  const avatarUrl = params.avatarFilePath
+    ? (await ApiClient.upload.uploadFileByPath(params.avatarFilePath)).url
+    : params.avatarUrl;
+
+  const userInfo = await ApiClient.auth.updateUserProfile({
+    nickname: params.nickname,
+    avatarUrl,
+    windowId: params.windowId,
+    webContentId: params.webContentId,
+  });
+  if (userInfo) {
+    storeTableClass.setUserInfo(userInfo, params.windowId);
+  }
+  return userInfo;
+});
+
 /** 获取用户列表 */
 addActionHandler('GetUserList', async (data) => {
   const newPageParams = transformPageParams(data.pagination);

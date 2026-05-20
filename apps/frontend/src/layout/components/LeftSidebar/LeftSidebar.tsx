@@ -1,5 +1,6 @@
-import { useMemo, useState, type ChangeEvent, type ComponentType } from 'react';
+import { useMemo, useState, type ComponentType } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 import {
   Archive,
   Bell,
@@ -13,14 +14,12 @@ import {
 } from 'lucide-react';
 import { Separator } from '@c_chat/ui';
 import { useChatStore, useUserStore } from '@c_chat/frontend/stores';
-import {
-  AccountMenu,
-  ProfileDialog,
-  SidebarFolderButton,
-  SidebarNavButton,
-  type ProfileStats,
-  type SidebarProfile,
-} from './LeftSidebarComponents';
+import { AccountMenu } from './AccountMenu';
+import { ProfileDialog } from './ProfileDialog';
+import { SidebarFolderButton } from './SidebarFolderButton';
+import { SidebarNavButton } from './SidebarNavButton';
+import type { ProfileStats, SidebarProfile } from './types';
+import { ipc } from '@c_chat/shared-utils';
 
 type NavId = 'chats' | 'contacts' | 'saved' | 'settings';
 type FolderId = 'all' | 'unread' | 'personal' | 'groups' | 'archive';
@@ -31,10 +30,10 @@ const navItems: Array<{
   icon: ComponentType<{ className?: string }>;
   path?: string;
 }> = [
-  { id: 'chats', label: '消息', icon: MessageCircle, path: '/chat' },
-  { id: 'contacts', label: '联系人', icon: UsersRound },
-  { id: 'saved', label: '收藏', icon: Bookmark },
-  { id: 'settings', label: '设置', icon: Settings },
+  { id: 'chats', label: '\u6d88\u606f', icon: MessageCircle, path: '/chat' },
+  { id: 'contacts', label: '\u8054\u7cfb\u4eba', icon: UsersRound },
+  { id: 'saved', label: '\u6536\u85cf', icon: Bookmark },
+  { id: 'settings', label: '\u8bbe\u7f6e', icon: Settings },
 ];
 
 const folderItems: Array<{
@@ -42,30 +41,31 @@ const folderItems: Array<{
   label: string;
   icon: ComponentType<{ className?: string }>;
 }> = [
-  { id: 'all', label: '全部', icon: Inbox },
-  { id: 'unread', label: '未读', icon: Bell },
-  { id: 'personal', label: '私聊', icon: UserRound },
-  { id: 'groups', label: '群组', icon: Folder },
-  { id: 'archive', label: '归档', icon: Archive },
+  { id: 'all', label: '\u5168\u90e8', icon: Inbox },
+  { id: 'unread', label: '\u672a\u8bfb', icon: Bell },
+  { id: 'personal', label: '\u79c1\u804a', icon: UserRound },
+  { id: 'groups', label: '\u7fa4\u7ec4', icon: Folder },
+  { id: 'archive', label: '\u5f52\u6863', icon: Archive },
 ];
 
 export function LeftSidebar() {
   const navigate = useNavigate();
   const location = useLocation();
   const userInfo = useUserStore((state) => state.userInfo);
-  const setUserInfo = useUserStore((state) => state.setUserInfo);
+  const updateUserProfile = useUserStore((state) => state.updateUserProfile);
   const logout = useUserStore((state) => state.logout);
   const conversations = useChatStore((state) => state.conversationData.list);
 
   const [activeFolder, setActiveFolder] = useState<FolderId>('all');
   const [profileOpen, setProfileOpen] = useState(false);
+  const [savingProfile, setSavingProfile] = useState(false);
   const [draftProfile, setDraftProfile] = useState<SidebarProfile>({
     avatarUrl: '',
     nickname: '',
   });
 
   const displayProfile = useMemo<SidebarProfile>(() => {
-    const nickname = userInfo?.nickname || userInfo?.email || '未命名账号';
+    const nickname = userInfo?.nickname || userInfo?.email || '\u672a\u547d\u540d\u8d26\u53f7';
     return {
       avatarUrl: userInfo?.avatarUrl || '',
       nickname,
@@ -98,40 +98,50 @@ export function LeftSidebar() {
     setProfileOpen(true);
   };
 
+  const handleSelectAvatar = async () => {
+    const files = await ipc.SelectFiles({
+      allowMultiSelect: false,
+      filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif'] }],
+    });
+    const file = files?.[0];
+    if (!file) return;
+
+    setSavingProfile(true);
+    try {
+      const updated = await updateUserProfile({ avatarFilePath: file.filePath });
+      setDraftProfile((profile) => ({
+        ...profile,
+        avatarUrl: updated?.avatarUrl ?? file.url ?? profile.avatarUrl,
+      }));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : '\u5934\u50cf\u4e0a\u4f20\u5931\u8d25');
+    } finally {
+      setSavingProfile(false);
+    }
+  };
+
   const handleLogout = async () => {
     await logout();
     navigate('/auth/sign-in', { replace: true });
   };
 
-  const handleAvatarFileChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      setDraftProfile((profile) => ({
-        ...profile,
-        avatarUrl: String(reader.result ?? profile.avatarUrl),
-      }));
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const handleSaveProfile = () => {
+  const handleSaveProfile = async () => {
     const nextProfile = {
-      avatarUrl: draftProfile.avatarUrl.trim(),
       nickname: draftProfile.nickname.trim() || displayProfile.nickname,
     };
 
-    if (userInfo) {
-      setUserInfo({
-        ...userInfo,
-        nickname: nextProfile.nickname,
-        avatarUrl: nextProfile.avatarUrl || userInfo.avatarUrl,
-      });
+    try {
+      setSavingProfile(true);
+      await updateUserProfile(nextProfile);
+      toast.success('\u8d26\u53f7\u8d44\u6599\u5df2\u66f4\u65b0');
+      setProfileOpen(false);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : '\u8d26\u53f7\u8d44\u6599\u66f4\u65b0\u5931\u8d25',
+      );
+    } finally {
+      setSavingProfile(false);
     }
-
-    setProfileOpen(false);
   };
 
   const profileStats: ProfileStats = {
@@ -197,9 +207,10 @@ export function LeftSidebar() {
         draftProfile={draftProfile}
         email={userInfo?.email}
         stats={profileStats}
+        saving={savingProfile}
         onOpenChange={setProfileOpen}
         onDraftChange={setDraftProfile}
-        onAvatarFileChange={handleAvatarFileChange}
+        onSelectAvatar={handleSelectAvatar}
         onSave={handleSaveProfile}
       />
     </>
