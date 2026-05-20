@@ -85,11 +85,17 @@ export class TrayManager {
   private updateTrayMenu() {
     if (!this.tray) return;
 
-    const stores = storeTableClass.getAllStore('access_token') ?? [];
-    const windowList =
-      stores.length > 0
-        ? stores.map((store) => this.generateWindowListItem(store.windowId))
-        : [this.generateWindowListItem(db.DEFAULT_WINDOW_ID)];
+    const stores = storeTableClass.getAllStore(db.store.ACCESS_TOKEN) ?? [];
+    const windowIds = Array.from(
+      new Set([
+        ...stores.map((store) => store.windowId),
+        ...this.windowManager.getAllWindowIds(),
+        db.DEFAULT_WINDOW_ID,
+      ]),
+    )
+      .filter((windowId) => windowId > db.GLOBAL_WINDOW_ID)
+      .sort((a, b) => a - b);
+    const windowList = windowIds.map((windowId) => this.generateWindowListItem(windowId));
     const menuTemplate: MenuItemConstructorOptions[] = [
       { label: '新建窗口', click: () => this.windowManager.createWindow() },
       { type: 'separator' },

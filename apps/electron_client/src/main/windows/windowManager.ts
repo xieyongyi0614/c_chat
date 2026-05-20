@@ -213,6 +213,10 @@ export class WindowManager {
     return Array.from(this.windows.values());
   }
 
+  getAllWindowIds(): number[] {
+    return Array.from(this.windows.keys()).sort((a, b) => a - b);
+  }
+
   /**
    * 获取窗口数量
    */
@@ -285,22 +289,22 @@ export class WindowManager {
    * 优先使用 db.DEFAULT_WINDOW_ID(1)，然后递增
    */
   private generateWindowId(): number {
-    // 如果默认窗口不存在，使用默认窗口ID
-    if (!this.windows.has(db.DEFAULT_WINDOW_ID)) {
-      return db.DEFAULT_WINDOW_ID;
+    const usedWindowIds = new Set<number>(this.windows.keys());
+    const tokenStores = storeTableClass.getAllStore(db.store.ACCESS_TOKEN) ?? [];
+
+    tokenStores.forEach((store) => {
+      if (store.windowId > db.GLOBAL_WINDOW_ID) {
+        usedWindowIds.add(store.windowId);
+      }
+    });
+
+    for (let windowId = db.DEFAULT_WINDOW_ID; windowId <= this.MAX_WINDOWS; windowId++) {
+      if (!usedWindowIds.has(windowId)) {
+        return windowId;
+      }
     }
 
-    // 从 2 开始查找可用的窗口ID
-    let windowId = 2;
-    while (this.windows.has(windowId) && windowId < this.MAX_WINDOWS) {
-      windowId++;
-    }
-
-    if (windowId >= this.MAX_WINDOWS) {
-      throw new Error('窗口数量已达上限');
-    }
-
-    return windowId;
+    throw new Error('窗口数量已达上限');
   }
 
   /**
@@ -318,6 +322,10 @@ export class WindowManager {
    */
   isWindowAuthenticated(windowId: number): boolean {
     return !!storeTableClass.getAccessToken(windowId);
+  }
+
+  notifyWindowStateChange(): void {
+    this.notifyWindowChange();
   }
 
   /**
