@@ -7,7 +7,7 @@ type UserState = {
   setUserInfo: (userInfo: AuthTypes.GetUserInfoResponse | null) => void;
   isSignedIn: () => boolean;
   refreshUserInfo: () => Promise<AuthTypes.GetUserInfoResponse | undefined>;
-  logout: () => void;
+  logout: () => Promise<void>;
 };
 
 export const useUserStore = create<UserState>((set, get) => ({
@@ -23,7 +23,11 @@ export const useUserStore = create<UserState>((set, get) => ({
     return res;
   },
 
-  logout: () => {
-    set({ userInfo: null });
+  logout: async () => {
+    try {
+      await ipc.Logout();
+    } finally {
+      set({ userInfo: null });
+    }
   },
 }));
