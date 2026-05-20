@@ -8,7 +8,6 @@ import { app, BrowserWindow, shell } from 'electron';
 import EventEmitter from 'events';
 import path, { join } from 'path';
 import { storeTableClass } from '../../db';
-import { ApiClient } from '../../utils/axios/service/apiService';
 import initOsData from '../../utils/osData';
 import { WebContentEvents } from '@c_chat/shared-types';
 import { socketManager } from '../../utils/socket-io-client';
@@ -276,14 +275,7 @@ export class WindowManager {
    * 初始化窗口数据
    * @param windowId 窗口ID
    */
-  private initWindowData(windowId: number): void {
-    // 初始化访问令牌
-    const accessToken = storeTableClass.getAccessToken(windowId);
-
-    if (accessToken) {
-      ApiClient.instance.setAuthHeader(accessToken);
-    }
-
+  private initWindowData(): void {
     // 初始化系统数据
     initOsData();
   }

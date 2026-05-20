@@ -1,13 +1,9 @@
 import { db, IPC_CONFIG } from '@c_chat/shared-config';
 import { IpcMessage, IpcResponse, IpcTypes } from '@c_chat/shared-types';
 import { ipcMain } from 'electron';
+import { runWithActionCtx, type ActionCtx } from './actionContext';
 
-// action注入的上下文类型
-export type ActionCtx = {
-  // event: Electron.IpcMainInvokeEvent;
-  windowId: number;
-  webContentId?: number;
-};
+export type { ActionCtx } from './actionContext';
 
 // 需要适配的参数类型有哪些？
 // enum ParamType {
@@ -94,7 +90,9 @@ export const initActions = () => {
       switch (typeof call) {
         case 'function': {
           const params = message.params;
-          const result = await call({ ...actionCtx, ...params[0] } as never);
+          const result = await runWithActionCtx(actionCtx, () =>
+            call({ ...actionCtx, ...params[0] } as never),
+          );
           // let result;
           // // 如果无参数
           // if (!params?.length) {

@@ -28,7 +28,9 @@ export class AuthService extends BaseService {
    */
   public async signIn(params: AuthTypes.PostSignInParams & ActionCtx) {
     const [err, response] = await this.apiTool(
-      this.httpClient.post<AuthTypes.PostSignInResponse>('/auth/sign-in', params),
+      this.httpClient.post<AuthTypes.PostSignInResponse>('/auth/sign-in', params, {
+        skipAuth: true,
+      }),
     );
     if (err) {
       console.error('登录失败:', err.message);
@@ -40,9 +42,11 @@ export class AuthService extends BaseService {
   /**
    * 用户登录
    */
-  public async signUp(params: AuthTypes.PostSignUpParams) {
+  public async signUp(params: AuthTypes.PostSignUpParams & ActionCtx) {
     const [err, response] = await this.apiTool(
-      this.httpClient.post<AuthTypes.PostSignUpResponse>('/auth/sign-up', params),
+      this.httpClient.post<AuthTypes.PostSignUpResponse>('/auth/sign-up', params, {
+        skipAuth: true,
+      }),
     );
     if (err) {
       console.error('注册失败:', err.message);

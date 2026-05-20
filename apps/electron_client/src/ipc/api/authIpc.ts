@@ -33,7 +33,6 @@ addActionHandler('AutoSignIn', async (params) => {
 /** 退出登录 */
 addActionHandler('Logout', async (params) => {
   socketManager.destroySocket(params.windowId);
-  ApiClient.instance?.clearAuthHeader();
   storeTableClass.clearAuthData(params.windowId);
 });
 
