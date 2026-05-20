@@ -7,6 +7,7 @@ import { SendMessageRequest } from '@c_chat/shared-protobuf';
 import { UPLOAD_CHUNK_SIZE } from '@c_chat/shared-config';
 import { ApiClient } from './axios/service/apiService';
 import { readChunkAsBlob } from './calcFileHash';
+import { runWithActionCtx } from '@c_chat/electron_client/ipc/actionContext';
 
 /** 与服务端 ChunkService + 合并队列搭配的并发度（分片已按序号落盘，可并行上传） */
 const CHUNK_UPLOAD_CONCURRENCY = 4;
@@ -69,6 +70,19 @@ export async function sendSocketMessageWithFile(
  * 用 getFileByHash(采样, size) 取 fileId，无需再算全文件 SHA256。
  */
 export async function startUpload(
+  taskId: string,
+  uploadSession?: NonNullable<UploadTypes.PostUploadInitResponse['uploadSession']>,
+) {
+  const task = uploadTaskTableClass.getByTaskId(taskId);
+  if (!task?.filePath || !task.uploadSessionId) return;
+  const windowId = task.windowId ?? 1;
+
+  return runWithActionCtx({ windowId }, async () => {
+    await startUploadInContext(taskId, uploadSession);
+  });
+}
+
+async function startUploadInContext(
   taskId: string,
   uploadSession?: NonNullable<UploadTypes.PostUploadInitResponse['uploadSession']>,
 ) {

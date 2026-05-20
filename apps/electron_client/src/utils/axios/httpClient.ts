@@ -9,6 +9,8 @@ import * as https from 'https';
 import { HttpsProxyAgent } from 'https-proxy-agent';
 import { app } from 'electron';
 import { WindowManager } from '@c_chat/electron_client/main/windows';
+import { storeTableClass } from '@c_chat/electron_client/db';
+import { getActionCtx } from '@c_chat/electron_client/ipc/actionContext';
 
 interface HttpClientOptions {
   baseURL?: string;
@@ -22,6 +24,11 @@ interface HttpClientOptions {
       password: string;
     };
   };
+}
+
+export interface CChatAxiosRequestConfig extends AxiosRequestConfig {
+  windowId?: number;
+  skipAuth?: boolean;
 }
 
 export class HttpClient {
@@ -70,6 +77,16 @@ export class HttpClient {
    * 处理请求
    */
   private handleRequest(config: InternalAxiosRequestConfig): InternalAxiosRequestConfig {
+    const windowId = this.resolveWindowId(config);
+    if (windowId && !(config as CChatAxiosRequestConfig).skipAuth) {
+      const accessToken = storeTableClass.getAccessToken(windowId);
+      if (accessToken) {
+        config.headers.Authorization = `Bearer ${accessToken}`;
+      } else {
+        delete config.headers.Authorization;
+      }
+    }
+
     console.log(`[HTTP Request] ${config.method?.toUpperCase()} ${config.url}`, {
       params: config.params,
       data: config.data
@@ -84,6 +101,48 @@ export class HttpClient {
     (config as any)._requestTime = Date.now();
 
     return config;
+  }
+
+  private resolveWindowId(config: AxiosRequestConfig): number | null {
+    const explicitWindowId = Number((config as CChatAxiosRequestConfig).windowId);
+    if (explicitWindowId) {
+      return explicitWindowId;
+    }
+
+    const paramsWindowId = Number((config.params as { windowId?: number } | undefined)?.windowId);
+    if (paramsWindowId) {
+      return paramsWindowId;
+    }
+
+    const contextWindowId = getActionCtx()?.windowId;
+    if (contextWindowId) {
+      return contextWindowId;
+    }
+
+    const data = config.data;
+    if (!data) {
+      return null;
+    }
+
+    if (
+      typeof data === 'object' &&
+      (typeof FormData === 'undefined' || !(data instanceof FormData))
+    ) {
+      const dataWindowId = Number((data as { windowId?: number }).windowId);
+      return dataWindowId || null;
+    }
+
+    if (typeof data === 'string') {
+      try {
+        const parsed = JSON.parse(data);
+        const dataWindowId = Number(parsed?.windowId);
+        return dataWindowId || null;
+      } catch {
+        return null;
+      }
+    }
+
+    return null;
   }
 
   /**
@@ -127,12 +186,7 @@ export class HttpClient {
     }
     /**  处理错误toast提示 */
     try {
-      let windowId: number | null = null;
-      if (error.response?.config.method === 'post') {
-        windowId = Number(JSON.parse(error.response?.config.data).windowId);
-      } else if (error.response?.config.method === 'get') {
-        windowId = Number(JSON.parse(error.response?.config.params).windowId);
-      }
+      const windowId = this.resolveWindowId(error.response?.config ?? {});
       if (windowId) {
         /** 处理错误toast提示 */
         WindowManager.showToast(
@@ -153,7 +207,7 @@ export class HttpClient {
    */
   public async get<T = any>(
     url: string,
-    config?: AxiosRequestConfig,
+    config?: CChatAxiosRequestConfig,
   ): Promise<AxiosResponse<API.ApiResponse<T>>> {
     return this.axiosInstance.get<API.ApiResponse<T>>(url, config);
   }
@@ -164,7 +218,7 @@ export class HttpClient {
   public async post<T = any>(
     url: string,
     data?: any,
-    config?: AxiosRequestConfig,
+    config?: CChatAxiosRequestConfig,
   ): Promise<AxiosResponse<API.ApiResponse<T>>> {
     return this.axiosInstance.post<API.ApiResponse<T>>(url, data, config);
   }
@@ -175,7 +229,7 @@ export class HttpClient {
   public async put<T = any>(
     url: string,
     data?: any,
-    config?: AxiosRequestConfig,
+    config?: CChatAxiosRequestConfig,
   ): Promise<AxiosResponse<API.ApiResponse<T>>> {
     return this.axiosInstance.put<API.ApiResponse<T>>(url, data, config);
   }
@@ -185,7 +239,7 @@ export class HttpClient {
    */
   public async delete<T = any>(
     url: string,
-    config?: AxiosRequestConfig,
+    config?: CChatAxiosRequestConfig,
   ): Promise<AxiosResponse<API.ApiResponse<T>>> {
     return this.axiosInstance.delete<API.ApiResponse<T>>(url, config);
   }
@@ -196,7 +250,7 @@ export class HttpClient {
   public async patch<T = any>(
     url: string,
     data?: any,
-    config?: AxiosRequestConfig,
+    config?: CChatAxiosRequestConfig,
   ): Promise<AxiosResponse<API.ApiResponse<T>>> {
     return this.axiosInstance.patch<API.ApiResponse<T>>(url, data, config);
   }
@@ -207,9 +261,9 @@ export class HttpClient {
   public async uploadFile<T = any>(
     url: string,
     formData: FormData,
-    config?: AxiosRequestConfig,
+    config?: CChatAxiosRequestConfig,
   ): Promise<AxiosResponse<API.ApiResponse<T>>> {
-    const defaultConfig: AxiosRequestConfig = {
+    const defaultConfig: CChatAxiosRequestConfig = {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
@@ -267,8 +321,8 @@ export class HttpClient {
   /**
    * 设置认证头
    */
-  public setAuthHeader(token: string): void {
-    this.axiosInstance.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+  public setAuthHeader(): void {
+    console.warn('[HttpClient] setAuthHeader is deprecated. Token is resolved per request.');
   }
 
   /**
