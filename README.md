@@ -1,6 +1,6 @@
 # Corner Chat 即时通讯桌面端
 
-<img src="./docs/img/logo.png" align="left" width=80 > 一款跨平台即时通讯桌面应用。采用前后端分离架构，前端利用 Turborepo 构建 Monorepo 架构，将 Electron 主进程、渲染进程（React）及共享包进行统一治理；后端基于 NestJS 提供 RESTful 与 WebSocket 服务。
+<img src="./docs/img/logo.png" align="left" width=80 > `c_chat` 是一个桌面即时通讯应用项目，采用 Monorepo 组织，包含 Electron 客户端、React 前端和服务端。它的目标是提供一个可持续扩展的聊天产品，覆盖登录、会话、消息、文件传输和多窗口使用等常见场景。
 
 ---
 
