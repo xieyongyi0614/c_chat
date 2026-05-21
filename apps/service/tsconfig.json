@@ -1,0 +1,31 @@
+{
+  "compilerOptions": {
+    "module": "CommonJS",
+    "target": "ES2021",
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "isolatedModules": true,
+    "declaration": true,
+    "removeComments": true,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "allowSyntheticDefaultImports": true,
+    "sourceMap": true,
+    "outDir": "./dist",
+    "baseUrl": "./",
+    "paths": {
+      "@c_chat/shared-protobuf": ["../../packages/shared-protobuf/dist/index.d.ts"],
+      "@c_chat/shared-protobuf/protoMap": ["../../packages/shared-protobuf/dist/protoMap.d.ts"]
+    },
+    "incremental": true,
+    "skipLibCheck": true,
+    "strictNullChecks": true,
+    "forceConsistentCasingInFileNames": true,
+    "noImplicitAny": false,
+    "strictBindCallApply": false,
+    "noFallthroughCasesInSwitch": false
+    // "noUnusedLocals": true,
+    // "noUnusedParameters": true
+  },
+  "include": ["src/**/*", "src/types/**/*", "test/**/*"]
+}

@@ -41,3 +41,9 @@ yarn-error.log*
 packages/shared-protobuf/src/index*
 
 apps/electron_client/release
+
+
+
+
+apps/service/generated/prisma
+apps/service/uploads/*

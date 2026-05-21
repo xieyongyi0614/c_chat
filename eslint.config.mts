@@ -1,46 +1,71 @@
 import js from '@eslint/js';
-import globals from 'globals';
-import tseslint from 'typescript-eslint';
-import pluginReact from 'eslint-plugin-react';
 import { defineConfig } from 'eslint/config';
+import globals from 'globals';
+import react from 'eslint-plugin-react';
 import reactHooks from 'eslint-plugin-react-hooks';
 import reactRefresh from 'eslint-plugin-react-refresh';
+import { fileURLToPath } from 'node:url';
+import tseslint from 'typescript-eslint';
+
+const rootDir = fileURLToPath(new URL('.', import.meta.url));
 
 export default defineConfig([
   {
-    ignores: ['packages/shared-protobuf/src/index*'],
+    ignores: ['**/dist/**', '**/node_modules/**', 'packages/shared-protobuf/src/index*'],
   },
   {
     files: ['**/*.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
-    plugins: { js, react: pluginReact, 'react-hooks': reactHooks },
-    extends: [
-      js.configs.recommended,
-      pluginReact.configs.flat.recommended,
-      reactRefresh.configs.vite,
-      ...tseslint.configs.recommended,
-    ],
+    extends: [js.configs.recommended, ...tseslint.configs.recommendedTypeChecked],
     languageOptions: {
-      globals: globals.browser,
+      globals: {
+        ...globals.browser,
+        ...globals.node,
+      },
       parserOptions: {
-        tsconfigRootDir: __dirname,
-        project: './tsconfig.json',
+        projectService: true,
+        tsconfigRootDir: rootDir,
       },
     },
     rules: {
       '@typescript-eslint/no-unused-vars': 'warn',
-      'react/react-in-jsx-scope': 'off',
-      semi: 'warn',
-      'react-hooks/exhaustive-deps': 'warn',
-      'react-hooks/rules-of-hooks': 'error',
-      'react/display-name': 'off',
       '@typescript-eslint/no-explicit-any': 'off',
       '@typescript-eslint/no-namespace': 'off',
     },
   },
-  // {
-  //   // 重要：在 flat config 中，规则所属配置块必须声明对应插件
-  //   // 否则会出现「Could not find plugin 'react-hooks'」之类的错误。
-  //   plugins: { react: pluginReact, 'react-hooks': reactHooks },
-
-  // },
+  {
+    files: ['apps/frontend/**/*.{ts,tsx}', 'packages/chat_ui/**/*.{ts,tsx}'],
+    plugins: {
+      react,
+      'react-hooks': reactHooks,
+    },
+    extends: [react.configs.flat.recommended, reactRefresh.configs.vite],
+    languageOptions: {
+      globals: globals.browser,
+      parserOptions: {
+        ecmaFeatures: {
+          jsx: true,
+        },
+      },
+    },
+    rules: {
+      'react/react-in-jsx-scope': 'off',
+      'react/display-name': 'off',
+      'react-hooks/exhaustive-deps': 'warn',
+      'react-hooks/rules-of-hooks': 'error',
+      semi: 'warn',
+      '@typescript-eslint/no-misused-promises': [
+        'error',
+        {
+          checksVoidReturn: {
+            attributes: false,
+          },
+        },
+      ],
+    },
+    settings: {
+      react: {
+        version: 'detect',
+      },
+    },
+  },
 ]);

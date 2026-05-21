@@ -1,0 +1,52 @@
+import { Controller, Post, Body, HttpCode, HttpStatus } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { AuthService } from './auth.service';
+import { RegisterDto, LoginDto, AuthResponseDto } from './dto/auth.dto';
+
+@ApiTags('认证')
+@Controller('auth')
+export class AuthController {
+  constructor(private readonly authService: AuthService) {}
+
+  @Post('sign-up')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: '用户注册' })
+  @ApiResponse({
+    status: 201,
+    description: '注册成功',
+    type: AuthResponseDto,
+  })
+  @ApiResponse({ status: 409, description: '邮箱或手机号已被注册' })
+  async register(@Body() registerDto: RegisterDto): Promise<AuthResponseDto> {
+    return this.authService.register(registerDto);
+  }
+
+  @Post('sign-in')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: '用户登录' })
+  @ApiResponse({
+    status: 200,
+    description: '登录成功',
+    type: AuthResponseDto,
+  })
+  @ApiResponse({ status: 401, description: '邮箱或密码错误' })
+  async login(@Body() loginDto: LoginDto): Promise<AuthResponseDto> {
+    return this.authService.login(loginDto);
+  }
+
+  /**
+   * 从 Authorization 请求头中提取 token
+   */
+  private extractTokenFromHeader(authorization: string | undefined): string | null {
+    if (!authorization) {
+      return null;
+    }
+
+    const parts = authorization.split(' ');
+    if (parts.length !== 2 || parts[0] !== 'Bearer') {
+      return null;
+    }
+
+    return parts[1];
+  }
+}
