@@ -8,6 +8,7 @@
     "lint": "turbo run lint",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
     "check-types": "turbo run check-types",
+    "setup:service": "node scripts/bootstrap-service-dev.mjs",
     "prepare": "husky install",
     "package": "turbo run package --filter=@c_chat/electron_client"
   },

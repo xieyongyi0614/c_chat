@@ -22,6 +22,36 @@
       "cache": false,
       "persistent": true,
       "dependsOn": ["^build"]
+    },
+    "@c_chat/audio-core#dev": {
+      "cache": false,
+      "persistent": true,
+      "dependsOn": ["build", "^build"]
+    },
+    "@c_chat/ui#dev": {
+      "cache": false,
+      "persistent": true,
+      "dependsOn": ["build", "^build"]
+    },
+    "@c_chat/shared-config#dev": {
+      "cache": false,
+      "persistent": true,
+      "dependsOn": ["build", "^build"]
+    },
+    "@c_chat/shared-protobuf#dev": {
+      "cache": false,
+      "persistent": true,
+      "dependsOn": ["build", "^build"]
+    },
+    "@c_chat/shared-types#dev": {
+      "cache": false,
+      "persistent": true,
+      "dependsOn": ["build", "^build"]
+    },
+    "@c_chat/shared-utils#dev": {
+      "cache": false,
+      "persistent": true,
+      "dependsOn": ["build", "^build"]
     }
   }
 }

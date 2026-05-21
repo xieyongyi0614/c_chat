@@ -11,7 +11,12 @@ const rootDir = fileURLToPath(new URL('.', import.meta.url));
 
 export default defineConfig([
   {
-    ignores: ['**/dist/**', '**/node_modules/**', 'packages/shared-protobuf/src/index*'],
+    ignores: [
+      '**/dist/**',
+      '**/node_modules/**',
+      'packages/shared-protobuf/src/index*',
+      './scripts/bootstrap-service-dev.mjs',
+    ],
   },
   {
     files: ['**/*.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
