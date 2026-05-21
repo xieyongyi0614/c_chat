@@ -9,10 +9,16 @@ import { ChatInput } from './input/ChatInput';
 
 interface RightSideProps {
   openCreateConversationDialog: (open: boolean) => void;
+  loadOlderMessages: () => Promise<boolean>;
+  historyState: {
+    isLoadingLatest: boolean;
+    isLoadingOlder: boolean;
+    hasMoreOlder: boolean;
+  };
 }
 
 const MiddleColumn = (props: RightSideProps) => {
-  const { openCreateConversationDialog } = props;
+  const { historyState, loadOlderMessages, openCreateConversationDialog } = props;
 
   const { selectedConversation, selectedUserForDraft, setSelectedUserForDraft } = useChatStore();
 
@@ -93,7 +99,7 @@ const MiddleColumn = (props: RightSideProps) => {
       </div>
 
       <div className="flex flex-1 flex-col gap-2 rounded-md px-4 pt-0 pb-4">
-        <HistoryMessageList />
+        <HistoryMessageList historyState={historyState} loadOlderMessages={loadOlderMessages} />
         <ChatInput />
       </div>
     </div>

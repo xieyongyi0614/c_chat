@@ -10,10 +10,10 @@ const MessageGroup = ({ dateKey, groupIds }: OwnerProps) => {
   console.log('messageGroup render');
   return (
     <>
+      <div className="text-center text-xs">{dateKey}</div>
       {groupIds.map((groupId) => {
         return <MessageItem key={groupId} groupId={groupId} isRead={true} />;
       })}
-      <div className="text-center text-xs">{dateKey}</div>
     </>
   );
 };
