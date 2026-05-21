@@ -1,6 +1,7 @@
 import { Button, cn } from '@c_chat/ui';
 import { Edit, MessagesSquare, SearchIcon } from 'lucide-react';
 import { memo } from 'react';
+
 interface LeftColumnHeaderProps {
   search: string;
   onSearchChange: (search: string) => void;
@@ -9,6 +10,7 @@ interface LeftColumnHeaderProps {
 
 const LeftColumnHeader = (props: LeftColumnHeaderProps) => {
   const { search, onSearchChange, openCreateConversationDialog } = props;
+
   return (
     <div className="sticky top-0 z-10 -mx-4 bg-background px-4 pb-3 shadow-md sm:static sm:z-auto sm:mx-0 sm:p-0 sm:shadow-none">
       <div className="flex items-center justify-between py-2">
@@ -34,11 +36,11 @@ const LeftColumnHeader = (props: LeftColumnHeaderProps) => {
         )}
       >
         <SearchIcon size={15} className="me-2 stroke-slate-500" />
-        <span className="sr-only">Search</span>
+        <span className="sr-only">搜索</span>
         <input
           type="text"
           className="w-full flex-1 bg-inherit text-sm focus-visible:outline-hidden"
-          placeholder="Search chat..."
+          placeholder="搜索会话..."
           value={search}
           onChange={(e) => onSearchChange(e.target.value)}
         />
@@ -46,4 +48,5 @@ const LeftColumnHeader = (props: LeftColumnHeaderProps) => {
     </div>
   );
 };
+
 export default memo(LeftColumnHeader);
