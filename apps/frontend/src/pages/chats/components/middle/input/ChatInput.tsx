@@ -71,7 +71,7 @@ export function ChatInput() {
     }
   };
 
-  const handleDrop = async (e: DragEvent<HTMLDivElement>) => {
+  const handleDrop = (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     if (e.dataTransfer.files) {
       // await handleAddFiles(Array.from(e.dataTransfer.files));
@@ -141,10 +141,10 @@ export function ChatInput() {
         <Textarea
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
-          onKeyDown={(e) => {
+          onKeyDown={async (e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
               e.preventDefault();
-              handleSubmit();
+              await handleSubmit();
             }
           }}
           onPaste={handlePaste}

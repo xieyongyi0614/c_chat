@@ -1,0 +1,227 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+model User {
+  id             String    @id @default(cuid())
+  email          String    @unique // 邮箱
+  password       String // 密码
+  phone          String?   @unique // 手机号
+  nickname       String? // 昵称
+  avatarUrl      String?   @map("avatar_url") // 头像链接
+  gender         Int // 性别 `0-女, 1-男, 2-其他`
+  state          Int // 账号状态 `-1：注销, 0：正常`
+  birthday       DateTime? // 生日
+  signature      String? // 个性签名
+  location       String? // 地区
+  backgroundWall String?   @map("background_wall") // 背景墙
+  updateTime     DateTime  @updatedAt @map("update_time") // 更新时间
+  createTime     DateTime  @default(now()) @map("create_time") // 创建时间
+
+  messages                 MessageHistory[] // 消息记录
+  // chatRoomParticipants ChatRoomParticipant[] // 聊天室参与者
+  conversationParticipants ConversationParticipant[] // 群组拥有者 (可选)
+  ownedGroups              Group[]                   @relation("GroupOwner")
+
+  groupMembers GroupMember[]
+  // chatRoomParticipants ChatRoomParticipant[]
+}
+
+// ==========================================
+// 3. 群组模块 (原 ChatRoom 拆分)
+// ==========================================
+// 专门存储群聊的公共信息（头像、公告、群名）
+model Group {
+  id         String   @id @default(cuid())
+  name       String // 群名称
+  avatarUrl  String?  @map("avatar_url") // 群头像
+  notice     String?  @db.Text // 群公告
+  ownerId    String   @map("owner_id") // 群主ID
+  state      Int      @default(0) // -1:解散, 0:正常
+  updateTime DateTime @updatedAt @map("update_time")
+  createTime DateTime @default(now()) @map("create_time")
+
+  // 关系
+  owner   User          @relation("GroupOwner", fields: [ownerId], references: [id])
+  members GroupMember[]
+
+  // 索引：快速查询某人创建的群
+  @@index([ownerId])
+}
+
+// 群成员表 (原 ChatRoomParticipant)
+model GroupMember {
+  id         String   @id @default(cuid())
+  groupId    String   @map("group_id")
+  userId     String   @map("user_id")
+  role       Int      @default(2) // 0:群主, 1:管理员, 2:普通成员
+  alias      String? // 群昵称
+  state      Int      @default(0) // -1:退出/被踢, 0:正常
+  updateTime DateTime @updatedAt @map("update_time")
+  createTime DateTime @default(now()) @map("create_time")
+
+  group Group @relation(fields: [groupId], references: [id])
+  user  User  @relation(fields: [userId], references: [id])
+
+  // 确保一个人在同一个群只有一条记录
+  @@unique([groupId, userId])
+  @@index([userId]) // 查询“我加入了哪些群”
+}
+
+// ==========================================
+// 3. 会话模块 (核心改动：统一私聊与群聊入口)
+// ==========================================
+model Conversation {
+  id       String  @id @default(cuid())
+  type     Int // 1: 私聊, 2: 群聊
+  // 私聊存userId 群聊时存储groupId
+  targetId String? @map("target_id")
+
+  // 冗余字段：用于聊天列表快速展示，避免连表查最新消息
+  lastMsgContent String?   @map("last_msg_content") @db.Text
+  lastMsgTime    DateTime? @map("last_msg_time")
+
+  updateTime DateTime @updatedAt @map("update_time")
+  createTime DateTime @default(now()) @map("create_time")
+
+  // 关联
+  messages     MessageHistory[]
+  participants ConversationParticipant[]
+  // 注意：私聊的唯一性建议在代码层控制 (如 A-B 和 B-A 生成同一个 Conversation ID)
+
+  // 索引优化
+  @@index([type, targetId])
+}
+
+model ConversationSequence {
+  conversationId String @id @map("conversation_id")
+  lastMsgId      Int    @default(0) @map("last_msg_id")
+}
+
+// 会话参与者表 (用于存储：置顶、免打扰、删除会话等个性化设置)
+model ConversationParticipant {
+  id             String @id @default(cuid())
+  conversationId String @map("conversation_id")
+  userId         String @map("user_id")
+
+  isTop             Boolean @default(false) @map("is_top") // 是否置顶
+  isDisturb         Boolean @default(false) @map("is_disturb") // 是否免打扰
+  remark            String? // 针对该会话的备注（仅对自己生效）
+  isDeleted         Boolean @default(false) @map("is_deleted") // 是否删除了该会话（软删除）
+  lastReadMessageId Int     @default(0) @map("last_read_message_id") // 当前用户在该会话已读到的最新消息 msgId
+  unreadCount       Int     @default(0) @map("unread_count")
+
+  updateTime DateTime @updatedAt @map("update_time")
+  createTime DateTime @default(now()) @map("create_time")
+
+  conversation Conversation @relation(fields: [conversationId], references: [id])
+  user         User         @relation(fields: [userId], references: [id])
+
+  @@unique([conversationId, userId])
+}
+
+model MessageHistory {
+  id             String @id @default(cuid())
+  senderId       String @map("sender_id")
+  conversationId String @map("conversation_id")
+  msgId          Int    @map("msg_id")
+
+  clientMsgId String? @map("client_msg_id")
+  content     String? @db.Text
+
+  type Int // 0:文本, 1:图片, 2:视频, 3:文件, 4:音频
+
+  state Int @default(0) // -2:撤回, -1:删除, 0:正常, 1:编辑
+
+  mediaId String? @map("media_id")
+  media   Media?  @relation(fields: [mediaId], references: [id])
+
+  mediaGroupId String? @map("media_group_id") // 相册分组
+
+  createTime DateTime @default(now()) @map("create_time")
+  updateTime DateTime @updatedAt @map("update_time")
+
+  user         User         @relation(fields: [senderId], references: [id])
+  conversation Conversation @relation(fields: [conversationId], references: [id])
+
+  @@unique([conversationId, msgId])
+  @@unique([conversationId, senderId, clientMsgId])
+  @@index([conversationId, msgId(sort: Desc)])
+  @@index([conversationId, mediaGroupId])
+}
+
+model Media {
+  id         String           @id @default(cuid())
+  // 0:文本, 1:图片, 2:视频, 3:文件, 4:音频
+  type       Int
+  fileId     String           @map("file_id")
+  file       File             @relation(fields: [fileId], references: [id])
+  fileUrl    String?          @map("file_url")
+  thumbUrl   String?          @map("thumb_url")
+  width      Int?
+  height     Int?
+  // 音频/视频时长（秒，IM 语音一般足够；若要亚秒精度可改为毫秒并存 duration_ms）
+  duration   Int?
+  // 语音波形（如归一化振幅序列，JSON 数组便于客户端直接渲染）
+  waveform   String?
+  // 未来扩展字段
+  extra      Json?
+  createTime DateTime         @default(now()) @map("create_time")
+  messages   MessageHistory[]
+
+  @@index([fileId])
+}
+
+model UploadSession {
+  id            String @id @default(cuid())
+  fileName      String @map("file_name")
+  fileHash      String @unique @map("file_hash")
+  fileSize      BigInt @map("file_size")
+  chunkSize     Int    @map("chunk_size")
+  totalChunks   Int    @map("total_chunks")
+  uploadedCount Int    @default(0) @map("uploader_count")
+
+  status Int // 0 waiting / 1 uploading / 2 merging / 3 success / -1 fail
+
+  uploaderId String   @map("uploader_id")
+  createTime DateTime @default(now()) @map("create_time")
+  updateTime DateTime @updatedAt @map("update_time")
+}
+
+model UploadChunk {
+  id         String  @id @default(cuid())
+  uploadId   String
+  chunkIndex Int
+  chunkHash  String?
+
+  createdAt DateTime @default(now())
+
+  @@unique([uploadId, chunkIndex])
+}
+
+model File {
+  id       String  @id @default(cuid())
+  fileName String
+  hash     String  @unique
+  mimeType String  @map("mime_type")
+  ext      String?
+  size     BigInt
+  url      String
+
+  uploaderId String
+  createTime DateTime @default(now()) @map("create_time")
+  medias     Media[]
+
+  @@index([hash, size])
+}
