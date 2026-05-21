@@ -114,6 +114,12 @@ pnpm run package
 2.  聊天页面<br />
     [<img src="./docs/img/chat.png" height=300>](./docs/img/chat.png)
 
+3.  账号信息<br />
+    [<img src="./docs/img/userInfo.png" height=300>](./docs/img/userInfo.png)
+
+4.  托盘多账号<br />
+    [<img src="./docs/img/tray.png" height=300>](./docs/img/tray.png)
+
 ## 📞 联系方式
 
 如果您有任何问题、建议，欢迎随时联系我们：
