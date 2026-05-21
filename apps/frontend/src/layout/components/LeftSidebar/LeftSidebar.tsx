@@ -55,8 +55,11 @@ export function LeftSidebar() {
   const updateUserProfile = useUserStore((state) => state.updateUserProfile);
   const logout = useUserStore((state) => state.logout);
   const conversations = useChatStore((state) => state.conversationData.list);
+  const selectedConversationFolder = useChatStore((state) => state.selectedConversationFolder);
+  const setSelectedConversationFolder = useChatStore(
+    (state) => state.setSelectedConversationFolder,
+  );
 
-  const [activeFolder, setActiveFolder] = useState<FolderId>('all');
   const [profileOpen, setProfileOpen] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
   const [draftProfile, setDraftProfile] = useState<SidebarProfile>({
@@ -90,7 +93,7 @@ export function LeftSidebar() {
       navigate(path);
       return;
     }
-    setActiveFolder(id === 'contacts' ? 'personal' : 'all');
+    setSelectedConversationFolder(id === 'contacts' ? 'personal' : 'all');
   };
 
   const handleOpenProfile = () => {
@@ -176,7 +179,7 @@ export function LeftSidebar() {
 
         <div className="flex flex-1 flex-col items-center gap-2 overflow-hidden px-2 py-4">
           {folderItems.map((item) => {
-            const active = activeFolder === item.id;
+            const active = selectedConversationFolder === item.id;
             const count = folderCounts[item.id];
 
             return (
@@ -186,7 +189,7 @@ export function LeftSidebar() {
                 icon={item.icon}
                 active={active}
                 count={count}
-                onClick={() => setActiveFolder(item.id)}
+                onClick={() => setSelectedConversationFolder(item.id)}
               />
             );
           })}

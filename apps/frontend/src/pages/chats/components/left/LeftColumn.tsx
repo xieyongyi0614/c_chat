@@ -12,16 +12,22 @@ interface LeftColumnProps {
 }
 const LeftColumn = forwardRef<LeftColumnRef, LeftColumnProps>((props, ref) => {
   const { openCreateConversationDialog } = props;
-  const { conversationData } = useChatStore();
+  const { conversationData, selectedConversationFolder } = useChatStore();
   const [search, setSearch] = useState('');
 
   const filterConversations = useMemo(() => {
     const keyword = search.trim().toLowerCase();
-    if (!keyword) return conversationData.list ?? [];
-    return (
-      conversationData.list.filter((item) => item.targetId.toLowerCase().includes(keyword)) ?? []
-    );
-  }, [conversationData.list, search]);
+    const folderFiltered = (conversationData.list ?? []).filter((item) => {
+      if (selectedConversationFolder === 'unread') return (item.unreadCount ?? 0) > 0;
+      if (selectedConversationFolder === 'personal') return item.type === 1;
+      if (selectedConversationFolder === 'groups') return item.type === 2;
+      if (selectedConversationFolder === 'archive') return false;
+      return true;
+    });
+
+    if (!keyword) return folderFiltered;
+    return folderFiltered.filter((item) => item.targetName.toLowerCase().includes(keyword));
+  }, [conversationData.list, search, selectedConversationFolder]);
 
   useImperativeHandle(ref, () => ({
     filterConversations,

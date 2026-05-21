@@ -8,12 +8,14 @@ interface ChatStoreData {
   conversationData: SocketTypes.ResponseList<LocalConversationListItem>;
   selectedConversation: LocalConversationListItem | null;
   selectedUserForDraft: UserTypes.UserListItem | null;
+  selectedConversationFolder: 'all' | 'unread' | 'personal' | 'groups' | 'archive';
 }
 
 export interface ChatStoreType extends ChatStoreData {
   setConversationData: SetStateType<ChatStoreData['conversationData']>;
   setSelectedConversation: SetStateType<ChatStoreData['selectedConversation']>;
   setSelectedUserForDraft: SetStateType<ChatStoreData['selectedUserForDraft']>;
+  setSelectedConversationFolder: SetStateType<ChatStoreData['selectedConversationFolder']>;
 
   updateConversationSnapshot: (
     conversationId: string,
@@ -53,6 +55,7 @@ export const useChatStore = create<ChatStoreType>((set, get) => {
     conversationData: DEFAULT_LIST_DATA,
     selectedConversation: null,
     selectedUserForDraft: null,
+    selectedConversationFolder: 'all',
 
     setConversationData(data) {
       setData('conversationData', data);
@@ -68,6 +71,9 @@ export const useChatStore = create<ChatStoreType>((set, get) => {
       if (data) {
         setData('selectedConversation', null);
       }
+    },
+    setSelectedConversationFolder(data) {
+      setData('selectedConversationFolder', data ?? 'all');
     },
 
     updateConversationSnapshot(conversationId, lastMsgContent, lastMsgTime) {
