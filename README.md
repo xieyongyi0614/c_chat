@@ -10,6 +10,7 @@
 
 - Node.js v24.7.0
 - pnpm v9.0.0
+- Docker / Docker Compose（用于本地启动 MySQL、Redis）
 
 #### 启动
 
@@ -20,12 +21,48 @@ cd c_chat
 
 # 安装依赖
 pnpm install
+
+# 首次启动前：一键准备 service 本地依赖
+# 会启动 MySQL/Redis，生成 Prisma Client，并把 Prisma schema 同步到本地数据库
+pnpm run setup:service
+
 # 启动
 pnpm run dev
 
-
 # 打包
 pnpm run package
+```
+
+#### Service 本地依赖
+
+刚 clone 项目时，service 需要本地 MySQL、Redis 和 Prisma Client。推荐直接执行：
+
+```bash
+pnpm run setup:service
+```
+
+该命令会：
+
+- 通过 `docker-compose.service-dev.yml` 启动 MySQL 8.0 和 Redis 7
+- 安装 monorepo 依赖
+- 执行 `c_chat_service` 的 `prisma:generate`
+- 执行 `c_chat_service` 的 `prisma:push`，把 `apps/service/prisma/schema.prisma` 同步到本地开发数据库
+
+如果本机 `3306` 或 `6379` 端口已经有服务，脚本会跳过对应 Docker 服务，直接使用本机已有的 MySQL / Redis。此时请确保它们的账号密码与 `apps/service/.env.development` 一致，或先修改该 env 文件。
+
+默认本地配置与 `apps/service/.env.development` 保持一致：
+
+| 服务  | 地址             | 账号/密码           | 数据库   |
+| ----- | ---------------- | ------------------- | -------- |
+| MySQL | `localhost:3306` | `root` / `root`     | `c_chat` |
+| Redis | `localhost:6379` | 密码：`redis123456` | -        |
+
+如果你已经有自己的 MySQL 或 Redis，可以修改 `apps/service/.env.development` 后，手动执行：
+
+```bash
+pnpm install
+pnpm --filter c_chat_service prisma:generate
+pnpm --filter c_chat_service prisma:push
 ```
 
 ## 🛠 技术栈
@@ -34,8 +71,8 @@ pnpm run package
 
 - **Monorepo**: Turborepo 统一项目管理
 - **桌面应用**: Electron + React
-- **UI 框架**: React + Tailwind CSS
-- **构建工具**: Vite / Webpack
+- **UI 框架**: Shadcn + Tailwind CSS
+- **构建工具**: Vite
 
 ### 后端架构
 
