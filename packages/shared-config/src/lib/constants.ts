@@ -10,4 +10,4 @@ export const DEFAULT_LIST_DATA = {
   pagination: DEFAULT_PAGINATION,
 };
 
-export const DEFAULT_MESSAGE_PAGE_SIZE = 200;
+export const DEFAULT_MESSAGE_PAGE_SIZE = 20;

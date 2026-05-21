@@ -111,6 +111,9 @@ message GetConversationListResponse {
 message GetMessageHistoryRequest {
   string conversation_id = 1;
   Common.PaginationRequest pagination = 2;
+  optional int32 after_msg_id = 3;  // 拉取该 msgId 之后的新增消息
+  optional int32 before_msg_id = 4; // 拉取该 msgId 之前的历史消息
+  optional int32 limit = 5;         // 游标模式每次最多返回条数
 }
 
 // 获取消息历史响应

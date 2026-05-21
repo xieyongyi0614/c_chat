@@ -1,10 +1,12 @@
 import { ActionCtx, addActionHandler, omitActionCtx } from '../../util';
 import { socketManager } from '@c_chat/electron_client/utils/socket-io-client';
 import {
+  GetMessageHistoryResponse,
   GetMessageHistoryRequest,
   ReadMessageRequest,
   SendMessageRequest,
 } from '@c_chat/shared-protobuf';
+import type { IGetMessageHistoryRequest } from '@c_chat/shared-protobuf';
 import { conversationTableClass, messageTableClass, uploadTaskTableClass } from '../../../db';
 import { to, uuidv4 } from '@c_chat/shared-utils';
 import {
@@ -27,6 +29,41 @@ import { ApiClient } from '@c_chat/electron_client/utils/axios/service/apiServic
 import { sendSocketMessageWithFile } from '@c_chat/electron_client/utils/uploadTaskRunner';
 import { uploadScheduler } from '@c_chat/electron_client/utils/UploadScheduler';
 
+type RemoteMessageInfo = GetMessageHistoryResponse['list'][number];
+
+const getMessageSortValue = (msg: LocalMessageListItem) => msg.msgId ?? msg.createTime ?? 0;
+
+const sortMessagesDesc = (msgs: LocalMessageListItem[]) =>
+  [...msgs].sort((a, b) => getMessageSortValue(b) - getMessageSortValue(a));
+
+const getNewestLocalMessageTime = (msgs: LocalMessageListItem[]) =>
+  msgs.reduce((max, msg) => Math.max(max, msg.createTime ?? msg.localTime ?? 0), 0);
+
+const getNewestServerMsgId = (msgs: LocalMessageListItem[]) =>
+  msgs.reduce((max, msg) => Math.max(max, msg.msgId ?? 0), 0);
+
+const mapRemoteMessage = (msg: RemoteMessageInfo): LocalMessageListItem => ({
+  id: msg.id!,
+  conversationId: msg.conversationId!,
+  msgId: msg.msgId!,
+  clientMsgId: msg.clientMsgId!,
+  senderId: msg.senderId!,
+  content: msg.content ?? '',
+  type: msg.type as MessageType,
+  mediaGroupId: msg.mediaGroupId ?? '',
+  fileId: msg.media?.fileId ?? msg.media?.file?.id ?? '',
+  fileName: msg.media?.file?.fileName ?? '',
+  fileUrl: msg.media?.file?.url ?? msg.media?.fileUrl ?? '',
+  mimeType: msg.media?.file?.mimeType ?? '',
+  fileSize: Number(msg.media?.file?.size ?? 0),
+  waveform: msg.media?.waveform ?? '',
+  duration: msg.media?.durationSec ?? 0,
+  status: MessageStatusEnum.success,
+  updateTime: Number(msg.updateTime),
+  localTime: Number(msg.createTime),
+  createTime: Number(msg.createTime),
+});
+
 /** 获取本地消息历史 */
 addActionHandler('GetLocalMessageHistory', async (data) => {
   const { pageSize = DEFAULT_MESSAGE_PAGE_SIZE, conversationId, beforeMsgId } = data;
@@ -37,51 +74,67 @@ addActionHandler('GetLocalMessageHistory', async (data) => {
     beforeMsgId,
   );
 
+  if (!beforeMsgId && localMsgs.length > 0) {
+    const conversation = conversationTableClass.getConversation(conversationId);
+    const newestLocalMessageTime = getNewestLocalMessageTime(localMsgs);
+
+    if (
+      conversation?.lastMsgTime &&
+      newestLocalMessageTime > 0 &&
+      newestLocalMessageTime < conversation.lastMsgTime
+    ) {
+      return [];
+    }
+  }
+
   return localMsgs ?? [];
 });
 
 /** 获取消息历史 (本地缓存优先) */
 addActionHandler('GetMessageHistory', async (data) => {
-  const params = omitActionCtx(data);
+  const {
+    conversationId,
+    beforeMsgId,
+    afterMsgId,
+    pageSize = DEFAULT_MESSAGE_PAGE_SIZE,
+  } = omitActionCtx(data);
   const socketService = socketManager.getSocketService(data.windowId);
-  // const newPageParams = transformPageParams(params.pagination);
+  const limit = Math.max(1, Math.min(pageSize, DEFAULT_MESSAGE_PAGE_SIZE));
+  if (beforeMsgId) {
+    const localRecords = messageTableClass.getMessagesByConversationId(
+      conversationId,
+      limit,
+      beforeMsgId,
+    );
+    const newestLocalMsgId = getNewestServerMsgId(localRecords);
+
+    if (localRecords.length >= limit && newestLocalMsgId >= beforeMsgId - 1) {
+      return localRecords;
+    }
+  }
+
+  const request: IGetMessageHistoryRequest = beforeMsgId
+    ? { conversationId, beforeMsgId, limit }
+    : afterMsgId
+      ? { conversationId, afterMsgId, limit }
+      : { conversationId, limit };
 
   const [err, res] = await to(
     socketService.genericRequest(
       ClientToServiceEvent.getMessageHistory,
-      GetMessageHistoryRequest.encode(GetMessageHistoryRequest.create(params)).finish(),
+      GetMessageHistoryRequest.encode(GetMessageHistoryRequest.create(request)).finish(),
     ),
   );
-
   if (err) {
     return [];
   }
 
-  // 更新本地缓存
-  const records: LocalMessageListItem[] =
-    res.list?.map((msg) => ({
-      id: msg.id!,
-      conversationId: msg.conversationId!,
-      msgId: msg.msgId!,
-      clientMsgId: msg.clientMsgId!,
-      senderId: msg.senderId!,
-      content: msg.content ?? '',
-      state: msg.state,
-      type: msg.type as MessageType,
-      fileName: msg.media?.file?.fileName ?? '',
-      fileUrl: msg.media?.file?.url ?? '',
-      mimeType: msg.media?.file?.mimeType ?? '',
-      fileSize: Number(msg.media?.file?.size ?? 0),
-      waveform: msg.media?.waveform ?? '',
-      duration: msg.media?.durationSec ?? 0,
-      status: MessageStatusEnum.success,
-      updateTime: Number(msg.updateTime),
-      localTime: Number(msg.createTime),
-      createTime: Number(msg.createTime),
-    })) ?? [];
+  const records = sortMessagesDesc(res.list?.map(mapRemoteMessage) ?? []);
+
   if (records.length > 0) {
     messageTableClass.upsertMessages(records);
   }
+
   return records;
 });
 const generateLocalMessageData = (data: Partial<LocalMessageListItem>): LocalMessageListItem => {

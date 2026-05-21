@@ -11,7 +11,7 @@ import LeftColumn, { type LeftColumnRef } from './components/left/LeftColumn';
 export function Chats() {
   const { setSelectedConversation, setSelectedUserForDraft } = useChatStore();
 
-  useChatsData();
+  const { loadOlderMessages, historyState } = useChatsData();
   const [createConversationDialogOpened, setCreateConversationDialog] = useState(false);
   const leftColumnRef = useRef<LeftColumnRef>(null);
 
@@ -38,7 +38,11 @@ export function Chats() {
         />
 
         {/* MiddleColumn */}
-        <MiddleColumn openCreateConversationDialog={setCreateConversationDialog} />
+        <MiddleColumn
+          historyState={historyState}
+          loadOlderMessages={loadOlderMessages}
+          openCreateConversationDialog={setCreateConversationDialog}
+        />
       </section>
       <NewChat
         onSelectUser={handleSelectUserFromNewChat}

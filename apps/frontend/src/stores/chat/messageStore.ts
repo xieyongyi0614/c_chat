@@ -11,11 +11,98 @@ interface MessageStoreData {
   groups: Map<string, string[]>;
 }
 
+const getMessageIdentity = (msg: LocalMessageListItem) => {
+  if (msg.clientMsgId) return `client:${msg.clientMsgId}`;
+  if (msg.msgId) return `server:${msg.conversationId}:${msg.msgId}`;
+  return `local:${msg.id}`;
+};
+
+const getMessageSortValue = (msg: LocalMessageListItem) => msg.msgId ?? msg.createTime ?? 0;
+
+const sortMessagesDesc = (messages: LocalMessageListItem[]) =>
+  [...messages].sort((a, b) => getMessageSortValue(b) - getMessageSortValue(a));
+
+type AddMessageMode = 'history' | 'realtime' | 'replaceDisconnectedHistory';
+
+const getServerMsgIdRange = (messages: LocalMessageListItem[]) => {
+  let min: number | null = null;
+  let max: number | null = null;
+
+  for (const msg of messages) {
+    if (!msg.msgId) continue;
+    min = min == null ? msg.msgId : Math.min(min, msg.msgId);
+    max = max == null ? msg.msgId : Math.max(max, msg.msgId);
+  }
+
+  return { min, max };
+};
+
+const getMessagesFromMap = (msgMap: MessageStoreData['msgMap']) => Object.values(msgMap).flat();
+
+const shouldReplaceDisconnectedHistory = (
+  existing: LocalMessageListItem[],
+  incoming: LocalMessageListItem[],
+) => {
+  const existingRange = getServerMsgIdRange(existing);
+  const incomingRange = getServerMsgIdRange(incoming);
+
+  return (
+    existingRange.max != null &&
+    incomingRange.min != null &&
+    existingRange.max < incomingRange.min - 1
+  );
+};
+
+const rebuildMessageState = (
+  msgMap: MessageStoreData['msgMap'],
+  incoming: LocalMessageListItem[],
+  mode: AddMessageMode = 'history',
+) => {
+  const messageByIdentity = new Map<string, LocalMessageListItem>();
+  const existingMessages = getMessagesFromMap(msgMap);
+  const shouldDropExisting =
+    mode === 'replaceDisconnectedHistory' &&
+    shouldReplaceDisconnectedHistory(existingMessages, incoming);
+
+  if (!shouldDropExisting) {
+    for (const msg of existingMessages) {
+      messageByIdentity.set(getMessageIdentity(msg), msg);
+    }
+  }
+
+  for (const msg of incoming) {
+    const identity = getMessageIdentity(msg);
+    const oldMsg = messageByIdentity.get(identity);
+    messageByIdentity.set(identity, oldMsg ? { ...oldMsg, ...msg } : msg);
+  }
+
+  const nextMsgMap: MessageStoreData['msgMap'] = {};
+  const nextGroups = new Map<string, string[]>();
+  const sortedMessages = sortMessagesDesc(Array.from(messageByIdentity.values()));
+
+  for (const msg of sortedMessages) {
+    const groupKey = msg.mediaGroupId || msg.clientMsgId || msg.id;
+    const groupMessages = nextMsgMap[groupKey] ?? [];
+    nextMsgMap[groupKey] = sortMessagesDesc([...groupMessages, msg]);
+
+    const dateKey = getDateKey(msg.createTime);
+    const dateGroup = nextGroups.get(dateKey) ?? [];
+    if (!dateGroup.includes(groupKey)) {
+      nextGroups.set(dateKey, [...dateGroup, groupKey]);
+    }
+  }
+
+  return {
+    msgMap: nextMsgMap,
+    groups: nextGroups,
+  };
+};
+
 export interface MessageStoreType extends MessageStoreData {
   setDataConversationId: (conversationId: string) => void;
   updateMsg: (newMsg: LocalMessageListItem) => void;
   updateMsgs: (newMsgs: LocalMessageListItem[]) => void;
-  addMsgList: (msgs: LocalMessageListItem[], mode?: 'history' | 'realtime') => void;
+  addMsgList: (msgs: LocalMessageListItem[], mode?: AddMessageMode) => void;
   clear: () => void;
 }
 
@@ -31,118 +118,23 @@ export const useMessageStore = create<MessageStoreType>((set) => ({
     set({ dataConversationId: conversationId });
   },
 
-  addMsgList(msgs, mode = 'realtime') {
+  addMsgList(msgs, mode) {
     if (!msgs.length) return;
 
     set((state) => {
-      const groups = new Map(state.groups);
-
-      const msgMap = { ...state.msgMap };
-
-      for (const msg of msgs) {
-        const key = msg.mediaGroupId || msg.clientMsgId;
-        const oldGroup = msgMap[key] ?? [];
-        const index = oldGroup.findIndex((m) => m.clientMsgId === msg.clientMsgId);
-        let newGroup = oldGroup;
-
-        if (index === -1) {
-          newGroup = mode === 'realtime' ? [msg, ...oldGroup] : [...oldGroup, msg];
-        }
-        msgMap[key] = newGroup;
-
-        const dateKey = getDateKey(msg.createTime);
-
-        let group = groups.get(dateKey);
-
-        if (!group) {
-          group = [];
-        }
-
-        const exists = group.some((arr) => arr.includes(key));
-
-        if (!exists) {
-          group = mode === 'realtime' ? [key, ...group] : [...group, key];
-        }
-        groups.set(dateKey, group);
-      }
-
-      return { groups, msgMap };
+      return rebuildMessageState(state.msgMap, msgs, mode);
     });
   },
 
   updateMsg(newMsg) {
     set((state) => {
-      const key = newMsg.mediaGroupId || newMsg.clientMsgId;
-      const oldKey = Object.keys(state.msgMap).find((itemKey) =>
-        state.msgMap[itemKey]?.some((msg) => msg.clientMsgId === newMsg.clientMsgId),
-      );
-      const newMsgMapItem = [...(state.msgMap[oldKey ?? key] ?? [])];
-      const index = newMsgMapItem.findIndex((msg) => msg.clientMsgId === newMsg.clientMsgId);
-      if (index === -1) {
-        newMsgMapItem.push(newMsg);
-      } else {
-        newMsgMapItem[index] = { ...newMsgMapItem[index], ...newMsg };
-      }
-
-      const nextMsgMap = { ...state.msgMap };
-      if (oldKey && oldKey !== key) {
-        delete nextMsgMap[oldKey];
-      }
-      nextMsgMap[key] = newMsgMapItem.sort((a, b) => b.msgId! - a.msgId!);
-
-      return {
-        msgMap: nextMsgMap,
-      };
+      return rebuildMessageState(state.msgMap, [newMsg]);
     });
   },
 
   updateMsgs(msgs) {
     set((state) => {
-      const nextMsgMap = { ...state.msgMap };
-      const nextGroups = new Map(state.groups);
-
-      for (const newMsg of msgs) {
-        const key = newMsg.mediaGroupId || newMsg.clientMsgId;
-        const oldKey = Object.keys(nextMsgMap).find((itemKey) =>
-          nextMsgMap[itemKey]?.some((msg) => msg.clientMsgId === newMsg.clientMsgId),
-        );
-
-        const currentList = [...(nextMsgMap[oldKey ?? key] ?? [])];
-
-        const index = currentList.findIndex((msg) => msg.clientMsgId === newMsg.clientMsgId);
-
-        if (index === -1) {
-          currentList.push(newMsg);
-        } else {
-          currentList[index] = {
-            ...currentList[index],
-            ...newMsg,
-          };
-        }
-
-        currentList.sort((a, b) => (b.msgId ?? 0) - (a.msgId ?? 0));
-
-        if (oldKey && oldKey !== key) {
-          delete nextMsgMap[oldKey];
-          for (const [dateKey, group] of nextGroups.entries()) {
-            if (group.includes(oldKey)) {
-              nextGroups.set(
-                dateKey,
-                Array.from(
-                  new Set(group.map((groupKey) => (groupKey === oldKey ? key : groupKey))),
-                ),
-              );
-            }
-          }
-        }
-
-        nextMsgMap[key] = currentList;
-      }
-
-      return {
-        msgMap: nextMsgMap,
-        groups: nextGroups,
-      };
+      return rebuildMessageState(state.msgMap, msgs);
     });
   },
 }));

@@ -11,7 +11,9 @@ export type GetLocalConversationListParams = SocketTypes.RequestListParams;
 export type GetMessageHistoryParams = {
   conversationId: string;
   pageSize?: number;
+  afterMsgId?: number;
   beforeMsgId?: number;
+  limit?: number;
 };
 
 export type SendMessageParams = {

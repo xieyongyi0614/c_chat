@@ -129,6 +129,49 @@ export class MessageTable extends TableConnection {
 
     return rows;
   }
+
+  getLatestServerMsgId(conversationId: string) {
+    const row = this.get<[string], { msgId: number }>(
+      `
+      SELECT msg_id AS msgId FROM ${this.TABLE_NAME}
+      WHERE conversation_id = ?
+        AND msg_id IS NOT NULL
+      ORDER BY msg_id DESC
+      LIMIT 1
+      `,
+      [conversationId],
+    );
+    return row?.msgId ?? 0;
+  }
+
+  getExistingServerMsgIds(conversationId: string, msgIds: number[]) {
+    if (msgIds.length === 0) return new Set<number>();
+
+    const placeholders = msgIds.map(() => '?').join(', ');
+    const rows = this.all<{ msgId: number }>(
+      `
+      SELECT msg_id AS msgId FROM ${this.TABLE_NAME}
+      WHERE conversation_id = ?
+        AND msg_id IN (${placeholders})
+      `,
+      [conversationId, ...msgIds],
+    );
+
+    return new Set(rows.map((row) => row.msgId));
+  }
+
+  getMessagesByServerMsgIdRange(conversationId: string, minMsgId: number, maxMsgId: number) {
+    return this.all<LocalMessageListItem>(
+      `
+      SELECT * FROM ${this.TABLE_NAME}
+      WHERE conversation_id = ?
+        AND msg_id BETWEEN ? AND ?
+      ORDER BY msg_id DESC
+      `,
+      [conversationId, minMsgId, maxMsgId],
+    );
+  }
+
   /**
    * 获取最新的一条消息
    */
