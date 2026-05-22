@@ -1,15 +1,59 @@
-import { memo } from 'react';
+import { memo, useEffect, useState } from 'react';
+import type { CSSProperties } from 'react';
 import { MessageStatusEnum, type LocalMessageListItem } from '@c_chat/shared-types';
+import { bufferToPreviewUrl, ipc } from '@c_chat/shared-utils';
 import { formatFileUrl } from '@c_chat/frontend/common/formatFileUrl';
 
 interface ImageGroupProps {
   messages: LocalMessageListItem[];
 }
 
-const ImageGroup = ({ messages }: ImageGroupProps) => {
-  const count = messages.length;
+interface ImagePreviewProps {
+  msg: LocalMessageListItem;
+  idx: number;
+  imgClass: string;
+  containerStyle?: CSSProperties;
+}
 
-  const renderOverlay = (msg: LocalMessageListItem) => {
+const ImagePreview = ({ msg, idx, imgClass, containerStyle }: ImagePreviewProps) => {
+  const [previewUrl, setPreviewUrl] = useState('');
+
+  useEffect(() => {
+    let active = true;
+    let objectUrl = '';
+
+    const loadPreview = async () => {
+      if (msg.fileUrl) {
+        if (active) setPreviewUrl(formatFileUrl(msg.fileUrl));
+        return;
+      }
+
+      if (!msg.filePath) {
+        if (active) setPreviewUrl('');
+        return;
+      }
+
+      try {
+        const buffer = await ipc.ReadLocalFile({ path: msg.filePath });
+        objectUrl = bufferToPreviewUrl({ buffer, type: msg.mimeType || 'image/*' });
+        if (active) setPreviewUrl(objectUrl);
+      } catch (error) {
+        console.error('Failed to load local image preview:', error);
+        if (active) setPreviewUrl('');
+      }
+    };
+
+    loadPreview();
+
+    return () => {
+      active = false;
+      if (objectUrl) {
+        URL.revokeObjectURL(objectUrl);
+      }
+    };
+  }, [msg.filePath, msg.fileUrl, msg.mimeType]);
+
+  const renderOverlay = () => {
     const isUploading = msg.status === MessageStatusEnum.uploading;
     const isSending = msg.status === MessageStatusEnum.sending;
     const isFailed = msg.status === MessageStatusEnum.fail;
@@ -17,13 +61,13 @@ const ImageGroup = ({ messages }: ImageGroupProps) => {
     if (isUploading) {
       return (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/30">
-          <div className="w-1/2 bg-white/40 rounded-full h-1 mb-1">
+          <div className="mb-1 h-1 w-1/2 rounded-full bg-white/40">
             <div
-              className="bg-white h-full rounded-full transition-all duration-300"
+              className="h-full rounded-full bg-white transition-all duration-300"
               style={{ width: `${msg.progress || 0}%` }}
             />
           </div>
-          <span className="text-white text-[9px]">{msg.progress || 0}%</span>
+          <span className="text-[9px] text-white">{msg.progress || 0}%</span>
         </div>
       );
     }
@@ -36,81 +80,85 @@ const ImageGroup = ({ messages }: ImageGroupProps) => {
       );
     }
 
-    if (isFailed)
+    if (isFailed) {
       return (
         <div className="absolute inset-0 flex items-center justify-center bg-black/40">
-          <span className="text-white text-[10px]">失败</span>
+          <span className="text-[10px] text-white">失败</span>
         </div>
       );
+    }
 
     return null;
   };
 
-  const renderImg = (
-    msg: LocalMessageListItem,
-    idx: number,
-    imgClass: string,
-    containerStyle?: React.CSSProperties,
-  ) => {
-    return (
-      <div
-        key={msg.id}
-        className="relative overflow-hidden rounded-xl bg-gray-100"
-        style={containerStyle}
-      >
-        <img src={formatFileUrl(msg.fileUrl)} alt={`图片 ${idx + 1}`} className={`${imgClass}`} />
-        {renderOverlay(msg)}
-      </div>
-    );
-  };
+  return (
+    <div className="relative overflow-hidden rounded-xl bg-gray-100" style={containerStyle}>
+      {previewUrl ? (
+        <img src={previewUrl} alt={`图片 ${idx + 1}`} className={imgClass} />
+      ) : (
+        <div className="flex h-full min-h-24 items-center justify-center text-xs text-muted-foreground">
+          加载中
+        </div>
+      )}
+      {renderOverlay()}
+    </div>
+  );
+};
 
-  // 单图：大图展示，保留纵横比
+const ImageGroup = ({ messages }: ImageGroupProps) => {
+  const count = messages.length;
+
   if (count === 1) {
     const m = messages[0];
     return (
-      <div className="grid grid-cols-1 max-w-xs">
-        {renderImg(m, 0, 'object-contain rounded-xl')}
+      <div className="grid max-w-xs grid-cols-1">
+        <ImagePreview msg={m} idx={0} imgClass="rounded-xl object-contain" />
       </div>
     );
   }
 
-  // 双图：左右布局
   if (count === 2) {
     return (
-      <div className="grid grid-cols-2 gap-1 max-w-xs">
-        {messages.map((m, i) => renderImg(m, i, 'w-full h-44 object-cover'))}
+      <div className="grid max-w-xs grid-cols-2 gap-1">
+        {messages.map((m, i) => (
+          <ImagePreview key={m.id} msg={m} idx={i} imgClass="h-44 w-full object-cover" />
+        ))}
       </div>
     );
   }
 
-  // 三图：（顺序下）
   if (count === 3) {
     return (
-      <div className="grid grid-cols-1 grid-rows-3 gap-1 max-w-xs">
-        {messages.map((m, i) => renderImg(m, i, 'w-full h-44 object-cover'))}
+      <div className="grid max-w-xs grid-cols-1 grid-rows-3 gap-1">
+        {messages.map((m, i) => (
+          <ImagePreview key={m.id} msg={m} idx={i} imgClass="h-44 w-full object-cover" />
+        ))}
       </div>
     );
   }
 
-  // 四图：2x2 九宫格
   if (count === 4) {
     return (
-      <div className="grid grid-cols-2 gap-1 max-w-xs">
-        {messages.map((m, i) => renderImg(m, i, 'w-full h-40 object-cover'))}
+      <div className="grid max-w-xs grid-cols-2 gap-1">
+        {messages.map((m, i) => (
+          <ImagePreview key={m.id} msg={m} idx={i} imgClass="h-40 w-full object-cover" />
+        ))}
       </div>
     );
   }
 
-  // 其他（5+）：简单网格，最多显示 9
   const showMessages = messages.slice(0, 9);
   const cols =
     showMessages.length === 5 ? 3 : Math.min(3, Math.ceil(Math.sqrt(showMessages.length)));
+
   return (
     <div
-      className={`grid gap-1 max-w-xs cursor-pointer`}
+      className="grid max-w-xs cursor-pointer gap-1"
       style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
     >
-      {showMessages.map((m, i) => renderImg(m, i, 'w-full h-28 object-cover'))}
+      {showMessages.map((m, i) => (
+        <ImagePreview key={m.id} msg={m} idx={i} imgClass="h-28 w-full object-cover" />
+      ))}
     </div>
   );
 };
