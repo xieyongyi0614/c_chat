@@ -210,9 +210,13 @@ export class MessageHandler extends MessageHandlerRegistry {
             createTime: Number(convo.createTime ?? 0),
           })) ?? [];
 
-        const localConvos = conversationTableClass.getConversationByIds(
-          Array.from(updateConvos.keys()),
+        const conversationIds = Array.from(
+          new Set([
+            ...Array.from(updateConvos.keys()),
+            ...pushedConversations.map((conversation) => conversation.id).filter(Boolean),
+          ]),
         );
+        const localConvos = conversationTableClass.getConversationByIds(conversationIds);
         const currentUserId = storeTableClass.getUserInfo(this.windowId)?.id;
         const conversationById = new Map<string, LocalConversationListItem>();
 

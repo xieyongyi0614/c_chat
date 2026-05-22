@@ -1,5 +1,6 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { Loader2 } from 'lucide-react';
+import { ArrowDown, Loader2 } from 'lucide-react';
+import { Button } from '@c_chat/ui';
 import { useChatStore, useMessageStore } from '@c_chat/frontend/stores';
 import { ConversationTypeEnum } from '@c_chat/shared-types';
 import { ipc, to } from '@c_chat/shared-utils';
@@ -17,12 +18,14 @@ interface MessageHistoryListProps {
 
 const BOTTOM_THRESHOLD = 120;
 const TOP_LOAD_THRESHOLD = 80;
+const SCROLL_TO_BOTTOM_EVENT = 'chat:scroll-to-bottom';
 
 const MessageHistoryList = ({ historyState, loadOlderMessages }: MessageHistoryListProps) => {
   const msgGroups = useMessageStore((s) => s.groups);
   const dataConversationId = useMessageStore((s) => s.dataConversationId);
   const selectedConversation = useChatStore((s) => s.selectedConversation);
   const [senderProfiles, setSenderProfiles] = useState<Record<string, SenderProfile>>({});
+  const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const msgCount = useMessageStore((s) =>
     Object.values(s.msgMap).reduce((count, messages) => count + messages.length, 0),
   );
@@ -78,8 +81,25 @@ const MessageHistoryList = ({ historyState, loadOlderMessages }: MessageHistoryL
     const distanceToBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
     const nearBottom = distanceToBottom <= BOTTOM_THRESHOLD;
     nearBottomRef.current = nearBottom;
+    setShowScrollToBottom(!nearBottom && msgCount > 0);
     return nearBottom;
-  }, []);
+  }, [msgCount]);
+
+  const handleScrollToBottom = useCallback(() => {
+    nearBottomRef.current = true;
+    scrollToBottom();
+    requestAnimationFrame(() => {
+      scrollToBottom();
+      updateNearBottom();
+    });
+  }, [scrollToBottom, updateNearBottom]);
+
+  useEffect(() => {
+    window.addEventListener(SCROLL_TO_BOTTOM_EVENT, handleScrollToBottom);
+    return () => {
+      window.removeEventListener(SCROLL_TO_BOTTOM_EVENT, handleScrollToBottom);
+    };
+  }, [handleScrollToBottom]);
 
   const handleScroll = useCallback(() => {
     const el = scrollRef.current;
@@ -132,6 +152,28 @@ const MessageHistoryList = ({ historyState, loadOlderMessages }: MessageHistoryL
     }
   }, [dataConversationId, msgCount, scrollToBottom, updateNearBottom]);
 
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+
+    const resizeObserver = new ResizeObserver(() => {
+      if (pendingPrependHeightRef.current != null) return;
+
+      if (nearBottomRef.current) {
+        scrollToBottom();
+      }
+
+      updateNearBottom();
+    });
+
+    resizeObserver.observe(el);
+    Array.from(el.children).forEach((child) => resizeObserver.observe(child));
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [orderedGroups, scrollToBottom, updateNearBottom]);
+
   return (
     <div className="flex size-full flex-1">
       <div className="chat-text-container relative -me-4 flex flex-1 flex-col overflow-y-hidden">
@@ -170,6 +212,19 @@ const MessageHistoryList = ({ historyState, loadOlderMessages }: MessageHistoryL
             />
           ))}
         </div>
+
+        {showScrollToBottom && (
+          <Button
+            type="button"
+            size="icon"
+            variant="secondary"
+            onClick={handleScrollToBottom}
+            title="滚动到底部"
+            className="absolute bottom-5 right-8 z-20 size-9 rounded-full border bg-background/95 shadow-md"
+          >
+            <ArrowDown className="size-4" />
+          </Button>
+        )}
       </div>
     </div>
   );

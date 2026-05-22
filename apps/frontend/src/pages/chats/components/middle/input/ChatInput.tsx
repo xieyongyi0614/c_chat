@@ -5,14 +5,20 @@ import { Button, Textarea } from '@c_chat/ui';
 
 import { AttachmentList } from './attachments/AttachmentList';
 import { EmojiPicker } from './EmojiPicker';
-import { bufferToPreviewUrl, getSelectFileInfoByFile, ipc, to } from '@c_chat/shared-utils';
+import {
+  bufferToPreviewUrl,
+  generateLastMsgContent,
+  getSelectFileInfoByFile,
+  ipc,
+  to,
+} from '@c_chat/shared-utils';
 import { toast } from 'sonner';
 import { useChatStore, useMessageStore } from '@c_chat/frontend/stores';
 import { type FileInfoListItem } from '@c_chat/shared-types';
 import RecordingButton from './RecordingButton';
 
 export function ChatInput() {
-  const { selectedConversation, selectedUserForDraft } = useChatStore();
+  const { selectedConversation, selectedUserForDraft, updateConversationSnapshot } = useChatStore();
   const { addMsgList } = useMessageStore();
 
   const [inputValue, setInputValue] = useState('');
@@ -101,6 +107,17 @@ export function ChatInput() {
       return;
     }
     addMsgList(messages);
+    if (selectedConversation && messages.length > 0) {
+      const latestMessage = messages.reduce((latest, message) =>
+        (message.createTime ?? 0) > (latest.createTime ?? 0) ? message : latest,
+      );
+      updateConversationSnapshot(
+        selectedConversation.id,
+        generateLastMsgContent(latestMessage.type, latestMessage.content),
+        latestMessage.createTime ?? Date.now(),
+      );
+    }
+    window.dispatchEvent(new Event('chat:scroll-to-bottom'));
     return true;
   };
 

@@ -3,11 +3,11 @@ import { formatDuration, type VoiceRecordResult } from '@c_chat/audio-core';
 import { useAudioRecorder } from '@c_chat/frontend/hooks/useAudioRecorder';
 import { Button } from '@c_chat/ui';
 import { Mic, StopCircle, X } from 'lucide-react';
-import { ipc, to } from '@c_chat/shared-utils';
+import { generateLastMsgContent, ipc, to } from '@c_chat/shared-utils';
 import { useChatStore, useMessageStore } from '@c_chat/frontend/stores';
 import { toast } from 'sonner';
 const RecordingButton = () => {
-  const { selectedConversation, selectedUserForDraft } = useChatStore();
+  const { selectedConversation, selectedUserForDraft, updateConversationSnapshot } = useChatStore();
   const { addMsgList } = useMessageStore();
 
   const { isRecording, recording, duration } = useAudioRecorder();
@@ -44,6 +44,17 @@ const RecordingButton = () => {
     }
 
     addMsgList(messages);
+    if (selectedConversation && messages.length > 0) {
+      const latestMessage = messages.reduce((latest, message) =>
+        (message.createTime ?? 0) > (latest.createTime ?? 0) ? message : latest,
+      );
+      updateConversationSnapshot(
+        selectedConversation.id,
+        generateLastMsgContent(latestMessage.type, latestMessage.content),
+        latestMessage.createTime ?? Date.now(),
+      );
+    }
+    window.dispatchEvent(new Event('chat:scroll-to-bottom'));
   };
 
   return (
