@@ -6,7 +6,7 @@ const Layout: React.FC = () => {
   const userInfo = useUserStore((state) => state.userInfo);
 
   return (
-    <div className="flex flex-1 overflow-hidden bg-muted/40 text-foreground">
+    <div className="flex flex-1 overflow-hidden  text-foreground">
       {userInfo && <LeftSidebar />}
       <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <Outlet />

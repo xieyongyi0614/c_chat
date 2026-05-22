@@ -12,14 +12,18 @@ import { useLastCallback } from './useLastCallback';
 /** 全局订阅监听 */
 export const useGlobalSubscribe = () => {
   const { userInfo, isSignedIn } = useUserStore();
-  const { upsertAndPinConversation } = useChatStore();
+  const { upsertAndPinConversation, removeConversation } = useChatStore();
   const { updateMsgs, addMsgList } = useMessageStore();
   const dataConversationId = useMessageStore((s) => s.dataConversationId);
   const hasSelectedDraft = useChatStore((s) => Boolean(s.selectedUserForDraft));
 
   const newUpdateMessageHandle = useLastCallback<WebContentEvents['newUpdateMessage']>((data) => {
     console.log('收到 updates', data);
-    const { messages, conversations } = data;
+    const { messages, conversations, removedConversationIds } = data;
+
+    if (removedConversationIds?.length) {
+      removedConversationIds.forEach((conversationId) => removeConversation(conversationId));
+    }
 
     if (messages?.length) {
       const ownUpdates: LocalMessageListItem[] = [];

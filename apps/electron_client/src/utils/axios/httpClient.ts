@@ -6,6 +6,7 @@ import axios, {
   InternalAxiosRequestConfig,
 } from 'axios';
 import * as https from 'https';
+import type { IncomingMessage } from 'http';
 import { HttpsProxyAgent } from 'https-proxy-agent';
 import { app } from 'electron';
 import { WindowManager } from '@c_chat/electron_client/main/windows';
@@ -30,6 +31,23 @@ export interface CChatAxiosRequestConfig extends AxiosRequestConfig {
   windowId?: number;
   skipAuth?: boolean;
 }
+
+interface TimedAxiosRequestConfig extends InternalAxiosRequestConfig {
+  _requestTime?: number;
+}
+
+type WindowIdPayload = {
+  windowId?: number | string;
+};
+
+const resolvePayloadWindowId = (value: unknown): number | null => {
+  if (typeof value !== 'object' || value === null || !('windowId' in value)) {
+    return null;
+  }
+
+  const windowId = Number((value as WindowIdPayload).windowId);
+  return windowId || null;
+};
 
 export class HttpClient {
   private axiosInstance: AxiosInstance;
@@ -87,18 +105,15 @@ export class HttpClient {
       }
     }
 
+    const data: unknown = config.data;
     console.log(`[HTTP Request] ${config.method?.toUpperCase()} ${config.url}`, {
-      params: config.params,
-      data: config.data
-        ? typeof config.data === 'string'
-          ? '<<binary>>'
-          : config.data
-        : undefined,
+      params: config.params as unknown,
+      data: data ? (typeof data === 'string' ? '<<binary>>' : data) : undefined,
       headers: config.headers,
     });
 
     // 添加请求时间戳
-    (config as any)._requestTime = Date.now();
+    (config as TimedAxiosRequestConfig)._requestTime = Date.now();
 
     return config;
   }
@@ -109,7 +124,7 @@ export class HttpClient {
       return explicitWindowId;
     }
 
-    const paramsWindowId = Number((config.params as { windowId?: number } | undefined)?.windowId);
+    const paramsWindowId = resolvePayloadWindowId(config.params);
     if (paramsWindowId) {
       return paramsWindowId;
     }
@@ -119,7 +134,7 @@ export class HttpClient {
       return contextWindowId;
     }
 
-    const data = config.data;
+    const data: unknown = config.data;
     if (!data) {
       return null;
     }
@@ -128,15 +143,13 @@ export class HttpClient {
       typeof data === 'object' &&
       (typeof FormData === 'undefined' || !(data instanceof FormData))
     ) {
-      const dataWindowId = Number((data as { windowId?: number }).windowId);
-      return dataWindowId || null;
+      return resolvePayloadWindowId(data);
     }
 
     if (typeof data === 'string') {
       try {
-        const parsed = JSON.parse(data);
-        const dataWindowId = Number(parsed?.windowId);
-        return dataWindowId || null;
+        const parsed: unknown = JSON.parse(data);
+        return resolvePayloadWindowId(parsed);
       } catch {
         return null;
       }
@@ -149,13 +162,15 @@ export class HttpClient {
    * 处理响应
    */
   private handleResponse(response: AxiosResponse): AxiosResponse {
-    const requestTime = Date.now() - (response.config as any)._requestTime;
+    const requestTime =
+      Date.now() - ((response.config as TimedAxiosRequestConfig)._requestTime ?? 0);
+    const data: unknown = response.data;
 
     console.log(
       `[HTTP Response] ${response.status} ${response.config.method?.toUpperCase()} ${response.config.url} - ${requestTime}ms`,
       {
         status: response.status,
-        data: response.data,
+        data,
       },
     );
 
@@ -284,13 +299,13 @@ export class HttpClient {
     const fs = await import('fs');
     // const path = await import('path');
 
-    const response = await this.axiosInstance({
+    const response = await this.axiosInstance<IncomingMessage>({
       method: 'GET',
       url: url,
       responseType: 'stream',
     });
 
-    const totalLength = parseInt(response.headers['content-length'], 10);
+    const totalLength = parseInt(String(response.headers['content-length']), 10);
     let downloadedLength = 0;
 
     return new Promise((resolve, reject) => {
@@ -321,7 +336,12 @@ export class HttpClient {
   /**
    * 设置认证头
    */
-  public setAuthHeader(): void {
+  public setAuthHeader(token?: string): void {
+    if (token) {
+      this.axiosInstance.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      return;
+    }
+
     console.warn('[HttpClient] setAuthHeader is deprecated. Token is resolved per request.');
   }
 

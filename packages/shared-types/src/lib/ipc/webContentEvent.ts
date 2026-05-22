@@ -28,6 +28,7 @@ export interface WebContentEvents {
   [newUpdateMessage]: (data: {
     messages?: LocalMessageListItem[];
     conversations?: LocalConversationListItem[];
+    removedConversationIds?: string[];
   }) => void;
   [uploadProgress]: (data: { clientMsgId: string; progress: number }) => void;
 

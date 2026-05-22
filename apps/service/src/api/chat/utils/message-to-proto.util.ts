@@ -9,6 +9,7 @@ import {
 
 export const messageHistoryWithMediaInclude = {
   media: { include: { file: true } },
+  user: true,
 } satisfies Prisma.MessageHistoryInclude;
 
 export type MessageHistoryWithMedia = Prisma.MessageHistoryGetPayload<{
@@ -83,6 +84,12 @@ export function buildMessageInfoPayload(m: MessageHistoryWithMedia): IMessageInf
     id: m.id,
     msgId: m.msgId,
     senderId: m.senderId,
+    senderInfo: {
+      id: m.user.id,
+      nickname: m.user.nickname ?? undefined,
+      avatarUrl: m.user.avatarUrl ?? undefined,
+      email: m.user.email ?? undefined,
+    },
     conversationId: m.conversationId,
     content: m.content ?? '',
     type: m.type,

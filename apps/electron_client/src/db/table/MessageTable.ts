@@ -10,6 +10,9 @@ export class MessageTable extends TableConnection {
     'msg_id',
     'client_msg_id',
     'sender_id',
+    'sender_nickname',
+    'sender_avatar',
+    'sender_email',
     'content',
     'type',
     'status',
@@ -34,6 +37,9 @@ export class MessageTable extends TableConnection {
         msg_id INTEGER,              
         client_msg_id TEXT,           
         sender_id TEXT,
+        sender_nickname TEXT,
+        sender_avatar TEXT,
+        sender_email TEXT,
         content TEXT,
         type INTEGER DEFAULT 0,
         status INTEGER DEFAULT 0, 
@@ -53,6 +59,9 @@ export class MessageTable extends TableConnection {
       )
     `;
     this.run(sql);
+    this.addColumnIfNotExists('sender_nickname', 'TEXT');
+    this.addColumnIfNotExists('sender_avatar', 'TEXT');
+    this.addColumnIfNotExists('sender_email', 'TEXT');
 
     // 🚀 核心索引（最重要）
     this.run(`
@@ -79,6 +88,9 @@ export class MessageTable extends TableConnection {
       msg.msgId,
       msg.clientMsgId,
       msg.senderId,
+      msg.senderNickname,
+      msg.senderAvatar,
+      msg.senderEmail,
       msg.content,
       msg.type,
       msg.status,
@@ -211,6 +223,9 @@ export class MessageTable extends TableConnection {
       'msg_id',
       'status',
       'content',
+      'sender_nickname',
+      'sender_avatar',
+      'sender_email',
       'update_time',
       'file_id',
       'file_url',

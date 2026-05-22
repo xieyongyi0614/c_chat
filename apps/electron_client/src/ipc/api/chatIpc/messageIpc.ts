@@ -10,6 +10,7 @@ import type { IGetMessageHistoryRequest } from '@c_chat/shared-protobuf';
 import { conversationTableClass, messageTableClass, uploadTaskTableClass } from '../../../db';
 import { to, uuidv4 } from '@c_chat/shared-utils';
 import {
+  AuthTypes,
   LocalMessageListItem,
   MessageStatusEnum,
   SendMessageParams,
@@ -48,6 +49,9 @@ const mapRemoteMessage = (msg: RemoteMessageInfo): LocalMessageListItem => ({
   msgId: msg.msgId!,
   clientMsgId: msg.clientMsgId!,
   senderId: msg.senderId!,
+  senderNickname: msg.senderInfo?.nickname ?? msg.senderInfo?.email ?? '',
+  senderAvatar: msg.senderInfo?.avatarUrl ?? '',
+  senderEmail: msg.senderInfo?.email ?? '',
   content: msg.content ?? '',
   type: msg.type as MessageType,
   mediaGroupId: msg.mediaGroupId ?? '',
@@ -144,6 +148,9 @@ const generateLocalMessageData = (data: Partial<LocalMessageListItem>): LocalMes
     msgId: data.msgId ?? null,
     clientMsgId: uuidv4(),
     senderId: data.senderId ?? '',
+    senderNickname: data.senderNickname ?? '',
+    senderAvatar: data.senderAvatar ?? '',
+    senderEmail: data.senderEmail ?? '',
     content: data.content ?? '',
     type: data.type ?? MESSAGE_TYPE.Text,
     status: MessageStatusEnum.sending,
@@ -168,13 +175,16 @@ addActionHandler('SendMessage', async (params) => {
   const senderInfo = socketService.getUserInfo();
 
   if (params.files && params.files?.length > 0) {
-    const res = await handleSendFiles(params, senderInfo?.id ?? '');
+    const res = await handleSendFiles(params, senderInfo);
     return res;
   }
 
   const localMessageData = generateLocalMessageData({
     ...params,
     senderId: senderInfo?.id ?? '',
+    senderNickname: senderInfo?.nickname ?? senderInfo?.email ?? '',
+    senderAvatar: senderInfo?.avatarUrl ?? '',
+    senderEmail: senderInfo?.email ?? '',
     status: MessageStatusEnum.sending,
   });
   messageTableClass.insert(localMessageData);
@@ -197,7 +207,10 @@ addActionHandler('SendMessage', async (params) => {
   return [localMessageData];
 });
 
-const handleSendFiles = async (params: SendMessageParams & ActionCtx, senderId: string) => {
+const handleSendFiles = async (
+  params: SendMessageParams & ActionCtx,
+  senderInfo?: AuthTypes.GetUserInfoResponse,
+) => {
   const { files = [] } = params;
 
   const grouped = files.reduce<Record<'images' | 'others', FileInfoListItem[]>>(
@@ -223,7 +236,7 @@ const handleSendFiles = async (params: SendMessageParams & ActionCtx, senderId: 
       grouped.images.map(async (file) => {
         return processSingleFile(
           { ...params, type: MESSAGE_TYPE.Image },
-          senderId,
+          senderInfo,
           file,
           imageGroupId,
         );
@@ -237,7 +250,7 @@ const handleSendFiles = async (params: SendMessageParams & ActionCtx, senderId: 
       grouped.others.map(async (file) => {
         return processSingleFile(
           { ...params, type: messageTypeMap[file.fileType] ?? MESSAGE_TYPE.File },
-          senderId,
+          senderInfo,
           file,
         );
       }),
@@ -250,7 +263,7 @@ const handleSendFiles = async (params: SendMessageParams & ActionCtx, senderId: 
 
 const processSingleFile = async (
   params: SendMessageParams & ActionCtx & { type: MessageType },
-  senderId: string,
+  senderInfo: AuthTypes.GetUserInfoResponse | undefined,
   file: FileInfoListItem,
   mediaGroupId?: string,
 ): Promise<LocalMessageListItem | null> => {
@@ -269,7 +282,10 @@ const processSingleFile = async (
     waveform: file.metadata?.waveform,
     mimeType: file.mimeType,
     duration: file.metadata?.duration ?? 0,
-    senderId,
+    senderId: senderInfo?.id ?? '',
+    senderNickname: senderInfo?.nickname ?? senderInfo?.email ?? '',
+    senderAvatar: senderInfo?.avatarUrl ?? '',
+    senderEmail: senderInfo?.email ?? '',
     status: MessageStatusEnum.sending,
     ...(mediaGroupId && { mediaGroupId }),
   });

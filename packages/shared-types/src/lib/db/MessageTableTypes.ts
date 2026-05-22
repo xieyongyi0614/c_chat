@@ -6,6 +6,9 @@ export interface LocalMessageListItem {
   msgId: number | null;
   clientMsgId: string;
   senderId: string;
+  senderNickname?: string;
+  senderAvatar?: string;
+  senderEmail?: string;
   content: string;
   type: MessageType;
   status: MessageStatusEnum;

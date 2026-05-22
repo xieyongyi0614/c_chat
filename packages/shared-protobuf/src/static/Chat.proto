@@ -19,11 +19,72 @@ message GroupInfo {
   int64 create_time = 8;
 }
 
+message CreateGroupRequest {
+  string name = 1;
+  repeated string member_ids = 2;
+  optional string avatar_url = 3;
+}
+
+message CreateGroupResponse {
+  GroupInfo group = 1;
+  ConversationInfo conversation = 2;
+}
+
+message GetGroupDetailRequest {
+  string group_id = 1;
+}
+
+message GroupMemberInfo {
+  string user_id = 1;
+  string nickname = 2;
+  optional string avatar_url = 3;
+  int32 role = 4;
+  optional string alias = 5;
+  int32 state = 6;
+}
+
+message GetGroupDetailResponse {
+  GroupInfo group = 1;
+  repeated GroupMemberInfo members = 2;
+}
+
+message UpdateGroupRequest {
+  string group_id = 1;
+  optional string name = 2;
+  optional string avatar_url = 3;
+  optional string notice = 4;
+}
+
+message GroupOperationResponse {
+  bool success = 1;
+  optional GroupInfo group = 2;
+  optional ConversationInfo conversation = 3;
+}
+
+message InviteGroupMembersRequest {
+  string group_id = 1;
+  repeated string member_ids = 2;
+}
+
+message LeaveGroupRequest {
+  string group_id = 1;
+}
+
+message DismissGroupRequest {
+  string group_id = 1;
+}
 
 message TargetInfo {
   string id = 1;
   string name = 2;
   string avatar_url = 3;
+}
+
+message SenderInfo {
+  string id = 1;
+  optional string nickname = 2;
+  optional string avatar_url = 3;
+  optional string email = 4;
 }
 
 // 上传后的文件实体（与库表 File 对应）
@@ -94,6 +155,7 @@ message MessageInfo {
   string client_msg_id = 10;
   optional string mediaGroupId = 11;
   optional MediaInfo media = 12; 
+  optional SenderInfo sender_info = 13;
 }
 
 // 获取会话列表请求
@@ -146,4 +208,5 @@ message NewUpdateMessage{
   repeated MessageInfo messages = 1;
   repeated UserInfo users = 2;
   repeated ConversationInfo conversations = 3;
+  repeated string removed_conversation_ids = 4;
 }
