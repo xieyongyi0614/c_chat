@@ -23,6 +23,7 @@ export class MessageTable extends TableConnection {
     // media
     'file_id',
     'file_url',
+    'file_path',
     'file_name',
     'mime_type',
     'file_size',
@@ -48,6 +49,7 @@ export class MessageTable extends TableConnection {
         local_time INTEGER,
         file_id TEXT,
         file_url TEXT,
+        file_path TEXT,
         file_name TEXT,
         mime_type TEXT,
         file_size INTEGER,
@@ -62,6 +64,7 @@ export class MessageTable extends TableConnection {
     this.addColumnIfNotExists('sender_nickname', 'TEXT');
     this.addColumnIfNotExists('sender_avatar', 'TEXT');
     this.addColumnIfNotExists('sender_email', 'TEXT');
+    this.addColumnIfNotExists('file_path', 'TEXT');
 
     // 🚀 核心索引（最重要）
     this.run(`
@@ -100,6 +103,7 @@ export class MessageTable extends TableConnection {
       msg.mediaGroupId,
       msg.fileId,
       msg.fileUrl,
+      msg.filePath,
       msg.fileName,
       msg.mimeType,
       msg.fileSize,
@@ -229,6 +233,7 @@ export class MessageTable extends TableConnection {
       'update_time',
       'file_id',
       'file_url',
+      'file_path',
       'file_name',
       'mime_type',
       'file_size',

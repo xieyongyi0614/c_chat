@@ -159,6 +159,7 @@ const generateLocalMessageData = (data: Partial<LocalMessageListItem>): LocalMes
     updateTime: now(),
     fileId: data.fileId || '',
     fileUrl: data.fileUrl || '',
+    filePath: data.filePath || '',
     mediaGroupId: data.mediaGroupId || '',
     fileName: data?.fileName ?? '',
     mimeType: data?.mimeType ?? '',
@@ -280,6 +281,7 @@ const processSingleFile = async (
   const localMessageData = generateLocalMessageData({
     ...params,
     waveform: file.metadata?.waveform,
+    filePath,
     mimeType: file.mimeType,
     duration: file.metadata?.duration ?? 0,
     senderId: senderInfo?.id ?? '',

@@ -18,12 +18,14 @@ export interface LocalMessageListItem {
   /** media */
   fileId?: string;
   fileUrl?: string;
+  filePath?: string;
   mediaGroupId?: string;
   fileName?: string;
   mimeType?: string;
   fileSize?: number;
   waveform?: string;
   duration?: number;
+  progress?: number;
 }
 
 export enum MessageStatusEnum {
