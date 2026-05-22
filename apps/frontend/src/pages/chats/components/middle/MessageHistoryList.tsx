@@ -1,7 +1,10 @@
-import { memo, useCallback, useLayoutEffect, useMemo, useRef } from 'react';
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Loader2 } from 'lucide-react';
-import { useMessageStore } from '@c_chat/frontend/stores';
+import { useChatStore, useMessageStore } from '@c_chat/frontend/stores';
+import { ConversationTypeEnum } from '@c_chat/shared-types';
+import { ipc, to } from '@c_chat/shared-utils';
 import MessageGroup from './message/MessageGroup';
+import type { SenderProfile } from './message/senderProfile';
 
 interface MessageHistoryListProps {
   loadOlderMessages: () => Promise<boolean>;
@@ -18,6 +21,8 @@ const TOP_LOAD_THRESHOLD = 80;
 const MessageHistoryList = ({ historyState, loadOlderMessages }: MessageHistoryListProps) => {
   const msgGroups = useMessageStore((s) => s.groups);
   const dataConversationId = useMessageStore((s) => s.dataConversationId);
+  const selectedConversation = useChatStore((s) => s.selectedConversation);
+  const [senderProfiles, setSenderProfiles] = useState<Record<string, SenderProfile>>({});
   const msgCount = useMessageStore((s) =>
     Object.values(s.msgMap).reduce((count, messages) => count + messages.length, 0),
   );
@@ -27,6 +32,38 @@ const MessageHistoryList = ({ historyState, loadOlderMessages }: MessageHistoryL
   const previousConversationIdRef = useRef(dataConversationId);
   const pendingPrependHeightRef = useRef<number | null>(null);
   const isLoadingOlderRef = useRef(false);
+  const isGroupConversation = selectedConversation?.type === ConversationTypeEnum.Group;
+
+  useEffect(() => {
+    if (!isGroupConversation || !selectedConversation?.targetId) {
+      setSenderProfiles({});
+      return;
+    }
+
+    let disposed = false;
+    const loadGroupMembers = async () => {
+      const [err, res] = await to(ipc.GetGroupDetail({ groupId: selectedConversation.targetId }));
+      if (disposed || err) return;
+
+      const profiles =
+        res.members?.reduce<Record<string, SenderProfile>>((acc, member) => {
+          if (member.userId) {
+            acc[member.userId] = {
+              id: member.userId,
+              nickname: member.nickname || member.alias || member.userId,
+              avatarUrl: member.avatarUrl ?? '',
+            };
+          }
+          return acc;
+        }, {}) ?? {};
+      setSenderProfiles(profiles);
+    };
+
+    loadGroupMembers();
+    return () => {
+      disposed = true;
+    };
+  }, [isGroupConversation, selectedConversation?.targetId]);
 
   const scrollToBottom = useCallback(() => {
     const el = scrollRef.current;
@@ -124,7 +161,13 @@ const MessageHistoryList = ({ historyState, loadOlderMessages }: MessageHistoryL
           )}
 
           {orderedGroups.map(([key, value]) => (
-            <MessageGroup key={key} groupIds={[...value].reverse()} dateKey={key} />
+            <MessageGroup
+              key={key}
+              groupIds={[...value].reverse()}
+              dateKey={key}
+              isGroupConversation={isGroupConversation}
+              senderProfiles={senderProfiles}
+            />
           ))}
         </div>
       </div>

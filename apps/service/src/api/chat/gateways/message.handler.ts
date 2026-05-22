@@ -19,6 +19,17 @@ import {
   AckSendMessage,
   NewUpdateMessage,
   IConversationInfo,
+  CreateGroupRequest,
+  CreateGroupResponse,
+  GroupInfo,
+  GetGroupDetailRequest,
+  GetGroupDetailResponse,
+  GroupOperationResponse,
+  UpdateGroupRequest,
+  InviteGroupMembersRequest,
+  LeaveGroupRequest,
+  DismissGroupRequest,
+  ITargetInfo,
 } from '@c_chat/shared-protobuf';
 import { buildMessageInfoPayload } from '../utils/message-to-proto.util';
 import { MessageService } from '../services/message.service';
@@ -53,6 +64,12 @@ export abstract class MessageHandler extends MessageHandlerRegistry {
     this.handlers.set(ClientToServiceEvent.getConversationList, this.handleGetConversationList);
     this.handlers.set(ClientToServiceEvent.getMessageHistory, this.handleGetMessageHistory);
     this.handlers.set(ClientToServiceEvent.readMessage, this.handleReadMessage);
+    this.handlers.set(ClientToServiceEvent.createGroup, this.handleCreateGroup);
+    this.handlers.set(ClientToServiceEvent.getGroupDetail, this.handleGetGroupDetail);
+    this.handlers.set(ClientToServiceEvent.updateGroup, this.handleUpdateGroup);
+    this.handlers.set(ClientToServiceEvent.inviteGroupMembers, this.handleInviteGroupMembers);
+    this.handlers.set(ClientToServiceEvent.leaveGroup, this.handleLeaveGroup);
+    this.handlers.set(ClientToServiceEvent.dismissGroup, this.handleDismissGroup);
   }
 
   private handlePing(client: ChatSocket) {
@@ -88,6 +105,302 @@ export abstract class MessageHandler extends MessageHandlerRegistry {
     this.sendMessageToClient(client, ServiceToClientEvent.getUserListResponse, response, requestId);
   };
 
+  private buildGroupInfo(group: {
+    id: string;
+    name: string;
+    avatarUrl?: string | null;
+    notice?: string | null;
+    ownerId: string;
+    state: number;
+    updateTime: Date;
+    createTime: Date;
+  }) {
+    return GroupInfo.create({
+      id: group.id,
+      name: group.name,
+      avatarUrl: group.avatarUrl ?? undefined,
+      notice: group.notice ?? undefined,
+      ownerId: group.ownerId,
+      state: group.state,
+      updateTime: group.updateTime.getTime(),
+      createTime: group.createTime.getTime(),
+    });
+  }
+
+  private buildGroupConversationInfo(
+    conversation: {
+      id: string;
+      type: number;
+      lastMsgContent?: string | null;
+      lastMsgTime?: Date | null;
+      updateTime: Date;
+      createTime: Date;
+      unreadCount?: number | null;
+      lastReadMessageId?: number | null;
+    },
+    group: { id: string; name: string; avatarUrl?: string | null },
+  ) {
+    return ConversationInfo.create({
+      id: conversation.id,
+      type: conversation.type,
+      lastMsgContent: conversation.lastMsgContent ?? undefined,
+      lastMsgTime: conversation.lastMsgTime ? conversation.lastMsgTime.getTime() : undefined,
+      updateTime: conversation.updateTime.getTime(),
+      createTime: conversation.createTime.getTime(),
+      unreadCount: conversation.unreadCount ?? 0,
+      lastReadMessageId: conversation.lastReadMessageId ?? 0,
+      targetInfo: {
+        id: group.id,
+        name: group.name,
+        avatarUrl: group.avatarUrl ?? '',
+      },
+    });
+  }
+
+  private buildGroupOperationResponse(payload: {
+    success: boolean;
+    group?: {
+      id: string;
+      name: string;
+      avatarUrl?: string | null;
+      notice?: string | null;
+      ownerId: string;
+      state: number;
+      updateTime: Date;
+      createTime: Date;
+    } | null;
+    conversation?: {
+      id: string;
+      type: number;
+      lastMsgContent?: string | null;
+      lastMsgTime?: Date | null;
+      updateTime: Date;
+      createTime: Date;
+      unreadCount?: number | null;
+      lastReadMessageId?: number | null;
+    } | null;
+  }) {
+    return GroupOperationResponse.create({
+      success: payload.success,
+      group: payload.group ? this.buildGroupInfo(payload.group) : undefined,
+      conversation:
+        payload.group && payload.conversation
+          ? this.buildGroupConversationInfo(payload.conversation, {
+              id: payload.group.id,
+              name: payload.group.name,
+              avatarUrl: payload.group.avatarUrl ?? '',
+            })
+          : undefined,
+    });
+  }
+
+  private handleCreateGroup = async (
+    client: ChatSocket,
+    payload?: CreateGroupRequest | null,
+    requestId?: string,
+  ) => {
+    const ownerId = client.data.user?.id;
+    if (!ownerId || !payload) return;
+
+    const result = await this.chatService.createGroup(
+      ownerId,
+      payload.name,
+      payload.memberIds ?? [],
+      payload.avatarUrl ?? undefined,
+    );
+    await this.joinUserToRoom(this.server, result.memberIds, result.conversation.id);
+
+    const conversation = this.buildGroupConversationInfo(result.conversation, result.group);
+    const response = CreateGroupResponse.encode(
+      CreateGroupResponse.create({
+        group: this.buildGroupInfo(result.group),
+        conversation,
+      }),
+    ).finish();
+
+    this.sendMessageToClient(client, ServiceToClientEvent.createGroupResponse, response, requestId);
+
+    const update = this.buildNewUpdateMessage([], [conversation]);
+    result.memberIds
+      .filter((memberId) => memberId !== ownerId)
+      .forEach((memberId) =>
+        this.sendMessageToUser(memberId, ServiceToClientEvent.newUpdateMessage, update, ownerId),
+      );
+  };
+
+  private handleGetGroupDetail = async (
+    client: ChatSocket,
+    payload?: GetGroupDetailRequest | null,
+    requestId?: string,
+  ) => {
+    const userId = client.data.user?.id;
+    if (!userId || !payload?.groupId) return;
+
+    const group = await this.chatService.getGroupDetail(payload.groupId, userId);
+    const response = GetGroupDetailResponse.encode(
+      GetGroupDetailResponse.create({
+        group: this.buildGroupInfo(group),
+        members: group.members.map((member) => ({
+          userId: member.userId,
+          nickname: member.alias || member.user.nickname || member.user.email || '',
+          avatarUrl: member.user.avatarUrl ?? undefined,
+          role: member.role,
+          alias: member.alias ?? undefined,
+          state: member.state,
+        })),
+      }),
+    ).finish();
+
+    this.sendMessageToClient(
+      client,
+      ServiceToClientEvent.getGroupDetailResponse,
+      response,
+      requestId,
+    );
+  };
+
+  private handleUpdateGroup = async (
+    client: ChatSocket,
+    payload?: UpdateGroupRequest | null,
+    requestId?: string,
+  ) => {
+    const userId = client.data.user?.id;
+    if (!userId || !payload?.groupId) return;
+
+    const result = await this.chatService.updateGroup(userId, payload.groupId, {
+      name: payload.name ?? undefined,
+      avatarUrl: payload.avatarUrl ?? undefined,
+      notice: payload.notice ?? undefined,
+    });
+
+    const response = GroupOperationResponse.encode(
+      this.buildGroupOperationResponse({
+        success: true,
+        group: result.group,
+        conversation: result.conversation,
+      }),
+    ).finish();
+
+    this.sendMessageToClient(
+      client,
+      ServiceToClientEvent.groupOperationResponse,
+      response,
+      requestId,
+    );
+
+    const conversation = this.buildGroupConversationInfo(result.conversation, result.group);
+    this.broadcastToRoom(
+      result.conversation.id,
+      ServiceToClientEvent.newUpdateMessage,
+      this.buildNewUpdateMessage([], [conversation]),
+      userId,
+    );
+  };
+
+  private handleInviteGroupMembers = async (
+    client: ChatSocket,
+    payload?: InviteGroupMembersRequest | null,
+    requestId?: string,
+  ) => {
+    const userId = client.data.user?.id;
+    if (!userId || !payload?.groupId) return;
+
+    const result = await this.chatService.inviteGroupMembers(
+      userId,
+      payload.groupId,
+      payload.memberIds ?? [],
+    );
+
+    await this.joinUserToRoom(this.server, result.memberIds, result.conversation.id);
+
+    const response = GroupOperationResponse.encode(
+      this.buildGroupOperationResponse({
+        success: true,
+        group: result.group,
+        conversation: result.conversation,
+      }),
+    ).finish();
+
+    this.sendMessageToClient(
+      client,
+      ServiceToClientEvent.groupOperationResponse,
+      response,
+      requestId,
+    );
+
+    const conversation = this.buildGroupConversationInfo(result.conversation, result.group);
+    this.broadcastToRoom(
+      result.conversation.id,
+      ServiceToClientEvent.newUpdateMessage,
+      this.buildNewUpdateMessage([], [conversation]),
+      userId,
+    );
+  };
+
+  private handleLeaveGroup = async (
+    client: ChatSocket,
+    payload?: LeaveGroupRequest | null,
+    requestId?: string,
+  ) => {
+    const userId = client.data.user?.id;
+    if (!userId || !payload?.groupId) return;
+
+    const result = await this.chatService.leaveGroup(userId, payload.groupId);
+    const response = GroupOperationResponse.encode(
+      this.buildGroupOperationResponse({
+        success: true,
+        group: result.group,
+        conversation: result.conversation,
+      }),
+    ).finish();
+
+    this.sendMessageToClient(
+      client,
+      ServiceToClientEvent.groupOperationResponse,
+      response,
+      requestId,
+    );
+
+    this.sendMessageToUser(
+      userId,
+      ServiceToClientEvent.newUpdateMessage,
+      this.buildNewUpdateMessage([], [], [result.conversation.id]),
+      userId,
+    );
+  };
+
+  private handleDismissGroup = async (
+    client: ChatSocket,
+    payload?: DismissGroupRequest | null,
+    requestId?: string,
+  ) => {
+    const userId = client.data.user?.id;
+    if (!userId || !payload?.groupId) return;
+
+    const result = await this.chatService.dismissGroup(userId, payload.groupId);
+    const response = GroupOperationResponse.encode(
+      this.buildGroupOperationResponse({
+        success: true,
+        group: result.group,
+        conversation: result.conversation,
+      }),
+    ).finish();
+
+    this.sendMessageToClient(
+      client,
+      ServiceToClientEvent.groupOperationResponse,
+      response,
+      requestId,
+    );
+
+    this.broadcastToRoom(
+      result.conversation.id,
+      ServiceToClientEvent.newUpdateMessage,
+      this.buildNewUpdateMessage([], [], [result.conversation.id]),
+      userId,
+    );
+  };
+
   /**
    * 获取会话列表
    */
@@ -104,6 +417,22 @@ export abstract class MessageHandler extends MessageHandlerRegistry {
     const { list, total } = await this.chatService.getUserConversations(userId, page, pageSize);
 
     const encodedList = list.map((c) => {
+      let targetInfo: ITargetInfo | undefined;
+
+      if (c.type === 2 && c.group) {
+        targetInfo = {
+          id: c.group.id,
+          name: c.group.name,
+          avatarUrl: c.group.avatarUrl,
+        };
+      } else if (c.user) {
+        targetInfo = {
+          id: c.user.id,
+          name: c.user.nickname,
+          avatarUrl: c.user.avatarUrl,
+        };
+      }
+
       return ConversationInfo.create({
         id: c.id,
         type: c.type,
@@ -113,11 +442,7 @@ export abstract class MessageHandler extends MessageHandlerRegistry {
         createTime: c.createTime.getTime(),
         unreadCount: c.unreadCount ?? 0,
         lastReadMessageId: c.lastReadMessageId ?? 0,
-        targetInfo: {
-          id: c.user?.id,
-          name: c.user?.nickname,
-          avatarUrl: c.user?.avatarUrl,
-        },
+        targetInfo,
       });
     });
 
@@ -253,23 +578,35 @@ export abstract class MessageHandler extends MessageHandlerRegistry {
       },
     });
 
+    const conversation = participants[0]?.conversation;
+    const group =
+      conversation?.type === 2 && conversation.targetId
+        ? await this.prisma.group.findUnique({ where: { id: conversation.targetId } })
+        : null;
+
     return new Map(
       participants.map((participant) => {
         const peer = participants.find((item) => item.userId !== participant.userId)?.user;
         const conversation = participant.conversation;
-
+        const targetInfo = group
+          ? {
+              id: group.id,
+              name: group.name,
+              avatarUrl: group.avatarUrl ?? '',
+            }
+          : peer
+            ? {
+                id: peer.id,
+                name: participant.remark || peer.nickname || '',
+                avatarUrl: peer.avatarUrl ?? '',
+              }
+            : undefined;
         return [
           participant.userId,
           ConversationInfo.create({
             id: conversation.id,
             type: conversation.type,
-            targetInfo: peer
-              ? {
-                  id: peer.id,
-                  name: participant.remark || peer.nickname || '',
-                  avatarUrl: peer.avatarUrl ?? '',
-                }
-              : undefined,
+            targetInfo,
             lastMsgContent: this.getLastMsgContent(message.content, message.type),
             lastMsgTime: message.createTime ? Number(message.createTime) : undefined,
             updateTime: message.updateTime ? Number(message.updateTime) : undefined,
@@ -283,11 +620,16 @@ export abstract class MessageHandler extends MessageHandlerRegistry {
     );
   }
 
-  private buildNewUpdateMessage(messages: MessageInfo[], conversations: IConversationInfo[] = []) {
+  private buildNewUpdateMessage(
+    messages: MessageInfo[],
+    conversations: IConversationInfo[] = [],
+    removedConversationIds: string[] = [],
+  ) {
     return NewUpdateMessage.encode(
       NewUpdateMessage.create({
         messages,
         conversations,
+        removedConversationIds,
       }),
     ).finish();
   }
@@ -337,6 +679,18 @@ export abstract class MessageHandler extends MessageHandlerRegistry {
       );
       isNewConversation = conversation.isNew;
       conversationId = conversation.id;
+    }
+
+    try {
+      await this.chatService.assertCanSendMessage(senderId, conversationId);
+    } catch {
+      this.sendMessageToClient(
+        client,
+        ServiceToClientEvent.ackSendMessage,
+        AckSendMessage.encode(AckSendMessage.create({ clientMsgId, status: 'fail' })).finish(),
+        requestId,
+      );
+      return;
     }
 
     const message = await this.messageService.sendMessage({

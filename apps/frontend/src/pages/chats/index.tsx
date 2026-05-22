@@ -7,6 +7,7 @@ import { useChatsData } from './hooks/useChatsData';
 import { useChatStore } from '@c_chat/frontend/stores';
 import MiddleColumn from './components/middle/MiddleColumn';
 import LeftColumn, { type LeftColumnRef } from './components/left/LeftColumn';
+import type { LocalConversationListItem } from '@c_chat/shared-types';
 
 export function Chats() {
   const { setSelectedConversation, setSelectedUserForDraft } = useChatStore();
@@ -28,9 +29,14 @@ export function Chats() {
     }
   };
 
+  const handleSelectGroupFromNewChat = (conversation: LocalConversationListItem) => {
+    setSelectedConversation(conversation);
+    setSelectedUserForDraft(null);
+  };
+
   return (
     <Main fixed className="px-4 py-4 ">
-      <section className="flex h-full gap-6">
+      <section className="flex h-full min-w-0 gap-6">
         {/* LeftColumn */}
         <LeftColumn
           ref={leftColumnRef}
@@ -46,6 +52,7 @@ export function Chats() {
       </section>
       <NewChat
         onSelectUser={handleSelectUserFromNewChat}
+        onSelectGroup={handleSelectGroupFromNewChat}
         onOpenChange={setCreateConversationDialog}
         open={createConversationDialogOpened}
       />

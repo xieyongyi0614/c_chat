@@ -4,6 +4,7 @@ import {
   clientDecodeProtoMap,
   ClientDecodeProtoMapKey,
   ClientDecodeProtoCallback,
+  ClientPaddingRequestsEvent,
   ServiceDecodeProtoMapKey,
   ServiceToClientEvent,
   ClientPaddingRequestsCallback,
@@ -135,7 +136,6 @@ export abstract class MessageHandlerRegistry {
     }
     const listeners = this.handlers.get(event);
     listeners?.set(comIdentification ?? String(event), callback);
-    return this.subscribeToEvent;
   }
 
   /** 取消订阅事件 */
@@ -150,23 +150,25 @@ export abstract class MessageHandlerRegistry {
   }
 
   /** 请求处理 */
-  async genericRequest<T extends ServiceDecodeProtoMapKey>(
+  async genericRequest<T extends keyof typeof ClientPaddingRequestsEvent>(
     event: T,
     encodedData: Uint8Array,
     requestId: string = uuidv4(),
   ) {
-    return new Promise<Parameters<ClientPaddingRequestsCallback[T]>[0]>((resolve, reject) => {
+    type ResponseType = Parameters<ClientPaddingRequestsCallback[T]>[0];
+
+    return new Promise<ResponseType>((resolve, reject) => {
       // 创建超时定时器
       const timer = setTimeout(() => {
         const entry = this.pendingRequests.get(requestId);
         if (entry) {
           this.pendingRequests.delete(requestId);
           clearTimeout(entry.timer);
-          reject(new Error(`请求 ${event}: ${requestId} 超时.`));
+          reject(new globalThis.Error(`请求 ${event}: ${requestId} 超时.`));
         }
       }, MessageHandlerRegistry.DEFAULT_WAIT_TIMEOUT_MS);
 
-      const entry: Deferred<Parameters<ClientPaddingRequestsCallback[T]>[0]> = {
+      const entry: Deferred<ResponseType> = {
         resolve,
         reject,
         timer,
@@ -179,7 +181,7 @@ export abstract class MessageHandlerRegistry {
       } catch (e) {
         this.pendingRequests.delete(requestId);
         clearTimeout(timer);
-        reject(e instanceof Error ? e : new Error(String(e)));
+        reject(e instanceof globalThis.Error ? e : new globalThis.Error(String(e)));
       }
     });
   }
@@ -188,7 +190,7 @@ export abstract class MessageHandlerRegistry {
   private resolveOrRejectWaiter<TResponse>(
     requestId: string,
     response: TResponse | null,
-    error: any | null,
+    error: unknown,
   ): void {
     const entry = this.pendingRequests.get(requestId);
     console.log(`客户端 ${this.windowId} 收到响应：${requestId}`);

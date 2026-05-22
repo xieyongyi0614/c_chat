@@ -13,7 +13,7 @@ import {
 import { Button } from './components';
 import { Input, Label } from './components';
 
-createRoot(document.getElementById('root')!).render(
+createRoot(document.getElementById('root')).render(
   <StrictMode>
     <Card className="w-full max-w-sm">
       <CardHeader>

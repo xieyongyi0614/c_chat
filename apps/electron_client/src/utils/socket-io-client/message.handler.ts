@@ -136,7 +136,7 @@ export class MessageHandler extends MessageHandlerRegistry {
           return;
         }
 
-        const { messages, conversations } = data;
+        const { messages, conversations, removedConversationIds } = data;
         const updateConvos = new Map<
           string,
           Pick<LocalConversationListItem, 'lastMsgContent' | 'lastMsgTime' | 'updateTime'>
@@ -150,6 +150,7 @@ export class MessageHandler extends MessageHandlerRegistry {
               msgId,
               clientMsgId,
               senderId,
+              senderInfo,
               content,
               media,
               mediaGroupId,
@@ -172,6 +173,9 @@ export class MessageHandler extends MessageHandlerRegistry {
               msgId,
               clientMsgId,
               senderId,
+              senderNickname: senderInfo?.nickname ?? senderInfo?.email ?? '',
+              senderAvatar: senderInfo?.avatarUrl ?? '',
+              senderEmail: senderInfo?.email ?? '',
               content,
               waveform: media?.waveform ?? '',
               fileId: media?.fileId ?? '',
@@ -238,9 +242,16 @@ export class MessageHandler extends MessageHandlerRegistry {
           conversationTableClass.upsertConversations(nextConversations);
         }
 
+        if (removedConversationIds?.length) {
+          removedConversationIds.forEach((conversationId) =>
+            conversationTableClass.deleteConversation(conversationId),
+          );
+        }
+
         this._sendToRenderer(ELECTRON_TO_CLIENT_CHANNELS.newUpdateMessage, {
           messages: newMessages,
           conversations: nextConversations,
+          removedConversationIds: removedConversationIds ?? [],
         });
       },
       [ServiceToClientEvent.sendFileUploadComplete]: async (data) => {

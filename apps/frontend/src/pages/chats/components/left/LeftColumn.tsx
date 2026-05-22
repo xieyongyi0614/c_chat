@@ -1,7 +1,7 @@
 import { forwardRef, memo, useImperativeHandle, useMemo, useState } from 'react';
 import LeftColumnHeader from './LeftColumnHeader';
 import { useChatStore } from '@c_chat/frontend/stores';
-import type { LocalConversationListItem } from '@c_chat/shared-types';
+import { ConversationTypeEnum, type LocalConversationListItem } from '@c_chat/shared-types';
 import ConversationList from './ConversationList';
 export interface LeftColumnRef {
   filterConversations: LocalConversationListItem[];
@@ -19,8 +19,9 @@ const LeftColumn = forwardRef<LeftColumnRef, LeftColumnProps>((props, ref) => {
     const keyword = search.trim().toLowerCase();
     const folderFiltered = (conversationData.list ?? []).filter((item) => {
       if (selectedConversationFolder === 'unread') return (item.unreadCount ?? 0) > 0;
-      if (selectedConversationFolder === 'personal') return item.type === 1;
-      if (selectedConversationFolder === 'groups') return item.type === 2;
+      if (selectedConversationFolder === 'personal')
+        return item.type === ConversationTypeEnum.Direct;
+      if (selectedConversationFolder === 'groups') return item.type === ConversationTypeEnum.Group;
       if (selectedConversationFolder === 'archive') return false;
       return true;
     });
@@ -34,7 +35,7 @@ const LeftColumn = forwardRef<LeftColumnRef, LeftColumnProps>((props, ref) => {
   }));
 
   return (
-    <div className="flex w-full flex-col gap-2 sm:w-56 lg:w-72 2xl:w-80">
+    <div className="flex w-72 shrink-0 flex-col gap-2 2xl:w-80">
       <LeftColumnHeader
         search={search}
         onSearchChange={setSearch}

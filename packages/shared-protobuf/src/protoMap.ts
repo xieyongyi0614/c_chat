@@ -14,6 +14,15 @@ import {
   AckSendMessage,
   SendFileUploadComplete,
   NewUpdateMessage,
+  CreateGroupRequest,
+  CreateGroupResponse,
+  GetGroupDetailRequest,
+  GetGroupDetailResponse,
+  UpdateGroupRequest,
+  InviteGroupMembersRequest,
+  LeaveGroupRequest,
+  DismissGroupRequest,
+  GroupOperationResponse,
 } from '.';
 
 /** 服务端发送socket事件 */
@@ -26,6 +35,9 @@ export const ServiceToClientEvent = {
   getConversationListResponse: 'getConversationListResponse',
   getMessageHistoryResponse: 'getMessageHistoryResponse',
   ReadMessageResponse: 'ReadMessageResponse',
+  createGroupResponse: 'createGroupResponse',
+  getGroupDetailResponse: 'getGroupDetailResponse',
+  groupOperationResponse: 'groupOperationResponse',
 
   ackSendMessage: 'ackSendMessage',
   newUpdateMessage: 'newUpdateMessage',
@@ -46,6 +58,9 @@ export const clientDecodeProtoMap = {
   [ServiceToClientEvent.getMessageHistoryResponse]: GetMessageHistoryResponse,
   [ServiceToClientEvent.ReadMessageResponse]: ReadMessageResponse,
   // [ServiceToClientEvent.createConversation]: ConversationInfo,
+  [ServiceToClientEvent.createGroupResponse]: CreateGroupResponse,
+  [ServiceToClientEvent.getGroupDetailResponse]: GetGroupDetailResponse,
+  [ServiceToClientEvent.groupOperationResponse]: GroupOperationResponse,
 
   [ServiceToClientEvent.ackSendMessage]: AckSendMessage,
   [ServiceToClientEvent.newUpdateMessage]: NewUpdateMessage,
@@ -77,6 +92,12 @@ export const ClientToServiceEvent = {
   getConversationList: 'getConversationList',
   getMessageHistory: 'getMessageHistory',
   readMessage: 'readMessage',
+  createGroup: 'createGroup',
+  getGroupDetail: 'getGroupDetail',
+  updateGroup: 'updateGroup',
+  inviteGroupMembers: 'inviteGroupMembers',
+  leaveGroup: 'leaveGroup',
+  dismissGroup: 'dismissGroup',
 } as const;
 
 /** 服务端使用 */
@@ -89,6 +110,12 @@ export const serviceDecodeProtoMap = {
   [ClientToServiceEvent.getConversationList]: GetConversationListRequest,
   [ClientToServiceEvent.getMessageHistory]: GetMessageHistoryRequest,
   [ClientToServiceEvent.readMessage]: ReadMessageRequest,
+  [ClientToServiceEvent.createGroup]: CreateGroupRequest,
+  [ClientToServiceEvent.getGroupDetail]: GetGroupDetailRequest,
+  [ClientToServiceEvent.updateGroup]: UpdateGroupRequest,
+  [ClientToServiceEvent.inviteGroupMembers]: InviteGroupMembersRequest,
+  [ClientToServiceEvent.leaveGroup]: LeaveGroupRequest,
+  [ClientToServiceEvent.dismissGroup]: DismissGroupRequest,
 };
 export type ServiceDecodeProtoMapKey = keyof typeof serviceDecodeProtoMap;
 
@@ -111,10 +138,16 @@ export const ClientPaddingRequestsEvent = {
   [ClientToServiceEvent.getConversationList]: ServiceToClientEvent.getConversationListResponse,
   [ClientToServiceEvent.getMessageHistory]: ServiceToClientEvent.getMessageHistoryResponse,
   [ClientToServiceEvent.readMessage]: ServiceToClientEvent.ReadMessageResponse,
+  [ClientToServiceEvent.createGroup]: ServiceToClientEvent.createGroupResponse,
+  [ClientToServiceEvent.getGroupDetail]: ServiceToClientEvent.getGroupDetailResponse,
+  [ClientToServiceEvent.updateGroup]: ServiceToClientEvent.groupOperationResponse,
+  [ClientToServiceEvent.inviteGroupMembers]: ServiceToClientEvent.groupOperationResponse,
+  [ClientToServiceEvent.leaveGroup]: ServiceToClientEvent.groupOperationResponse,
+  [ClientToServiceEvent.dismissGroup]: ServiceToClientEvent.groupOperationResponse,
 } as const;
 
 export type ClientPaddingRequestsCallback = {
-  [K in ServiceDecodeProtoMapKey]: (
+  [K in keyof typeof ClientPaddingRequestsEvent]: (
     data: (typeof clientDecodeProtoMap)[(typeof ClientPaddingRequestsEvent)[K]] extends null
       ? null
       : InstanceType<

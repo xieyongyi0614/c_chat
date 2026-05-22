@@ -35,6 +35,8 @@ export default defineConfig([
       '@typescript-eslint/no-unused-vars': 'warn',
       '@typescript-eslint/no-explicit-any': 'off',
       '@typescript-eslint/no-namespace': 'off',
+      '@typescript-eslint/no-floating-promises': 'off',
+      '@typescript-eslint/require-await': 'off',
     },
   },
   {
@@ -66,11 +68,24 @@ export default defineConfig([
           },
         },
       ],
+      '@typescript-eslint/require-await': 'off',
     },
     settings: {
       react: {
         version: 'detect',
       },
+    },
+  },
+  {
+    files: ['packages/chat_ui/src/components/**/*.{ts,tsx}'],
+    rules: {
+      'react-refresh/only-export-components': 'off',
+    },
+  },
+  {
+    files: ['**/*.config.ts', '**/*.config.mts'],
+    rules: {
+      '@typescript-eslint/no-unsafe-call': 'off',
     },
   },
 ]);

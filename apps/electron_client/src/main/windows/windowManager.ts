@@ -9,7 +9,7 @@ import EventEmitter from 'events';
 import path, { join } from 'path';
 import { storeTableClass } from '../../db';
 import initOsData from '../../utils/osData';
-import { WebContentEvents } from '@c_chat/shared-types';
+import { AuthTypes, WebContentEvents } from '@c_chat/shared-types';
 import { socketManager } from '../../utils/socket-io-client';
 
 /**
@@ -79,7 +79,7 @@ export class WindowManager {
     }
 
     // 初始化窗口相关的数据
-    this.initWindowData(targetWindowId);
+    this.initWindowData();
 
     const additionalArguments = [`${WINDOW_ID}=${targetWindowId}`];
 
@@ -123,16 +123,18 @@ export class WindowManager {
       // 加载内容
       const loadUrl = `http://localhost:${ELECTRON_RENDERER_PORT}/#/auth/sign-in`;
       window.loadURL(loadUrl).catch((err) => {
-        console.log(`Window load failed: ${err.message}`);
+        console.log(`Window load failed: ${err instanceof Error ? err.message : String(err)}`);
         if (process.env.NODE_ENV === 'development') {
-          setTimeout(() => window.loadURL(loadUrl), 1000);
+          setTimeout(() => {
+            void window.loadURL(loadUrl);
+          }, 1000);
         }
       });
     } else {
       // 生产环境：加载本地 HTML 文件
       const localPath = path.join(__dirname, '../renderer/index.html');
       window.loadFile(localPath).catch((err) => {
-        console.log(`Window load failed: ${err.message}`);
+        console.log(`Window load failed: ${err instanceof Error ? err.message : String(err)}`);
       });
       // window.loadURL(
       //   format({
@@ -254,7 +256,7 @@ export class WindowManager {
    */
   getAuthenticatedWindows(): BrowserWindow[] {
     return this.getAllWindows().filter((win) => {
-      const windowId = (win as any).id;
+      const windowId = win.id;
       return !!storeTableClass.getAccessToken(windowId);
     });
   }
@@ -399,7 +401,7 @@ export class WindowManager {
    * @param windowId 窗口ID
    * @param userInfo 用户信息
    */
-  static setUserInfo(windowId: number, userInfo: any): void {
+  static setUserInfo(windowId: number, userInfo: AuthTypes.GetUserInfoResponse): void {
     storeTableClass.setUserInfo(userInfo, windowId);
   }
 

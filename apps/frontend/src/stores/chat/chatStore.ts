@@ -23,6 +23,7 @@ export interface ChatStoreType extends ChatStoreData {
     lastMsgTime: number,
   ) => void;
   upsertAndPinConversation: (conversation: LocalConversationListItem) => void;
+  removeConversation: (conversationId: string) => void;
 
   markConversationAsRead: (conversationId: string) => Promise<void>;
 }
@@ -117,6 +118,16 @@ export const useChatStore = create<ChatStoreType>((set, get) => {
               : state.selectedConversation,
         };
       });
+    },
+    removeConversation(conversationId) {
+      set((state) => ({
+        conversationData: {
+          ...state.conversationData,
+          list: state.conversationData.list.filter((item) => item.id !== conversationId),
+        },
+        selectedConversation:
+          state.selectedConversation?.id === conversationId ? null : state.selectedConversation,
+      }));
     },
 
     async markConversationAsRead(conversationId) {

@@ -17,19 +17,25 @@ import {
   Avatar,
   AvatarImage,
   AvatarFallback,
+  Input,
 } from '@c_chat/ui';
 import { ipc, to } from '@c_chat/shared-utils';
-import type { IpcTypes, UserTypes } from '@c_chat/shared-types';
+import type { IpcTypes, LocalConversationListItem, UserTypes } from '@c_chat/shared-types';
 import { toast } from 'sonner';
+import { getChatAvatarFallbackClass } from './chat-avatar-style';
+import { MAX_GROUP_NAME_LENGTH } from './group-name';
 
 type NewChatProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSelectUser: (user: UserTypes.UserListItem) => void;
+  onSelectGroup: (conversation: LocalConversationListItem) => void;
 };
-export function NewChat({ onOpenChange, open, onSelectUser }: NewChatProps) {
+export function NewChat({ onOpenChange, open, onSelectUser, onSelectGroup }: NewChatProps) {
   const [userListData, setUserListData] = useState<Awaited<ReturnType<IpcTypes['GetUserList']>>>();
   const [selectedUsers, setSelectedUsers] = useState<UserTypes.UserListItem[]>([]);
+  const [groupName, setGroupName] = useState('');
+  const [submitting, setSubmitting] = useState(false);
   useEffect(() => {
     if (open) {
       getUserList();
@@ -44,7 +50,7 @@ export function NewChat({ onOpenChange, open, onSelectUser }: NewChatProps) {
     }
     setUserListData(res);
   };
-  const handleSelectUser = async (user: UserTypes.UserListItem) => {
+  const handleSelectUser = (user: UserTypes.UserListItem) => {
     // onSelectUser(user);
     // onOpenChange(false);
     setSelectedUsers((p) =>
@@ -61,17 +67,35 @@ export function NewChat({ onOpenChange, open, onSelectUser }: NewChatProps) {
     // Reset selected users when dialog closes
     if (!newOpen) {
       setSelectedUsers([]);
+      setGroupName('');
     }
   };
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+    const trimmedGroupName = groupName.trim().slice(0, MAX_GROUP_NAME_LENGTH);
+
     /** 群聊 */
     if (selectedUsers.length > 1) {
-      toast.error('群聊暂未处理');
+      setSubmitting(true);
+      const [err, conversation] = await to(
+        ipc.CreateGroup({
+          name: trimmedGroupName,
+          memberIds: selectedUsers.map((user) => user.id),
+        }),
+      );
+      setSubmitting(false);
+
+      if (err) {
+        toast.error('创建群聊失败');
+        return;
+      }
+
+      onSelectGroup(conversation);
     } else {
       onSelectUser(selectedUsers[0]);
     }
     onOpenChange(false);
     setSelectedUsers([]);
+    setGroupName('');
   };
 
   return (
@@ -90,6 +114,14 @@ export function NewChat({ onOpenChange, open, onSelectUser }: NewChatProps) {
               </Badge>
             ))}
           </div>
+          {selectedUsers.length > 1 && (
+            <Input
+              value={groupName}
+              onChange={(event) => setGroupName(event.target.value)}
+              maxLength={MAX_GROUP_NAME_LENGTH}
+              placeholder="群名称（可选）"
+            />
+          )}
           <Command className="rounded-lg border">
             <CommandInput placeholder="搜索账号..." className="text-foreground" />
             <CommandList>
@@ -108,13 +140,11 @@ export function NewChat({ onOpenChange, open, onSelectUser }: NewChatProps) {
                         className="h-8 w-8 rounded-full"
                       /> */}
 
-                      <Avatar>
-                        <AvatarImage
-                          src={user.avatarUrl ?? ''}
-                          alt="@shadcn"
-                          className="grayscale"
-                        />
-                        <AvatarFallback>
+                      <Avatar className="size-10">
+                        <AvatarImage src={user.avatarUrl ?? ''} alt={user.nickname || user.email} />
+                        <AvatarFallback
+                          className={getChatAvatarFallbackClass(user.nickname || user.email)}
+                        >
                           {(user.nickname || user.email).slice(0, 2).toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
@@ -130,8 +160,12 @@ export function NewChat({ onOpenChange, open, onSelectUser }: NewChatProps) {
               </CommandGroup>
             </CommandList>
           </Command>
-          <Button variant={'default'} onClick={handleSubmit} disabled={selectedUsers.length === 0}>
-            Chat
+          <Button
+            variant={'default'}
+            onClick={handleSubmit}
+            disabled={selectedUsers.length === 0 || submitting}
+          >
+            {selectedUsers.length > 1 ? 'Create group' : 'Chat'}
           </Button>
         </div>
       </DialogContent>
