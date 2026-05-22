@@ -13,14 +13,16 @@ import {
 } from '@c_chat/ui';
 import { useMessageStore, useUserStore } from '@c_chat/frontend/stores';
 import { formatFileUrl } from '@c_chat/frontend/common/formatFileUrl';
+import { ipc, to } from '@c_chat/shared-utils';
+import { toast } from 'sonner';
 import TextMessage from './types/TextMessage';
 import ImageGroup from './types/ImageGroup';
 import FileMessage from './types/FileMessage';
 import VideoMessage from './types/VideoMessage';
 import AudioMessage from './types/AudioMessage';
-
 import MessageDate from './MessageDate';
 import { MESSAGE_TYPE } from '@c_chat/shared-config';
+import { MessageStatusEnum } from '@c_chat/shared-types';
 import type { SenderProfile } from './senderProfile';
 
 interface MessageItemProps {
@@ -44,8 +46,10 @@ const MessageItem = ({
 }: MessageItemProps) => {
   const userInfo = useUserStore((s) => s.userInfo);
   const userId = userInfo?.id;
-  const messages = useMessageStore((s) => s.msgMap[groupId]);
+  const messages = useMessageStore((s) => s.msgMap[groupId]) ?? [];
+  const updateMsgs = useMessageStore((s) => s.updateMsgs);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [resending, setResending] = useState(false);
 
   const msg = messages[0];
   const isMe = msg.senderId === userId;
@@ -77,10 +81,57 @@ const MessageItem = ({
   ]);
   const senderName = sender.nickname || sender.email || sender.id;
   const showSender = Boolean(isGroupConversation);
+  const failedOwnMessages = isMe
+    ? messages.filter((item) => item.status === MessageStatusEnum.fail && item.clientMsgId)
+    : [];
+
+  const handleResend = async () => {
+    if (failedOwnMessages.length === 0 || resending) return;
+
+    setResending(true);
+    updateMsgs(
+      failedOwnMessages.map((item) => ({
+        ...item,
+        status: MessageStatusEnum.sending,
+        updateTime: Date.now(),
+      })),
+    );
+
+    const nextMessages = [];
+
+    for (const item of failedOwnMessages) {
+      const [err, res] = await to(ipc.ResendMessage({ clientMsgId: item.clientMsgId }));
+      if (err) {
+        console.error('Failed to resend message:', err);
+        updateMsgs(
+          failedOwnMessages.map((failedItem) => ({
+            ...failedItem,
+            status: MessageStatusEnum.fail,
+            updateTime: Date.now(),
+          })),
+        );
+        toast.error('重发失败');
+        setResending(false);
+        return;
+      }
+      nextMessages.push(...res);
+    }
+
+    updateMsgs(nextMessages);
+    setResending(false);
+  };
 
   const renderContent = () => {
     if (msg.type === MESSAGE_TYPE.Image) {
-      return <ImageGroup messages={messages} />;
+      return (
+        <ImageGroup
+          messages={messages}
+          isMe={isMe}
+          isRead={isRead}
+          onRetry={handleResend}
+          retrying={resending}
+        />
+      );
     }
 
     if (messages.length !== 1) {
@@ -88,7 +139,15 @@ const MessageItem = ({
     }
 
     if (msg.type === MESSAGE_TYPE.File) {
-      return <FileMessage msg={msg} isMe={isMe} isRead={isRead} />;
+      return (
+        <FileMessage
+          msg={msg}
+          isMe={isMe}
+          isRead={isRead}
+          onRetry={handleResend}
+          retrying={resending}
+        />
+      );
     }
 
     if (msg.type === MESSAGE_TYPE.Video) {
@@ -105,6 +164,8 @@ const MessageItem = ({
             duration: msg.duration ?? 0,
           }}
           msg={msg}
+          onRetry={handleResend}
+          retrying={resending}
         />
       );
     }
@@ -128,11 +189,11 @@ const MessageItem = ({
         </Button>
       )}
 
-      <div className={cn('flex max-w-[70%] flex-col', isMe ? 'items-end' : 'items-start')}>
+      <div className={cn('relative flex max-w-[70%] flex-col', isMe ? 'items-end' : 'items-start')}>
         {showSender && !isMe && (
           <button
             type="button"
-            className="text-muted-foreground mb-1 max-w-full truncate px-1 text-xs"
+            className="mb-1 max-w-full truncate px-1 text-xs text-muted-foreground"
             onClick={() => setProfileOpen(true)}
           >
             {senderName}
@@ -141,7 +202,7 @@ const MessageItem = ({
         <div
           className={cn(
             'rounded-2xl py-2 text-sm',
-            isMe ? 'rounded-br-sm pl-3 pr-2' : 'bg-muted rounded-bl-sm pl-2 pr-3',
+            isMe ? 'rounded-br-sm pl-3 pr-2' : 'rounded-bl-sm bg-muted pl-2 pr-3',
             msg.type === MESSAGE_TYPE.Image ? 'relative group' : 'shadow-sm',
           )}
         >
@@ -152,6 +213,8 @@ const MessageItem = ({
               status={msg.status}
               isMe={isMe}
               isRead={isRead}
+              onRetry={handleResend}
+              retrying={resending}
               className="relative top-1.5"
             />
           )}
@@ -187,7 +250,7 @@ const MessageItem = ({
                 <span className="truncate text-base font-semibold">{senderName}</span>
                 {isMe && <Badge variant="secondary">我</Badge>}
               </div>
-              <p className="text-muted-foreground truncate text-sm">{sender.email || sender.id}</p>
+              <p className="truncate text-sm text-muted-foreground">{sender.email || sender.id}</p>
             </div>
           </div>
         </DialogContent>

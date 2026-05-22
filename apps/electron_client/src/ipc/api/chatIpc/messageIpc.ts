@@ -208,6 +208,135 @@ addActionHandler('SendMessage', async (params) => {
   return [localMessageData];
 });
 
+const getMessageAfterStatusUpdate = (clientMsgId: string, status: MessageStatusEnum) => {
+  messageTableClass.updateMessageStateByClientId(clientMsgId, status);
+  return messageTableClass.getByClientMsgId(clientMsgId);
+};
+
+const resendSocketMessage = async (windowId: number, msg: LocalMessageListItem) => {
+  if (msg.fileId) {
+    await sendSocketMessageWithFile(windowId, {
+      conversationId: msg.conversationId,
+      clientMsgId: msg.clientMsgId,
+      fileId: msg.fileId,
+      durationSec: msg.duration,
+      waveform: msg.waveform,
+      type: msg.type,
+      mediaGroupId: msg.mediaGroupId || undefined,
+      content: msg.content,
+    });
+    return;
+  }
+
+  const socketService = socketManager.getSocketService(windowId);
+  const res = await socketService.genericRequest(
+    ClientToServiceEvent.sendMessage,
+    SendMessageRequest.encode(
+      SendMessageRequest.create({
+        conversationId: msg.conversationId,
+        content: msg.content,
+        type: msg.type,
+        clientMsgId: msg.clientMsgId,
+      }),
+    ).finish(),
+  );
+
+  if (res.status !== 'ok') {
+    throw new Error('重发消息失败');
+  }
+};
+
+const recreateUploadTaskForRetry = async (windowId: number, msg: LocalMessageListItem) => {
+  if (!msg.filePath) {
+    throw new Error('缺少本地文件路径，无法重发');
+  }
+
+  const fileHash = calcSamplingHash(msg.filePath);
+  const uploadInit = await ApiClient.upload.uploadInit({
+    fileName: msg.fileName ?? '',
+    fileHash,
+    fileSize: msg.fileSize ?? 0,
+  });
+
+  if (uploadInit?.file?.id) {
+    messageTableClass.updateFileIdByClientId(msg.clientMsgId, uploadInit.file.id);
+    const nextMsg = messageTableClass.getByClientMsgId(msg.clientMsgId);
+    if (!nextMsg) throw new Error('消息不存在');
+    await resendSocketMessage(windowId, nextMsg);
+    return;
+  }
+
+  if (!uploadInit?.uploadSession?.id) {
+    throw new Error('创建上传任务失败');
+  }
+
+  const taskId = uuidv4();
+  uploadTaskTableClass.insert({
+    id: taskId,
+    clientMsgId: msg.clientMsgId,
+    filePath: msg.filePath,
+    fileName: msg.fileName ?? '',
+    fileSize: msg.fileSize ?? 0,
+    mimeType: msg.mimeType ?? '',
+    fileHash,
+    status: UploadStatusEnum.waiting,
+    progress: 0,
+    uploadedBytes: 0,
+    isRunning: 0,
+    uploadSessionId: uploadInit.uploadSession.id,
+    windowId,
+    chunkSize: uploadInit.uploadSession.chunkSize,
+    uploadedChunks: 0,
+    totalChunks: uploadInit.uploadSession.totalChunks,
+    isInstant: 0,
+    errorMessage: '',
+    createTime: now(),
+    updateTime: now(),
+  });
+  uploadScheduler.addTask(taskId);
+};
+
+addActionHandler('ResendMessage', async (params) => {
+  const { clientMsgId, windowId } = params;
+  const msg = messageTableClass.getByClientMsgId(clientMsgId);
+
+  if (!msg) {
+    throw new Error('消息不存在');
+  }
+
+  if (msg.status === MessageStatusEnum.success) {
+    return [msg];
+  }
+
+  const sendingMsg = getMessageAfterStatusUpdate(clientMsgId, MessageStatusEnum.sending);
+  if (!sendingMsg) {
+    throw new Error('消息不存在');
+  }
+
+  try {
+    if (!sendingMsg.fileId && sendingMsg.filePath) {
+      const tasks = uploadTaskTableClass.getByClientMsgIdList(clientMsgId) ?? [];
+      const task = tasks[0];
+
+      if (task) {
+        uploadTaskTableClass.resetForRetry(task.id);
+        uploadScheduler.addTask(task.id);
+      } else {
+        await recreateUploadTaskForRetry(windowId, sendingMsg);
+      }
+
+      return [messageTableClass.getByClientMsgId(clientMsgId) ?? sendingMsg];
+    }
+
+    await resendSocketMessage(windowId, sendingMsg);
+    return [messageTableClass.getByClientMsgId(clientMsgId) ?? sendingMsg];
+  } catch (error) {
+    getMessageAfterStatusUpdate(clientMsgId, MessageStatusEnum.fail);
+    console.error('重发消息失败:', error);
+    throw error instanceof Error ? error : new Error('重发消息失败');
+  }
+});
+
 const handleSendFiles = async (
   params: SendMessageParams & ActionCtx,
   senderInfo?: AuthTypes.GetUserInfoResponse,

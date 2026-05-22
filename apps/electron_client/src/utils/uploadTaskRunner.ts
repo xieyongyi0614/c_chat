@@ -4,10 +4,11 @@ import { to } from '@c_chat/shared-utils';
 import { MessageStatusEnum, UploadStatusEnum, UploadTypes } from '@c_chat/shared-types';
 import { ClientToServiceEvent } from '@c_chat/shared-protobuf/protoMap';
 import { SendMessageRequest } from '@c_chat/shared-protobuf';
-import { UPLOAD_CHUNK_SIZE } from '@c_chat/shared-config';
+import { ELECTRON_TO_CLIENT_CHANNELS, UPLOAD_CHUNK_SIZE } from '@c_chat/shared-config';
 import { ApiClient } from './axios/service/apiService';
 import { readChunkAsBlob } from './calcFileHash';
 import { runWithActionCtx } from '@c_chat/electron_client/ipc/actionContext';
+import { WindowManager } from '@c_chat/electron_client/main/windows';
 
 /** 与服务端 ChunkService + 合并队列搭配的并发度（分片已按序号落盘，可并行上传） */
 const CHUNK_UPLOAD_CONCURRENCY = 4;
@@ -156,6 +157,18 @@ async function startUploadInContext(
 
     if (task.clientMsgId) {
       messageTableClass.updateMessageStateByClientId(task.clientMsgId, MessageStatusEnum.fail);
+      const msg = messageTableClass.getByClientMsgId(task.clientMsgId);
+      if (msg) {
+        WindowManager.sendToWindow(
+          task.windowId ?? 1,
+          ELECTRON_TO_CLIENT_CHANNELS.newUpdateMessage,
+          {
+            messages: [msg],
+            conversations: [],
+            removedConversationIds: [],
+          },
+        );
+      }
     }
   }
 }

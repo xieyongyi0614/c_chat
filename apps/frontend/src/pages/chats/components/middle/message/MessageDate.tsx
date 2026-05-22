@@ -9,9 +9,11 @@ interface MessageDateProps extends ComponentProps<'div'> {
   status: MessageStatusEnum;
   isMe: boolean;
   isRead: boolean;
+  onRetry?: () => void;
+  retrying?: boolean;
 }
 const MessageDate = (props: MessageDateProps) => {
-  const { time, status, isMe, isRead, className } = props;
+  const { time, status, isMe, isRead, className, onRetry, retrying } = props;
   return (
     <span
       className={cn(
@@ -21,7 +23,9 @@ const MessageDate = (props: MessageDateProps) => {
       )}
     >
       <span>{formatChatTime(time)}</span>
-      {isMe && <MessageStatusIcon status={status} isRead={isRead} />}
+      {isMe && (
+        <MessageStatusIcon status={status} isRead={isRead} onRetry={onRetry} retrying={retrying} />
+      )}
     </span>
   );
 };

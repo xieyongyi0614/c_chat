@@ -283,7 +283,11 @@ export class MessageTable extends TableConnection {
    * 更新发送状态
    */
   updateMessageStatus(id: string, status: MessageStatusEnum) {
-    this.run(`UPDATE ${this.TABLE_NAME} SET status = ? WHERE id = ?`, [status, id]);
+    this.run(`UPDATE ${this.TABLE_NAME} SET status = ?, update_time = ? WHERE id = ?`, [
+      status,
+      Date.now(),
+      id,
+    ]);
   }
 
   updateMessageStateByClientId(clientMsgId: string, status: MessageStatusEnum) {

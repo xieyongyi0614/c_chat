@@ -137,6 +137,23 @@ export class UploadTaskTable extends TableConnection {
     this.run(sql, [status, Date.now(), id]);
   }
 
+  resetForRetry(id: string) {
+    const sql = `
+      UPDATE ${this.TABLE_NAME}
+      SET
+        status = ?,
+        progress = 0,
+        uploaded_bytes = 0,
+        uploaded_chunks = 0,
+        is_running = 0,
+        error_message = '',
+        update_time = ?
+      WHERE id = ?
+    `;
+
+    this.run(sql, [UploadStatusEnum.waiting, Date.now(), id]);
+  }
+
   updateFileHash(id: string, fileHash: string) {
     const sql = `
       UPDATE ${this.TABLE_NAME}
@@ -285,7 +302,7 @@ export class UploadTaskTable extends TableConnection {
       WHERE id = ?
     `;
 
-    const values = [...keys.map((k) => fields[k]), Date.now(), id];
+    const values = [...keys.map((k) => fields[k] as string), Date.now(), id];
 
     this.run(sql, values);
   }
