@@ -54,6 +54,10 @@ export type ReadMessageParams = {
   messageId?: string;
 };
 
+export type ResendMessageParams = {
+  clientMsgId: string;
+};
+
 export type ReadMessageResult = {
   conversationId: string;
   messageId: number;
@@ -79,5 +83,6 @@ export interface ChatPreloadTypes {
   GetLocalMessageHistory: IpcMethod<GetMessageHistoryParams, LocalMessageListItem[]>;
   GetMessageHistory: IpcMethod<GetMessageHistoryParams, LocalMessageListItem[]>;
   SendMessage: IpcMethod<SendMessageParams, LocalMessageListItem[]>;
+  ResendMessage: IpcMethod<ResendMessageParams, LocalMessageListItem[]>;
   ReadMessage: IpcMethod<ReadMessageParams, ReadMessageResult>;
 }

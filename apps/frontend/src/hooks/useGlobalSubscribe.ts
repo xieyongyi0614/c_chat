@@ -2,18 +2,18 @@ import { useEffect } from 'react';
 import { useChatStore, useMessageStore, useUserStore } from '../stores';
 import { ELECTRON_TO_CLIENT_CHANNELS } from '@c_chat/shared-config';
 import { toast } from 'sonner';
-import type {
-  LocalMessageListItem,
-  WebContentEvents,
-  WebContentEventType,
+import {
+  MessageStatusEnum,
+  type LocalMessageListItem,
+  type WebContentEvents,
+  type WebContentEventType,
 } from '@c_chat/shared-types';
 import { useLastCallback } from './useLastCallback';
 
-/** 全局订阅监听 */
 export const useGlobalSubscribe = () => {
   const { userInfo, isSignedIn } = useUserStore();
   const { upsertAndPinConversation, removeConversation } = useChatStore();
-  const { updateMsgs, addMsgList } = useMessageStore();
+  const { updateMsg, updateMsgs, addMsgList } = useMessageStore();
   const dataConversationId = useMessageStore((s) => s.dataConversationId);
   const hasSelectedDraft = useChatStore((s) => Boolean(s.selectedUserForDraft));
 
@@ -34,9 +34,8 @@ export const useGlobalSubscribe = () => {
         const isCurrentConversation =
           msg.conversationId === dataConversationId || (isOwnMessage && hasSelectedDraft);
 
-        if (!isCurrentConversation) {
-          continue;
-        }
+        if (!isCurrentConversation) continue;
+
         if (isOwnMessage) {
           ownUpdates.push(msg);
         } else {
@@ -60,8 +59,20 @@ export const useGlobalSubscribe = () => {
   });
 
   const uploadProgressHandle = useLastCallback<WebContentEvents['uploadProgress']>((data) => {
-    if (data?.clientMsgId) {
-      console.log('上传进度:', data);
+    if (!data?.clientMsgId) return;
+
+    console.log('上传进度:', data);
+    const existingMsg = Object.values(useMessageStore.getState().msgMap)
+      .flat()
+      .find((msg) => msg.clientMsgId === data.clientMsgId);
+
+    if (existingMsg) {
+      updateMsg({
+        ...existingMsg,
+        status: MessageStatusEnum.uploading,
+        progress: data.progress,
+        updateTime: Date.now(),
+      });
     }
   });
 
@@ -75,7 +86,7 @@ export const useGlobalSubscribe = () => {
       if (typeof toastFn === 'function') {
         toastFn(message);
       } else {
-        console.warn(`未知type: ${type}, 使用默认`);
+        console.warn(`未知 type: ${type}, 使用默认 toast`);
         toast(message);
       }
     });

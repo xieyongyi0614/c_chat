@@ -3,9 +3,14 @@ import type { CSSProperties } from 'react';
 import { MessageStatusEnum, type LocalMessageListItem } from '@c_chat/shared-types';
 import { bufferToPreviewUrl, ipc } from '@c_chat/shared-utils';
 import { formatFileUrl } from '@c_chat/frontend/common/formatFileUrl';
+import MessageDate from '../MessageDate';
 
 interface ImageGroupProps {
   messages: LocalMessageListItem[];
+  isMe: boolean;
+  isRead: boolean;
+  onRetry?: () => void;
+  retrying?: boolean;
 }
 
 interface ImagePreviewProps {
@@ -105,44 +110,75 @@ const ImagePreview = ({ msg, idx, imgClass, containerStyle }: ImagePreviewProps)
   );
 };
 
-const ImageGroup = ({ messages }: ImageGroupProps) => {
+const ImageGroup = ({ messages, isMe, isRead, onRetry, retrying }: ImageGroupProps) => {
   const count = messages.length;
+  const groupStatus = (() => {
+    if (messages.some((item) => item.status === MessageStatusEnum.fail)) {
+      return MessageStatusEnum.fail;
+    }
+    if (messages.some((item) => item.status === MessageStatusEnum.uploading)) {
+      return MessageStatusEnum.uploading;
+    }
+    if (messages.some((item) => item.status === MessageStatusEnum.sending)) {
+      return MessageStatusEnum.sending;
+    }
+    return messages[0]?.status ?? MessageStatusEnum.default;
+  })();
+  const groupTime = messages[0]?.createTime ?? Date.now();
+
+  const renderDate = () => (
+    <div className="flex pointer-events-auto absolute bottom-1 right-1 rounded-full bg-black/55 px-1.5 py-0.5 text-white backdrop-blur-sm [&_span]:text-white">
+      <MessageDate
+        time={groupTime}
+        status={groupStatus}
+        isMe={isMe}
+        isRead={isRead}
+        onRetry={onRetry}
+        retrying={retrying}
+        className="float-none ml-0 text-[11px]"
+      />
+    </div>
+  );
 
   if (count === 1) {
     const m = messages[0];
     return (
-      <div className="grid max-w-xs grid-cols-1">
+      <div className="relative grid max-w-xs grid-cols-1">
         <ImagePreview msg={m} idx={0} imgClass="rounded-xl object-contain" />
+        {renderDate()}
       </div>
     );
   }
 
   if (count === 2) {
     return (
-      <div className="grid max-w-xs grid-cols-2 gap-1">
+      <div className="relative grid max-w-xs grid-cols-2 gap-1">
         {messages.map((m, i) => (
           <ImagePreview key={m.id} msg={m} idx={i} imgClass="h-44 w-full object-cover" />
         ))}
+        {renderDate()}
       </div>
     );
   }
 
   if (count === 3) {
     return (
-      <div className="grid max-w-xs grid-cols-1 grid-rows-3 gap-1">
+      <div className="relative grid max-w-xs grid-cols-1 grid-rows-3 gap-1">
         {messages.map((m, i) => (
           <ImagePreview key={m.id} msg={m} idx={i} imgClass="h-44 w-full object-cover" />
         ))}
+        {renderDate()}
       </div>
     );
   }
 
   if (count === 4) {
     return (
-      <div className="grid max-w-xs grid-cols-2 gap-1">
+      <div className="relative grid max-w-xs grid-cols-2 gap-1">
         {messages.map((m, i) => (
           <ImagePreview key={m.id} msg={m} idx={i} imgClass="h-40 w-full object-cover" />
         ))}
+        {renderDate()}
       </div>
     );
   }
@@ -153,12 +189,13 @@ const ImageGroup = ({ messages }: ImageGroupProps) => {
 
   return (
     <div
-      className="grid max-w-xs cursor-pointer gap-1"
+      className="relative grid max-w-xs cursor-pointer gap-1"
       style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
     >
       {showMessages.map((m, i) => (
         <ImagePreview key={m.id} msg={m} idx={i} imgClass="h-28 w-full object-cover" />
       ))}
+      {renderDate()}
     </div>
   );
 };

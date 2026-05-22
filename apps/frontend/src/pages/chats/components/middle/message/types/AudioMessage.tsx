@@ -18,9 +18,20 @@ interface AudioMessageProps {
 
   forwarded?: boolean;
   msg: LocalMessageListItem;
+  onRetry?: () => void;
+  retrying?: boolean;
 }
 
-function AudioMessage({ audioUrl, voice, isMe, senderName, forwarded, msg }: AudioMessageProps) {
+function AudioMessage({
+  audioUrl,
+  voice,
+  isMe,
+  senderName,
+  forwarded,
+  msg,
+  onRetry,
+  retrying,
+}: AudioMessageProps) {
   const { playing, currentTime, duration } = useAudioMessage(msg.clientMsgId);
   const waveformCanvasRef = useWaveformCanvas(voice, currentTime / duration, isMe);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -91,7 +102,14 @@ function AudioMessage({ audioUrl, voice, isMe, senderName, forwarded, msg }: Aud
               )}
             </div>
 
-            <MessageDate time={msg.createTime} status={msg.status} isMe={isMe} isRead={true} />
+            <MessageDate
+              time={msg.createTime}
+              status={msg.status}
+              isMe={isMe}
+              isRead={true}
+              onRetry={onRetry}
+              retrying={retrying}
+            />
           </div>
         </div>
       </div>

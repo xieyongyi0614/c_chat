@@ -9,9 +9,11 @@ interface FileMessageProps {
   msg: LocalMessageListItem;
   isMe: boolean;
   isRead: boolean;
+  onRetry?: () => void;
+  retrying?: boolean;
 }
 
-const FileMessage = ({ msg, isMe }: FileMessageProps) => {
+const FileMessage = ({ msg, isMe, onRetry, retrying }: FileMessageProps) => {
   const fileName = msg.fileName || '文件';
 
   return (
@@ -47,7 +49,14 @@ const FileMessage = ({ msg, isMe }: FileMessageProps) => {
           ) : (
             <p className="text-xs text-gray-500 dark:text-gray-400">
               {msg.fileSize ? formatFileSize(msg.fileSize) : '0B'}
-              <MessageDate time={msg.createTime} status={msg.status} isMe={isMe} isRead={true} />
+              <MessageDate
+                time={msg.createTime}
+                status={msg.status}
+                isMe={isMe}
+                isRead={true}
+                onRetry={onRetry}
+                retrying={retrying}
+              />
             </p>
           )}
         </div>
