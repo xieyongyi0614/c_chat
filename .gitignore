@@ -47,3 +47,8 @@ apps/electron_client/release
 
 apps/service/generated/prisma
 apps/service/uploads/*
+
+AGENTS.md
+
+.cursor/
+.claude/
