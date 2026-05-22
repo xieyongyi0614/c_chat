@@ -1,4 +1,8 @@
-import { DBConversationListItem, LocalConversationListItem } from '@c_chat/shared-types';
+import {
+  ConversationTypeEnum,
+  DBConversationListItem,
+  LocalConversationListItem,
+} from '@c_chat/shared-types';
 import { TableConnection } from '../Table';
 import { DEFAULT_LIST_DATA } from '@c_chat/shared-config';
 
@@ -87,10 +91,10 @@ export class ConversationTable extends TableConnection {
    * 获取最近更新时间
    */
   getLatestUpdateTime(): number {
-    const row = this.get<[], { update_time: number }>(
-      `SELECT MAX(update_time) as update_time FROM ${this.TABLE_NAME}`,
+    const row = this.get<[], { updateTime: number }>(
+      `SELECT MAX(update_time) as updateTime FROM ${this.TABLE_NAME}`,
     );
-    return row?.update_time ?? 0;
+    return row?.updateTime ?? 0;
   }
 
   /**
@@ -190,6 +194,36 @@ export class ConversationTable extends TableConnection {
     transaction?.(convos);
   }
 
+  reconcileGroupConversations(remoteConvos: LocalConversationListItem[]) {
+    const remoteGroupById = new Map(
+      remoteConvos
+        .filter((item) => item.type === ConversationTypeEnum.Group)
+        .map((item) => [item.id, item]),
+    );
+    const localGroups = this.getConversationByIds(Array.from(remoteGroupById.keys())).filter(
+      (item) => item.type === ConversationTypeEnum.Group,
+    );
+
+    const inconsistent = localGroups.filter((local) => {
+      const remote = remoteGroupById.get(local.id);
+      return Boolean(
+        remote &&
+          (remote.targetName !== local.targetName ||
+            remote.targetAvatar !== local.targetAvatar ||
+            remote.lastMsgContent !== local.lastMsgContent ||
+            Number(remote.lastMsgTime ?? 0) !== Number(local.lastMsgTime ?? 0) ||
+            Number(remote.updateTime ?? 0) !== Number(local.updateTime ?? 0)),
+      );
+    });
+
+    if (inconsistent.length > 0) {
+      console.warn(
+        '[ConversationTable] inconsistent group cache detected:',
+        inconsistent.map((item) => item.id),
+      );
+    }
+  }
+
   /**
    * 删除会话
    */
@@ -199,31 +233,31 @@ export class ConversationTable extends TableConnection {
 
   /** 转化数据行 */
   private mapRowToRecord(row: DBConversationListItem): LocalConversationListItem {
-    const {
-      id,
-      type,
-      target_id,
-      target_name,
-      target_avatar,
-      unread_count = 0,
-      last_read_message_id = 0,
-      last_msg_content,
-      last_msg_time,
-      update_time,
-      create_time,
-    } = row;
+    const camelRow = row as unknown as {
+      id: string;
+      type: LocalConversationListItem['type'];
+      targetId: string;
+      targetName: string;
+      targetAvatar: string;
+      unreadCount?: number;
+      lastReadMessageId?: number;
+      lastMsgContent: string;
+      lastMsgTime: number;
+      updateTime: number;
+      createTime: number;
+    };
     return {
-      id,
-      type,
-      targetId: target_id,
-      targetName: target_name,
-      targetAvatar: target_avatar,
-      unreadCount: unread_count,
-      lastReadMessageId: last_read_message_id,
-      lastMsgContent: last_msg_content,
-      lastMsgTime: last_msg_time,
-      updateTime: update_time,
-      createTime: create_time,
+      id: camelRow.id,
+      type: camelRow.type,
+      targetId: camelRow.targetId,
+      targetName: camelRow.targetName,
+      targetAvatar: camelRow.targetAvatar,
+      unreadCount: camelRow.unreadCount ?? 0,
+      lastReadMessageId: camelRow.lastReadMessageId ?? 0,
+      lastMsgContent: camelRow.lastMsgContent,
+      lastMsgTime: camelRow.lastMsgTime,
+      updateTime: camelRow.updateTime,
+      createTime: camelRow.createTime,
     };
   }
   /**

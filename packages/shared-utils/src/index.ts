@@ -5,6 +5,7 @@ export * from './lib/common';
 export * from './lib/formatTime';
 export * from './lib/fileOperation';
 export * from './lib/waveform';
+export * from './lib/messageDisplay';
 
 export { to } from 'await-to-js';
 

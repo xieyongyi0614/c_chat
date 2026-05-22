@@ -18,6 +18,7 @@ import {
   AvatarImage,
   AvatarFallback,
   Input,
+  Spinner,
 } from '@c_chat/ui';
 import { ipc, to } from '@c_chat/shared-utils';
 import type { IpcTypes, LocalConversationListItem, UserTypes } from '@c_chat/shared-types';
@@ -36,6 +37,7 @@ export function NewChat({ onOpenChange, open, onSelectUser, onSelectGroup }: New
   const [selectedUsers, setSelectedUsers] = useState<UserTypes.UserListItem[]>([]);
   const [groupName, setGroupName] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [loadingUsers, setLoadingUsers] = useState(false);
   useEffect(() => {
     if (open) {
       getUserList();
@@ -43,7 +45,9 @@ export function NewChat({ onOpenChange, open, onSelectUser, onSelectGroup }: New
   }, [open]);
 
   const getUserList = async () => {
+    setLoadingUsers(true);
     const [err, res] = await to(ipc.GetUserList({ word: '' }));
+    setLoadingUsers(false);
     if (err) {
       toast.error('获取用户列表失败');
       return;
@@ -85,7 +89,7 @@ export function NewChat({ onOpenChange, open, onSelectUser, onSelectGroup }: New
       setSubmitting(false);
 
       if (err) {
-        toast.error('创建群聊失败');
+        toast.error(err instanceof Error ? err.message : '创建群聊失败');
         return;
       }
 
@@ -125,7 +129,7 @@ export function NewChat({ onOpenChange, open, onSelectUser, onSelectGroup }: New
           <Command className="rounded-lg border">
             <CommandInput placeholder="搜索账号..." className="text-foreground" />
             <CommandList>
-              <CommandEmpty>未找到账号。</CommandEmpty>
+              <CommandEmpty>{loadingUsers ? '加载账号中...' : '未找到账号。'}</CommandEmpty>
               <CommandGroup>
                 {userListData?.list.map((user) => (
                   <CommandItem
@@ -165,7 +169,8 @@ export function NewChat({ onOpenChange, open, onSelectUser, onSelectGroup }: New
             onClick={handleSubmit}
             disabled={selectedUsers.length === 0 || submitting}
           >
-            {selectedUsers.length > 1 ? 'Create group' : 'Chat'}
+            {submitting && <Spinner />}
+            {selectedUsers.length > 1 ? '创建群聊' : '开始聊天'}
           </Button>
         </div>
       </DialogContent>
