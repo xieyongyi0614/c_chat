@@ -87,6 +87,11 @@ addActionHandler('GetConversationList', async (data) => {
   if (records) {
     conversationTableClass.upsertConversations(records);
   }
+
+  if (newPageParams.page === 1) {
+    conversationTableClass.reconcileGroupConversations(records);
+  }
+
   return { pagination: res.pagination as SocketTypes.PaginationType, list: records };
 });
 

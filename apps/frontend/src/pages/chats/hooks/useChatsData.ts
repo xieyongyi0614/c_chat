@@ -214,26 +214,24 @@ export const useChatsData = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userInfo?.id]);
 
-  // TODO: 监听页面可见性
-  // useEffect(() => {
-  //   if (!userInfo?.id) return;
-  //   const onVisibilityChange = () => {
-  //     if (document.visibilityState === 'visible') {
-  //       fetchConversationData();
-  //     }
-  //   };
-  //   document.addEventListener('visibilitychange', onVisibilityChange);
-  //   const timer = window.setInterval(() => {
-  //     if (document.visibilityState === 'visible') {
-  //       fetchConversationData();
-  //     }
-  //   }, 30000);
-  //   return () => {
-  //     document.removeEventListener('visibilitychange', onVisibilityChange);
-  //     window.clearInterval(timer);
-  //   };
-  //   // eslint-disable-next-line react-hooks/exhaustive-deps
-  // }, [userInfo?.id]);
+  useEffect(() => {
+    if (!userInfo?.id) return;
+
+    const syncVisibleConversations = () => {
+      if (document.visibilityState === 'visible') {
+        fetchConversationData();
+      }
+    };
+
+    document.addEventListener('visibilitychange', syncVisibleConversations);
+    const timer = window.setInterval(syncVisibleConversations, 30000);
+
+    return () => {
+      document.removeEventListener('visibilitychange', syncVisibleConversations);
+      window.clearInterval(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userInfo?.id]);
 
   useEffect(() => {
     if (selectedConversation) {

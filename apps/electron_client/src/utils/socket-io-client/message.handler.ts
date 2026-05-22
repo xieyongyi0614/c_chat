@@ -25,7 +25,7 @@ import {
   WebContentEvents,
 } from '@c_chat/shared-types';
 import { WindowManager } from '@c_chat/electron_client/main/windows';
-import { to } from '@c_chat/shared-utils';
+import { generateLastMsgContent, to } from '@c_chat/shared-utils';
 import { sendSocketMessageWithFile } from '../uploadTaskRunner';
 
 interface QueuedEvent {
@@ -162,7 +162,7 @@ export class MessageHandler extends MessageHandlerRegistry {
             const numUpdateTime = Number(updateTime);
 
             updateConvos.set(conversationId, {
-              lastMsgContent: content,
+              lastMsgContent: generateLastMsgContent(type as MessageType, content),
               lastMsgTime: numCreateTime,
               updateTime: numUpdateTime,
             });
