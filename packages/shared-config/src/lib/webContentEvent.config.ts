@@ -9,6 +9,7 @@ export const ELECTRON_TO_CLIENT_CHANNELS = {
   SocketReconnecting: 'socketReconnecting',
 
   newUpdateMessage: 'newUpdateMessage',
+  MediaPreviewPayloadUpdated: 'mediaPreviewPayloadUpdated',
 
   /** 上传进度 */
   uploadProgress: 'uploadProgress',

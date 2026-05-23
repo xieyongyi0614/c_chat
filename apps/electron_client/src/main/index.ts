@@ -33,11 +33,15 @@ app.whenReady().then(() => {
     trayManager.updateMenu();
   });
 
-  ipcMain.on('window:focus', (_, windowId) => {
+  ipcMain.on('window:focus', (_, windowId: number) => {
     windowManager.focusWindow(windowId);
   });
 
-  ipcMain.on('window:close', (_, windowId) => {
+  ipcMain.on('window:minimize-current', (event) => {
+    BrowserWindow.fromWebContents(event.sender)?.minimize();
+  });
+
+  ipcMain.on('window:close', (_, windowId: number) => {
     windowManager.closeWindow(windowId);
     // 更新托盘菜单
     trayManager.updateMenu();

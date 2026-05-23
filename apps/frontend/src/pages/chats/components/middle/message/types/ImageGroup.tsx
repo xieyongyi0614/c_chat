@@ -1,9 +1,15 @@
 import { memo, useEffect, useState } from 'react';
 import type { CSSProperties } from 'react';
-import { MessageStatusEnum, type LocalMessageListItem } from '@c_chat/shared-types';
+import {
+  MessageStatusEnum,
+  type LocalMessageListItem,
+  type MediaPreviewItem,
+} from '@c_chat/shared-types';
 import { bufferToPreviewUrl, ipc } from '@c_chat/shared-utils';
 import { formatFileUrl } from '@c_chat/frontend/common/formatFileUrl';
+import { useMessageStore } from '@c_chat/frontend/stores';
 import MessageDate from '../MessageDate';
+import { buildConversationPreviewItems, toMediaPreviewItem } from '../mediaPreviewItems';
 
 interface ImageGroupProps {
   messages: LocalMessageListItem[];
@@ -18,9 +24,10 @@ interface ImagePreviewProps {
   idx: number;
   imgClass: string;
   containerStyle?: CSSProperties;
+  onOpen?: (idx: number) => void;
 }
 
-const ImagePreview = ({ msg, idx, imgClass, containerStyle }: ImagePreviewProps) => {
+const ImagePreview = ({ msg, idx, imgClass, containerStyle, onOpen }: ImagePreviewProps) => {
   const [previewUrl, setPreviewUrl] = useState('');
 
   useEffect(() => {
@@ -97,7 +104,12 @@ const ImagePreview = ({ msg, idx, imgClass, containerStyle }: ImagePreviewProps)
   };
 
   return (
-    <div className="relative overflow-hidden rounded-xl bg-gray-100" style={containerStyle}>
+    <button
+      type="button"
+      className="relative overflow-hidden rounded-xl bg-gray-100 text-left"
+      style={containerStyle}
+      onClick={() => onOpen?.(idx)}
+    >
       {previewUrl ? (
         <img src={previewUrl} alt={`图片 ${idx + 1}`} className={imgClass} />
       ) : (
@@ -106,7 +118,7 @@ const ImagePreview = ({ msg, idx, imgClass, containerStyle }: ImagePreviewProps)
         </div>
       )}
       {renderOverlay()}
-    </div>
+    </button>
   );
 };
 
@@ -125,6 +137,30 @@ const ImageGroup = ({ messages, isMe, isRead, onRetry, retrying }: ImageGroupPro
     return messages[0]?.status ?? MessageStatusEnum.default;
   })();
   const groupTime = messages[0]?.createTime ?? Date.now();
+  const openPreview = (initialIndex: number) => {
+    const clickedMessage = messages[initialIndex];
+    const previewItems = buildConversationPreviewItems(
+      useMessageStore.getState().msgMap,
+      clickedMessage?.conversationId,
+    );
+    const fallbackItem = clickedMessage ? toMediaPreviewItem(clickedMessage) : null;
+    const items: MediaPreviewItem[] = previewItems.length
+      ? previewItems
+      : fallbackItem
+        ? [fallbackItem]
+        : [];
+    const resolvedInitialIndex = Math.max(
+      0,
+      items.findIndex((item) => item.id === clickedMessage?.id),
+    );
+
+    void ipc.OpenMediaPreview({
+      items,
+      initialIndex: resolvedInitialIndex,
+      conversationId: clickedMessage?.conversationId ?? messages[0]?.conversationId,
+      messageId: clickedMessage?.id,
+    });
+  };
 
   const renderDate = () => (
     <div className="flex pointer-events-auto absolute bottom-1 right-1 rounded-full bg-black/55 px-1.5 py-0.5 text-white backdrop-blur-sm [&_span]:text-white">
@@ -144,7 +180,7 @@ const ImageGroup = ({ messages, isMe, isRead, onRetry, retrying }: ImageGroupPro
     const m = messages[0];
     return (
       <div className="relative grid max-w-xs grid-cols-1">
-        <ImagePreview msg={m} idx={0} imgClass="rounded-xl object-contain" />
+        <ImagePreview msg={m} idx={0} imgClass="rounded-xl object-contain" onOpen={openPreview} />
         {renderDate()}
       </div>
     );
@@ -154,7 +190,13 @@ const ImageGroup = ({ messages, isMe, isRead, onRetry, retrying }: ImageGroupPro
     return (
       <div className="relative grid max-w-xs grid-cols-2 gap-1">
         {messages.map((m, i) => (
-          <ImagePreview key={m.id} msg={m} idx={i} imgClass="h-44 w-full object-cover" />
+          <ImagePreview
+            key={m.id}
+            msg={m}
+            idx={i}
+            imgClass="h-44 w-full object-cover"
+            onOpen={openPreview}
+          />
         ))}
         {renderDate()}
       </div>
@@ -165,7 +207,13 @@ const ImageGroup = ({ messages, isMe, isRead, onRetry, retrying }: ImageGroupPro
     return (
       <div className="relative grid max-w-xs grid-cols-1 grid-rows-3 gap-1">
         {messages.map((m, i) => (
-          <ImagePreview key={m.id} msg={m} idx={i} imgClass="h-44 w-full object-cover" />
+          <ImagePreview
+            key={m.id}
+            msg={m}
+            idx={i}
+            imgClass="h-44 w-full object-cover"
+            onOpen={openPreview}
+          />
         ))}
         {renderDate()}
       </div>
@@ -176,7 +224,13 @@ const ImageGroup = ({ messages, isMe, isRead, onRetry, retrying }: ImageGroupPro
     return (
       <div className="relative grid max-w-xs grid-cols-2 gap-1">
         {messages.map((m, i) => (
-          <ImagePreview key={m.id} msg={m} idx={i} imgClass="h-40 w-full object-cover" />
+          <ImagePreview
+            key={m.id}
+            msg={m}
+            idx={i}
+            imgClass="h-40 w-full object-cover"
+            onOpen={openPreview}
+          />
         ))}
         {renderDate()}
       </div>
@@ -193,7 +247,13 @@ const ImageGroup = ({ messages, isMe, isRead, onRetry, retrying }: ImageGroupPro
       style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
     >
       {showMessages.map((m, i) => (
-        <ImagePreview key={m.id} msg={m} idx={i} imgClass="h-28 w-full object-cover" />
+        <ImagePreview
+          key={m.id}
+          msg={m}
+          idx={i}
+          imgClass="h-28 w-full object-cover"
+          onOpen={openPreview}
+        />
       ))}
       {renderDate()}
     </div>

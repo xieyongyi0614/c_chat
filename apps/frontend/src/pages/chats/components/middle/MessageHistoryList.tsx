@@ -35,6 +35,8 @@ const MessageHistoryList = ({ historyState, loadOlderMessages }: MessageHistoryL
   const previousConversationIdRef = useRef(dataConversationId);
   const pendingPrependHeightRef = useRef<number | null>(null);
   const isLoadingOlderRef = useRef(false);
+  const keepBottomUntilRef = useRef(0);
+  const lastScrollHeightRef = useRef(0);
   const isGroupConversation = selectedConversation?.type === ConversationTypeEnum.Group;
 
   useEffect(() => {
@@ -74,6 +76,14 @@ const MessageHistoryList = ({ historyState, loadOlderMessages }: MessageHistoryL
     el.scrollTop = el.scrollHeight;
   }, []);
 
+  const scheduleScrollToBottom = useCallback(() => {
+    scrollToBottom();
+    requestAnimationFrame(() => {
+      scrollToBottom();
+      requestAnimationFrame(scrollToBottom);
+    });
+  }, [scrollToBottom]);
+
   const updateNearBottom = useCallback(() => {
     const el = scrollRef.current;
     if (!el) return true;
@@ -87,12 +97,17 @@ const MessageHistoryList = ({ historyState, loadOlderMessages }: MessageHistoryL
 
   const handleScrollToBottom = useCallback(() => {
     nearBottomRef.current = true;
-    scrollToBottom();
+    keepBottomUntilRef.current = Date.now() + 1200;
+    scheduleScrollToBottom();
+    const el = scrollRef.current;
+    if (el) {
+      lastScrollHeightRef.current = el.scrollHeight;
+    }
     requestAnimationFrame(() => {
-      scrollToBottom();
+      scheduleScrollToBottom();
       updateNearBottom();
     });
-  }, [scrollToBottom, updateNearBottom]);
+  }, [scheduleScrollToBottom, updateNearBottom]);
 
   useEffect(() => {
     window.addEventListener(SCROLL_TO_BOTTOM_EVENT, handleScrollToBottom);
@@ -136,31 +151,44 @@ const MessageHistoryList = ({ historyState, loadOlderMessages }: MessageHistoryL
       nearBottomRef.current = true;
       pendingPrependHeightRef.current = null;
       isLoadingOlderRef.current = false;
+      keepBottomUntilRef.current = Date.now() + 1200;
     }
 
     const previousHeight = pendingPrependHeightRef.current;
     if (previousHeight != null) {
       el.scrollTop += el.scrollHeight - previousHeight;
       pendingPrependHeightRef.current = null;
+      lastScrollHeightRef.current = el.scrollHeight;
       updateNearBottom();
       return;
     }
 
     if (conversationChanged || nearBottomRef.current) {
-      scrollToBottom();
+      scheduleScrollToBottom();
+      lastScrollHeightRef.current = el.scrollHeight;
       updateNearBottom();
+      return;
     }
-  }, [dataConversationId, msgCount, scrollToBottom, updateNearBottom]);
+
+    lastScrollHeightRef.current = el.scrollHeight;
+  }, [dataConversationId, msgCount, scheduleScrollToBottom, updateNearBottom]);
 
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
 
     const resizeObserver = new ResizeObserver(() => {
+      const currentHeight = el.scrollHeight;
+      const previousHeight = lastScrollHeightRef.current || currentHeight;
+      const heightDelta = currentHeight - previousHeight;
+      lastScrollHeightRef.current = currentHeight;
+
       if (pendingPrependHeightRef.current != null) return;
 
-      if (nearBottomRef.current) {
-        scrollToBottom();
+      if (nearBottomRef.current || Date.now() <= keepBottomUntilRef.current) {
+        scheduleScrollToBottom();
+      } else if (heightDelta !== 0) {
+        el.scrollTop += heightDelta;
       }
 
       updateNearBottom();
@@ -172,7 +200,7 @@ const MessageHistoryList = ({ historyState, loadOlderMessages }: MessageHistoryL
     return () => {
       resizeObserver.disconnect();
     };
-  }, [orderedGroups, scrollToBottom, updateNearBottom]);
+  }, [orderedGroups, scheduleScrollToBottom, updateNearBottom]);
 
   return (
     <div className="flex size-full flex-1">

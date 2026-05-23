@@ -1,8 +1,11 @@
 import { memo } from 'react';
 import { MessageStatusEnum, type LocalMessageListItem } from '@c_chat/shared-types';
 import { formatCompactTime } from '@c_chat/shared-utils';
+import { ipc } from '@c_chat/shared-utils';
 import { cn } from '@c_chat/ui';
+import { useMessageStore } from '@c_chat/frontend/stores';
 import { Play } from 'lucide-react';
+import { buildConversationPreviewItems, toMediaPreviewItem } from '../mediaPreviewItems';
 
 interface VideoMessageProps {
   msg: LocalMessageListItem;
@@ -33,6 +36,25 @@ const VideoMessage = ({ msg, isMe, isRead }: VideoMessageProps) => {
   const isSending = msg.status === MessageStatusEnum.sending;
   const isFailed = msg.status === MessageStatusEnum.fail;
   const showOverlay = isUploading || isSending || isFailed;
+  const openPreview = () => {
+    const previewItems = buildConversationPreviewItems(
+      useMessageStore.getState().msgMap,
+      msg.conversationId,
+    );
+    const fallbackItem = toMediaPreviewItem(msg);
+    const items = previewItems.length ? previewItems : fallbackItem ? [fallbackItem] : [];
+    const initialIndex = Math.max(
+      0,
+      items.findIndex((item) => item.id === msg.id),
+    );
+
+    void ipc.OpenMediaPreview({
+      items,
+      initialIndex,
+      conversationId: msg.conversationId,
+      messageId: msg.id,
+    });
+  };
 
   return (
     <div className="relative inline-block">
@@ -51,14 +73,13 @@ const VideoMessage = ({ msg, isMe, isRead }: VideoMessageProps) => {
 
         {/* 播放按钮 - 中央 */}
         <div className="absolute inset-0 flex items-center justify-center">
-          <a
-            href={`http://localhost:3001${msg.content}`}
-            target="_blank"
-            rel="noreferrer"
+          <button
+            type="button"
             className="flex items-center justify-center w-12 h-12 bg-white/20 hover:bg-white/30 rounded-full transition-colors backdrop-blur-sm"
+            onClick={openPreview}
           >
             <Play className="w-6 h-6 text-white fill-white" />
-          </a>
+          </button>
         </div>
 
         {/* 时间和状态 - 右下角 */}
