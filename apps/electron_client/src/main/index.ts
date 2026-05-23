@@ -10,6 +10,7 @@ import { initActions } from '../ipc/util';
 import { TrayManager } from './tray/trayManager';
 import { socketManager } from '../utils/socket-io-client';
 import { uploadScheduler } from '../utils/UploadScheduler';
+import { MediaPreviewWindowManager } from './windows';
 
 ApiClient.init();
 dbManager.initGlobalDb();
@@ -89,6 +90,7 @@ app.whenReady().then(() => {
 app.on('window-all-closed', () => {
   // 清理所有 socket 连接
   socketManager.destroyAll();
+  MediaPreviewWindowManager.getInstance().destroy();
 
   if (process.platform !== 'darwin') {
     app.quit();
@@ -99,6 +101,7 @@ app.on('window-all-closed', () => {
 app.on('before-quit', () => {
   // 清理所有 socket 连接
   socketManager.destroyAll();
+  MediaPreviewWindowManager.getInstance().destroy();
 });
 
 // In this file you can include the rest of your app's specific main process

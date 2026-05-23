@@ -3,10 +3,19 @@ import {
   MEDIA_PREVIEW_RENDERER_PORT,
   MEDIA_PREVIEW_WINDOW_KEY,
   MEDIA_PREVIEW_WINDOW_VALUE,
+  db,
 } from '@c_chat/shared-config';
 import type { MediaPreviewPayload } from '@c_chat/shared-types';
 import { app, BrowserWindow, shell } from 'electron';
 import path, { join } from 'path';
+import { storeTableClass } from '../../db';
+
+type MediaPreviewWindowState = {
+  x?: number;
+  y?: number;
+  width: number;
+  height: number;
+};
 
 export class MediaPreviewWindowManager {
   private static instance: MediaPreviewWindowManager;
@@ -46,16 +55,31 @@ export class MediaPreviewWindowManager {
     this.window?.close();
   }
 
+  destroy() {
+    this.lastPayload = null;
+    this.ready = false;
+
+    if (!this.window || this.window.isDestroyed()) {
+      this.window = null;
+      return;
+    }
+
+    this.window.destroy();
+    this.window = null;
+  }
+
   private ensureWindow() {
     if (this.window && !this.window.isDestroyed()) {
       return this.window;
     }
 
     this.ready = false;
+    const windowState = this.getWindowState();
+    const defaults = this.getDefaultBounds();
 
     const previewWindow = new BrowserWindow({
-      width: 960,
-      height: 720,
+      ...defaults,
+      ...windowState,
       minWidth: 640,
       minHeight: 480,
       backgroundColor: '#111111',
@@ -99,6 +123,10 @@ export class MediaPreviewWindowManager {
       });
     }
 
+    previewWindow.on('close', () => {
+      this.saveWindowState(previewWindow);
+    });
+
     previewWindow.on('closed', () => {
       this.window = null;
       this.ready = false;
@@ -125,5 +153,34 @@ export class MediaPreviewWindowManager {
       items,
       initialIndex,
     };
+  }
+
+  private getDefaultBounds() {
+    return { width: 960, height: 720 };
+  }
+
+  private getWindowState(): Partial<MediaPreviewWindowState> {
+    const state = storeTableClass.getStore<MediaPreviewWindowState>(
+      db.store.MEDIA_PREVIEW_WINDOW_STATE,
+      {
+        windowId: db.GLOBAL_WINDOW_ID,
+      },
+    );
+
+    return state ?? {};
+  }
+
+  private saveWindowState(window: BrowserWindow) {
+    const bounds = window.getBounds();
+    storeTableClass.setStore(
+      db.store.MEDIA_PREVIEW_WINDOW_STATE,
+      {
+        x: bounds.x,
+        y: bounds.y,
+        width: bounds.width,
+        height: bounds.height,
+      },
+      { windowId: db.GLOBAL_WINDOW_ID },
+    );
   }
 }

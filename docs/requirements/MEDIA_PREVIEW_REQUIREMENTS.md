@@ -290,7 +290,7 @@ export interface OpenMediaPreviewParams {
 - [x] 支持上一张、下一张。
 - [x] 支持缩放、拖拽、旋转、还原。
 - [ ] 支持快捷键。
-- [ ] 处理加载中、失败、重试。
+- [x] 处理加载中、失败、重试。
 
 产出：
 
@@ -303,9 +303,9 @@ export interface OpenMediaPreviewParams {
 - [x] `VideoMessage` 点击播放时调用 `OpenMediaPreview`。
 - [x] 预览项目实现视频播放器。
 - [x] 支持本地视频和远端视频。
-- [ ] 支持播放/暂停、进度、音量、静音、倍速。
-- [ ] 支持视频加载失败和格式不支持状态。
-- [ ] 支持常用快捷键。
+- [x] 支持播放/暂停、进度、音量、静音、倍速。
+- [x] 支持视频加载失败和格式不支持状态。
+- [x] 支持常用快捷键。
 - [x] 切换媒体或关闭窗口时停止播放并释放资源。
 
 产出：
@@ -317,7 +317,7 @@ export interface OpenMediaPreviewParams {
 目标：开发和生产环境都能正确加载预览项目。
 
 - [x] `turbo.json` package 任务增加 `@c_chat/media_preview#build` 依赖。
-- [ ] Electron builder 确认 `dist/media-preview` 被打进安装包。
+- [x] Electron builder 确认 `dist/media-preview` 被打进安装包。
 - [ ] 开发环境同时启动 frontend、media_preview、electron_client。
 - [ ] 生产构建后验证预览窗口路径。
 - [ ] 验证 Windows 路径、本地中文文件名、空格路径。
@@ -332,12 +332,12 @@ export interface OpenMediaPreviewParams {
 目标：接近微信式预览体验，边界状态完整。
 
 - [x] 顶部展示文件名、索引、发送时间等弱信息。
-- [ ] 底部或悬浮工具栏展示缩放、旋转、下载/打开原文件等操作。
+- [x] 底部或悬浮工具栏展示缩放、旋转、下载/打开原文件等操作。
 - [x] 图片缩放比例限制，例如 `0.2x - 5x`。
-- [ ] 视频控制栏自动隐藏和鼠标移动显示。
-- [ ] 预览窗口记忆上次尺寸。
-- [ ] 加载大图时避免界面卡死。
-- [ ] 统一错误文案和 toast。
+- [x] 视频控制栏自动隐藏和鼠标移动显示。
+- [x] 预览窗口记忆上次尺寸。
+- [x] 加载大图时避免界面卡死。
+- [x] 统一错误文案和 toast。
 
 产出：
 

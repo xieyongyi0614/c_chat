@@ -3,6 +3,7 @@ import type { MediaPreviewPayload } from '@c_chat/shared-types';
 import { TooltipProvider } from '@c_chat/ui';
 import { ipc } from '@c_chat/shared-utils';
 import { useEffect, useMemo, useState } from 'react';
+import { Toaster, toast } from 'sonner';
 import { MediaPreviewHeader } from './components/MediaPreviewHeader';
 import { MediaPreviewMain } from './components/MediaPreviewMain';
 import { resolveMediaUrl, revokeObjectUrl } from './utils/media';
@@ -100,13 +101,30 @@ function App() {
       });
 
       setDownloadStatus(result.canceled ? 'canceled' : 'saved');
+      if (result.canceled) {
+        toast.message('已取消保存');
+      } else {
+        toast.success('已保存');
+      }
     } catch (error) {
       console.error('Failed to download media:', error);
       setDownloadStatus('failed');
+      toast.error('保存失败');
     } finally {
       revokeObjectUrl(sourceUrl);
       setDownloading(false);
     }
+  };
+
+  const handleOpenLocalFile = async () => {
+    if (!item?.filePath) return;
+    const opened = await ipc.OpenLocalFile({ path: item.filePath });
+    if (opened) {
+      toast.success('已打开原文件');
+      return;
+    }
+
+    toast.error('无法打开原文件');
   };
 
   useEffect(() => {
@@ -144,11 +162,24 @@ function App() {
         return;
       }
 
-      if (event.key === 'ArrowLeft') go(-1);
-      if (event.key === 'ArrowRight') go(1);
+      if (item?.type !== 'video') {
+        if (event.key === 'ArrowLeft') go(-1);
+        if (event.key === 'ArrowRight') go(1);
+      }
 
-      if (item?.type === 'image' && event.key === '+' && !event.metaKey && !event.ctrlKey) {
-        event.preventDefault();
+      if (item?.type === 'image' && !event.metaKey && !event.ctrlKey) {
+        if (event.key === '+' || event.key === '=') {
+          event.preventDefault();
+          dispatchImageAction('zoom-in');
+        }
+        if (event.key === '-' || event.key === '_') {
+          event.preventDefault();
+          dispatchImageAction('zoom-out');
+        }
+        if (event.key === '0') {
+          event.preventDefault();
+          dispatchImageAction('reset');
+        }
       }
     };
 
@@ -202,9 +233,13 @@ function App() {
           showInfo={showInfo}
           showThumbnails={showThumbnails}
           onCurrentIndexChange={setCurrentIndex}
+          onDownload={() => void handleDownload()}
           onGo={go}
+          onImageAction={dispatchImageAction}
+          onOpenLocalFile={() => void handleOpenLocalFile()}
         />
       </div>
+      <Toaster position="top-center" />
     </TooltipProvider>
   );
 }
