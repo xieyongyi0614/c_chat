@@ -22,6 +22,7 @@
     "dev": "vite build --watch --mode development",
     "build": "vite build",
     "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
     "preview": "vite preview",
     "add-ui": "pnpm dlx shadcn@latest add",
     "gen-export": "barrelsby --config .barrelsby.json"

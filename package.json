@@ -5,9 +5,11 @@
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev",
+    "dev:apps": "turbo run dev --filter=./apps/*",
     "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "check-types": "turbo run typecheck",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
-    "check-types": "turbo run check-types",
     "setup:service": "node scripts/bootstrap-service-dev.mjs",
     "prepare": "husky install",
     "package": "turbo run package --filter=@c_chat/electron_client"
