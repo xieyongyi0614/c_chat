@@ -41,6 +41,28 @@ app.whenReady().then(() => {
     BrowserWindow.fromWebContents(event.sender)?.minimize();
   });
 
+  ipcMain.on('window:toggle-maximize-current', (event) => {
+    const browserWindow = BrowserWindow.fromWebContents(event.sender);
+    if (!browserWindow) return;
+    if (browserWindow.isMaximized()) {
+      browserWindow.unmaximize();
+      return;
+    }
+    browserWindow.maximize();
+  });
+
+  ipcMain.on('window:toggle-always-on-top-current', (event) => {
+    const browserWindow = BrowserWindow.fromWebContents(event.sender);
+    if (!browserWindow) {
+      event.returnValue = false;
+      return;
+    }
+
+    const nextAlwaysOnTop = !browserWindow.isAlwaysOnTop();
+    browserWindow.setAlwaysOnTop(nextAlwaysOnTop);
+    event.returnValue = nextAlwaysOnTop;
+  });
+
   ipcMain.on('window:close', (_, windowId: number) => {
     windowManager.closeWindow(windowId);
     // 更新托盘菜单
