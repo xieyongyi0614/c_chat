@@ -151,7 +151,15 @@ const MessageItem = ({
     }
 
     if (msg.type === MESSAGE_TYPE.Video) {
-      return <VideoMessage msg={msg} isMe={isMe} isRead={isRead} />;
+      return (
+        <VideoMessage
+          msg={msg}
+          isMe={isMe}
+          isRead={isRead}
+          onRetry={handleResend}
+          retrying={resending}
+        />
+      );
     }
 
     if (msg.type === MESSAGE_TYPE.Audio) {

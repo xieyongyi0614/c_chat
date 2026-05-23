@@ -28,6 +28,12 @@ import { AppConfigModule, redisConfig } from '../config';
           host: redis.host,
           port: redis.port,
           password: redis.password,
+          // connectTimeout: 3000,
+          // maxRetriesPerRequest: 1,
+          // retryStrategy(times: number) {
+          //   if (times >= 3) return null;
+          //   return Math.min(times * 1000, 3000);
+          // },
         },
         defaultJobOptions: {
           attempts: 3,
