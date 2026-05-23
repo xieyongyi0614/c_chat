@@ -109,7 +109,7 @@ export class HttpClient {
     console.log(`[HTTP Request] ${config.method?.toUpperCase()} ${config.url}`, {
       params: config.params as unknown,
       data: data ? (typeof data === 'string' ? '<<binary>>' : data) : undefined,
-      headers: config.headers,
+      // headers: config.headers,
     });
 
     // 添加请求时间戳

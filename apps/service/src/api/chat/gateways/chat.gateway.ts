@@ -14,13 +14,14 @@ import { MessageService } from '../services/message.service';
 import { ChatService } from '../services/chat.service';
 import { AuthService, WsJwtAuthGuard } from 'src/auth';
 import { ChatSocket } from 'src/types/socket.types';
-import { Command, SendFileUploadComplete, UserInfo } from '@c_chat/shared-protobuf';
+import { Command, MessageInfo, SendFileUploadComplete, UserInfo } from '@c_chat/shared-protobuf';
 import { MessageHandler } from './message.handler';
 import { UsersService } from 'src/api/web/users/users.service';
 import { PrismaService } from 'src/core/database';
 import { SOCKET_ERROR_CODE } from 'src/constants/errorCode';
 import { ServiceToClientEvent } from '@c_chat/shared-protobuf/protoMap';
 import { FileTypes } from 'src/types/api/file-types';
+import { buildMessageInfoPayload, MessageHistoryWithMedia } from '../utils/message-to-proto.util';
 
 @WebSocketGateway({
   namespace: '/chat',
@@ -190,5 +191,24 @@ export class ChatGateway
       }
     }
     this.logger.log(`上传完成：${uploadId}`);
+  }
+
+  async notifyNewUploadMessage(message: MessageHistoryWithMedia) {
+    const messagePayload = MessageInfo.create(buildMessageInfoPayload(message));
+    const conversationByUserId = await this.buildConversationUpdatesByUserId(
+      message.conversationId,
+      message.senderId,
+      messagePayload,
+    );
+
+    for (const [userId, conversation] of conversationByUserId) {
+      const response = this.buildNewUpdateMessage([messagePayload], [conversation]);
+      this.sendMessageToUser(
+        userId,
+        ServiceToClientEvent.newUpdateMessage,
+        response,
+        message.senderId,
+      );
+    }
   }
 }

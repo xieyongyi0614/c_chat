@@ -4,6 +4,14 @@ export namespace UploadTypes {
     fileSize: number;
     fileHash: string;
     chunkSize?: number;
+    mimeType?: string;
+    clientMsgId?: string;
+    conversationId?: string;
+    messageType?: number;
+    mediaGroupId?: string;
+    content?: string;
+    duration?: number;
+    waveform?: string;
   }
   export interface PostUploadInitResponse {
     file?: {
@@ -27,7 +35,15 @@ export namespace UploadTypes {
       uploadedCount: number;
       status: number;
       updatedAt: Date;
+      clientMsgId?: string;
+      conversationId?: string;
+      messageType?: number;
+      mediaGroupId?: string;
+      content?: string;
+      duration?: number;
+      waveform?: string;
     };
+    createdMessage?: unknown;
   }
 
   export interface PostUploadChunkParams {
@@ -55,6 +71,7 @@ export namespace UploadTypes {
   export interface PostUploadCompleteResponse {
     queued: boolean;
     file?: GetFileByHashResponse;
+    createdMessage?: unknown;
   }
 
   /** GET /upload/status?uploadId= 已落盘的分片下标（与 .chunk 文件名一致，从 0 起） */

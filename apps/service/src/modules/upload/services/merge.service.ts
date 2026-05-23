@@ -48,20 +48,29 @@ export class MergeService {
 
     const extWithDot = path.extname(s.fileName) ?? '';
     const finalPath = path.join(finalDir, `${uploadId}${extWithDot}`);
-
-    const write = fs.createWriteStream(finalPath);
+    const tempPath = `${finalPath}.tmp`;
 
     for (let i = 0; i < s.totalChunks; i++) {
       const chunk = path.join(chunkDir, `${i}.chunk`);
       if (!(await fs.pathExists(chunk))) {
-        write.end();
         throw new Error(`missing chunk ${i}`);
       }
+    }
 
+    const write = fs.createWriteStream(tempPath);
+    const finished = new Promise<void>((resolve, reject) => {
+      write.on('finish', resolve);
+      write.on('error', reject);
+    });
+
+    for (let i = 0; i < s.totalChunks; i++) {
+      const chunk = path.join(chunkDir, `${i}.chunk`);
       await pipeline(fs.createReadStream(chunk), write, { end: false });
     }
 
     write.end();
+    await finished;
+    await fs.move(tempPath, finalPath, { overwrite: true });
 
     const stat = await fs.stat(finalPath);
     const ext = extWithDot ? extWithDot.slice(1).toLowerCase() : null;
@@ -71,7 +80,7 @@ export class MergeService {
       create: {
         fileName: s.fileName,
         hash: s.fileHash,
-        mimeType: guessMimeType(s.fileName),
+        mimeType: s.mimeType ?? guessMimeType(s.fileName),
         ext,
         size: BigInt(stat.size),
         url: `/uploads/${dayFolder}/${path.basename(finalPath)}`,
@@ -81,6 +90,7 @@ export class MergeService {
     });
 
     await this.session.setSuccess(uploadId);
+    await this.session.setFile(uploadId, file.id);
 
     await fs.remove(chunkDir);
 

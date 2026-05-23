@@ -1,40 +1,48 @@
-import { Injectable, ServiceUnavailableException } from '@nestjs/common';
-import { InjectQueue } from '@nestjs/bull';
-import { Queue } from 'bull';
+import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import { SessionService } from './services/session.service';
 import { ChunkService } from './services/chunk.service';
 import { MergeService } from './services/merge.service';
 import { InitUploadDto } from './dto/init-upload.dto';
 import { UploadChunkDto } from './dto/upload-chunk.dto';
 import { FileService } from './services/file.service';
+import { MessageService } from '../../api/chat/services/message.service';
+
+export const UPLOAD_CHAT_NOTIFIER = 'UPLOAD_CHAT_NOTIFIER';
+
+interface UploadChatNotifier {
+  notifyNewUploadMessage: (
+    message: Awaited<ReturnType<MessageService['sendMessage']>>,
+  ) => Promise<void>;
+}
 
 @Injectable()
 export class UploadService {
-  private static readonly REDIS_CHECK_TIMEOUT_MS = 1500;
-  private static readonly REDIS_ADD_TIMEOUT_MS = 3000;
-
   constructor(
     private file: FileService,
     private session: SessionService,
     private chunk: ChunkService,
     private merge: MergeService,
-    @InjectQueue('upload') private queue: Queue,
+    private messageService: MessageService,
+    @Inject(UPLOAD_CHAT_NOTIFIER)
+    private chatGateway: UploadChatNotifier,
   ) {}
 
   async init(dto: InitUploadDto, userId: string) {
     const file = await this.file.findFile({ hash: dto.fileHash, size: dto.fileSize });
     if (file) {
-      return { file: { ...file, size: Number(file.size) } };
+      return { file: this.serializeFile(file) };
     }
 
     const uploadSession = await this.session.create(dto, userId);
-    return { uploadSession: { ...uploadSession, fileSize: Number(uploadSession.fileSize) } };
+    return { uploadSession: this.serializeUploadSession(uploadSession) };
   }
 
   async uploadChunk(file: Express.Multer.File, dto: UploadChunkDto) {
-    await this.chunk.save(dto, file);
+    const chunk = await this.chunk.save(dto, file);
 
-    await this.session.markUploaded(dto.uploadId);
+    if (chunk.created) {
+      await this.session.markUploaded(dto.uploadId, chunk.size);
+    }
 
     return { ok: true };
   }
@@ -46,52 +54,69 @@ export class UploadService {
   }
 
   async complete(uploadId: string, usage: 'file' | 'message' = 'file') {
-    if (usage === 'message') {
-      await this.ensureQueueAvailable();
-      await this.withTimeout(
-        this.queue.add('merge-message', { uploadId }),
-        UploadService.REDIS_ADD_TIMEOUT_MS,
-        'Redis unavailable while queueing upload merge',
-      );
-      return { queued: true };
+    const uploadSession = await this.session.findById(uploadId);
+    const file = uploadSession?.fileId
+      ? await this.file.findById(uploadSession.fileId)
+      : await this.merge.merge(uploadId);
+    if (!file) {
+      throw new BadRequestException('上传文件不存在');
     }
 
-    const file = await this.merge.merge(uploadId);
-    return { queued: false, file: { ...file, size: Number(file.size) } };
+    const normalizedFile = this.serializeFile(file);
+
+    if (usage === 'file') {
+      return { queued: false, file: normalizedFile };
+    }
+
+    if (!uploadSession?.clientMsgId || !uploadSession.conversationId) {
+      throw new BadRequestException('上传会话缺少消息上下文');
+    }
+
+    const message = await this.messageService.sendMessage({
+      senderId: uploadSession.uploaderId,
+      conversationId: uploadSession.conversationId,
+      content: uploadSession.content ?? '',
+      fileId: file.id,
+      mediaGroupId: uploadSession.mediaGroupId ?? undefined,
+      type: uploadSession.messageType ?? 3,
+      clientMsgId: uploadSession.clientMsgId,
+      durationSec: uploadSession.duration ?? undefined,
+      waveform: uploadSession.waveform ?? undefined,
+    });
+
+    await this.chatGateway.notifyNewUploadMessage(message);
+
+    return { queued: false, file: normalizedFile, createdMessage: this.serializeMessage(message) };
   }
 
-  private async ensureQueueAvailable() {
-    if (this.queue.client.status === 'end') {
-      throw new ServiceUnavailableException('Redis 未启动，无法排队合并文件');
-    }
-
-    await this.withTimeout(
-      this.queue.client.ping(),
-      UploadService.REDIS_CHECK_TIMEOUT_MS,
-      'Redis 未连接，无法排队合并文件',
-    );
+  private serializeFile<T extends { size: bigint | number }>(file: T) {
+    return { ...file, size: Number(file.size) };
   }
 
-  private async withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string) {
-    let timer: NodeJS.Timeout | undefined;
+  private serializeUploadSession<
+    T extends { fileSize: bigint | number; uploadedBytes?: bigint | number },
+  >(uploadSession: T) {
+    return {
+      ...uploadSession,
+      fileSize: Number(uploadSession.fileSize),
+      uploadedBytes:
+        uploadSession.uploadedBytes == null
+          ? uploadSession.uploadedBytes
+          : Number(uploadSession.uploadedBytes),
+    };
+  }
 
-    try {
-      return await Promise.race<T>([
-        promise,
-        new Promise<T>((_, reject) => {
-          timer = setTimeout(() => reject(new ServiceUnavailableException(message)), timeoutMs);
-        }),
-      ]);
-    } catch (error) {
-      if (error instanceof ServiceUnavailableException) {
-        throw error;
-      }
+  private serializeMessage<
+    T extends { media?: { file?: { size: bigint | number } | null } | null },
+  >(message: T) {
+    if (!message.media?.file) return message;
 
-      throw new ServiceUnavailableException(message);
-    } finally {
-      if (timer) {
-        clearTimeout(timer);
-      }
-    }
+    return {
+      ...message,
+      media: {
+        ...message.media,
+        file: this.serializeFile(message.media.file),
+      },
+    };
   }
 }
