@@ -186,17 +186,31 @@ model Media {
 model UploadSession {
   id            String @id @default(cuid())
   fileName      String @map("file_name")
-  fileHash      String @unique @map("file_hash")
+  fileHash      String @map("file_hash")
   fileSize      BigInt @map("file_size")
+  mimeType      String? @map("mime_type")
   chunkSize     Int    @map("chunk_size")
   totalChunks   Int    @map("total_chunks")
   uploadedCount Int    @default(0) @map("uploader_count")
+  uploadedBytes BigInt @default(0) @map("uploaded_bytes")
 
   status Int // 0 waiting / 1 uploading / 2 merging / 3 success / -1 fail
 
   uploaderId String   @map("uploader_id")
+  clientMsgId String?  @map("client_msg_id")
+  conversationId String? @map("conversation_id")
+  messageType Int? @map("message_type")
+  mediaGroupId String? @map("media_group_id")
+  content String? @db.Text
+  duration Int?
+  waveform String?
+  fileId String? @map("file_id")
+  errorMessage String? @map("error_message")
   createTime DateTime @default(now()) @map("create_time")
   updateTime DateTime @updatedAt @map("update_time")
+
+  @@index([fileHash, fileSize])
+  @@index([uploaderId, clientMsgId])
 }
 
 model UploadChunk {
@@ -204,6 +218,7 @@ model UploadChunk {
   uploadId   String
   chunkIndex Int
   chunkHash  String?
+  size       Int?
 
   createdAt DateTime @default(now())
 

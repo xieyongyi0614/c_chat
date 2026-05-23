@@ -562,7 +562,7 @@ export abstract class MessageHandler extends MessageHandlerRegistry {
     return typeMap[type] || '[Message]';
   }
 
-  private async buildConversationUpdatesByUserId(
+  protected async buildConversationUpdatesByUserId(
     conversationId: string,
     senderId: string,
     message: MessageInfo,
@@ -620,7 +620,7 @@ export abstract class MessageHandler extends MessageHandlerRegistry {
     );
   }
 
-  private buildNewUpdateMessage(
+  protected buildNewUpdateMessage(
     messages: MessageInfo[],
     conversations: IConversationInfo[] = [],
     removedConversationIds: string[] = [],

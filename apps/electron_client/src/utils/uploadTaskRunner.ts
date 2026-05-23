@@ -1,9 +1,5 @@
-import { socketManager } from '@c_chat/electron_client/utils/socket-io-client';
 import { messageTableClass, uploadTaskTableClass } from '../db';
-import { to } from '@c_chat/shared-utils';
 import { MessageStatusEnum, UploadStatusEnum, UploadTypes } from '@c_chat/shared-types';
-import { ClientToServiceEvent } from '@c_chat/shared-protobuf/protoMap';
-import { SendMessageRequest } from '@c_chat/shared-protobuf';
 import { ELECTRON_TO_CLIENT_CHANNELS, UPLOAD_CHUNK_SIZE } from '@c_chat/shared-config';
 import { ApiClient } from './axios/service/apiService';
 import { readChunkAsBlob } from './calcFileHash';
@@ -32,34 +28,6 @@ async function runChunkPool(
     }
   };
   await Promise.all(Array.from({ length: n }, () => runWorker()));
-}
-
-/** WebSocket 发送带附件的消息（与 SendMessage IPC 一致） */
-export async function sendSocketMessageWithFile(
-  windowId: number,
-  payload: Omit<SendMessageRequest, 'toJSON'>,
-) {
-  const socketService = socketManager.getSocketService(windowId);
-  const [err, res] = await to(
-    socketService.genericRequest(
-      ClientToServiceEvent.sendMessage,
-      SendMessageRequest.encode(
-        SendMessageRequest.create({
-          conversationId: payload.conversationId,
-          content: payload.content ?? '',
-          type: payload.type,
-          clientMsgId: payload.clientMsgId,
-          mediaGroupId: payload.mediaGroupId,
-          fileId: payload.fileId,
-          durationSec: payload.durationSec,
-          waveform: payload.waveform,
-        }),
-      ).finish(),
-    ),
-  );
-  if (err || res.status !== 'ok') {
-    throw err || new Error('发送消息失败');
-  }
 }
 
 /**
@@ -147,9 +115,15 @@ async function startUploadInContext(
       uploadId: session.id,
       usage: 'message',
     });
-    if (!completeRes?.queued) {
+    if (!completeRes?.file) {
       throw new Error('触发合并失败');
     }
+    uploadTaskTableClass.updateFields(taskId, {
+      file_id: completeRes.file.id,
+      status: UploadStatusEnum.success,
+      progress: 100,
+      uploaded_bytes: task.fileSize,
+    });
   } catch (e) {
     console.error('startUpload error:', e);
 

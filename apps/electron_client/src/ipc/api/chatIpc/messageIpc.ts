@@ -27,7 +27,6 @@ import {
   messageTypeMap,
 } from '@c_chat/shared-config';
 import { ApiClient } from '@c_chat/electron_client/utils/axios/service/apiService';
-import { sendSocketMessageWithFile } from '@c_chat/electron_client/utils/uploadTaskRunner';
 import { uploadScheduler } from '@c_chat/electron_client/utils/UploadScheduler';
 
 type RemoteMessageInfo = GetMessageHistoryResponse['list'][number];
@@ -213,21 +212,7 @@ const getMessageAfterStatusUpdate = (clientMsgId: string, status: MessageStatusE
   return messageTableClass.getByClientMsgId(clientMsgId);
 };
 
-const resendSocketMessage = async (windowId: number, msg: LocalMessageListItem) => {
-  if (msg.fileId) {
-    await sendSocketMessageWithFile(windowId, {
-      conversationId: msg.conversationId,
-      clientMsgId: msg.clientMsgId,
-      fileId: msg.fileId,
-      durationSec: msg.duration,
-      waveform: msg.waveform,
-      type: msg.type,
-      mediaGroupId: msg.mediaGroupId || undefined,
-      content: msg.content,
-    });
-    return;
-  }
-
+const sendSocketMessage = async (windowId: number, msg: LocalMessageListItem) => {
   const socketService = socketManager.getSocketService(windowId);
   const res = await socketService.genericRequest(
     ClientToServiceEvent.sendMessage,
@@ -237,6 +222,10 @@ const resendSocketMessage = async (windowId: number, msg: LocalMessageListItem) 
         content: msg.content,
         type: msg.type,
         clientMsgId: msg.clientMsgId,
+        fileId: msg.fileId || undefined,
+        durationSec: msg.duration,
+        waveform: msg.waveform,
+        mediaGroupId: msg.mediaGroupId || undefined,
       }),
     ).finish(),
   );
@@ -256,13 +245,18 @@ const recreateUploadTaskForRetry = async (windowId: number, msg: LocalMessageLis
     fileName: msg.fileName ?? '',
     fileHash,
     fileSize: msg.fileSize ?? 0,
+    mimeType: msg.mimeType,
+    clientMsgId: msg.clientMsgId,
+    conversationId: msg.conversationId,
+    messageType: msg.type,
+    mediaGroupId: msg.mediaGroupId || undefined,
+    content: msg.content,
+    duration: msg.duration,
+    waveform: msg.waveform,
   });
 
   if (uploadInit?.file?.id) {
     messageTableClass.updateFileIdByClientId(msg.clientMsgId, uploadInit.file.id);
-    const nextMsg = messageTableClass.getByClientMsgId(msg.clientMsgId);
-    if (!nextMsg) throw new Error('消息不存在');
-    await resendSocketMessage(windowId, nextMsg);
     return;
   }
 
@@ -328,7 +322,7 @@ addActionHandler('ResendMessage', async (params) => {
       return [messageTableClass.getByClientMsgId(clientMsgId) ?? sendingMsg];
     }
 
-    await resendSocketMessage(windowId, sendingMsg);
+    await sendSocketMessage(windowId, sendingMsg);
     return [messageTableClass.getByClientMsgId(clientMsgId) ?? sendingMsg];
   } catch (error) {
     getMessageAfterStatusUpdate(clientMsgId, MessageStatusEnum.fail);
@@ -399,13 +393,7 @@ const processSingleFile = async (
 ): Promise<LocalMessageListItem | null> => {
   const { filePath, fileName, fileSize, mimeType } = file;
   const taskId = uuidv4();
-
   const fileHash = calcSamplingHash(filePath);
-
-  const uploadInit = await ApiClient.upload.uploadInit({ fileName, fileHash, fileSize });
-  if (!uploadInit) {
-    throw new Error('上传失败');
-  }
 
   const localMessageData = generateLocalMessageData({
     ...params,
@@ -421,33 +409,40 @@ const processSingleFile = async (
     ...(mediaGroupId && { mediaGroupId }),
   });
 
-  /** 秒传 */
+  messageTableClass.insert(localMessageData);
+
+  const uploadInit = await ApiClient.upload.uploadInit({
+    fileName,
+    fileHash,
+    fileSize,
+    mimeType,
+    clientMsgId: localMessageData.clientMsgId,
+    conversationId: localMessageData.conversationId,
+    messageType: localMessageData.type,
+    mediaGroupId: localMessageData.mediaGroupId || undefined,
+    content: localMessageData.content,
+    duration: localMessageData.duration,
+    waveform: localMessageData.waveform,
+  });
+  if (!uploadInit) {
+    messageTableClass.updateMessageStateByClientId(
+      localMessageData.clientMsgId,
+      MessageStatusEnum.fail,
+    );
+    throw new Error('上传失败');
+  }
+
   if (uploadInit?.file?.id) {
     localMessageData.fileId = uploadInit.file.id;
-    messageTableClass.insert(localMessageData);
-    const [sendErr] = await to(
-      sendSocketMessageWithFile(params.windowId, {
-        conversationId: localMessageData.conversationId,
-        clientMsgId: localMessageData.clientMsgId,
-        fileId: uploadInit.file.id,
-        type: localMessageData.type,
-        mediaGroupId: localMessageData.mediaGroupId || undefined,
-        content: localMessageData.content,
-        waveform: localMessageData.waveform,
-      }),
-    );
-    if (sendErr) {
-      messageTableClass.updateMessageStateByClientId(
-        localMessageData.clientMsgId,
-        MessageStatusEnum.fail,
-      );
-      console.error('秒传后发送消息失败:', sendErr);
-      localMessageData.status = MessageStatusEnum.fail;
-    }
+    uploadTaskTableClass.markInstantSuccess(taskId, uploadInit.file.id);
     return localMessageData;
   }
 
   if (!uploadInit?.uploadSession?.id) {
+    messageTableClass.updateMessageStateByClientId(
+      localMessageData.clientMsgId,
+      MessageStatusEnum.fail,
+    );
     return null;
   }
 
@@ -473,8 +468,6 @@ const processSingleFile = async (
     createTime: now(),
     updateTime: now(),
   });
-
-  messageTableClass.insert(localMessageData);
 
   uploadScheduler.addTask(taskId);
 

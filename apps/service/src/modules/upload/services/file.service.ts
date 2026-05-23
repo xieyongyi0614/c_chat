@@ -10,4 +10,8 @@ export class FileService {
     const { hash, size } = data;
     return this.prisma.file.findUnique({ where: { hash, size } });
   }
+
+  async findById(id: string) {
+    return this.prisma.file.findUnique({ where: { id } });
+  }
 }

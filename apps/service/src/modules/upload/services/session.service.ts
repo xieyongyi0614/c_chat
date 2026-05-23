@@ -14,19 +14,32 @@ export class SessionService {
         fileName: dto.fileName,
         fileHash: dto.fileHash,
         fileSize: BigInt(dto.fileSize),
+        mimeType: dto.mimeType,
         chunkSize: dto.chunkSize,
         totalChunks,
         uploaderId: userId,
+        clientMsgId: dto.clientMsgId,
+        conversationId: dto.conversationId,
+        messageType: dto.messageType,
+        mediaGroupId: dto.mediaGroupId,
+        content: dto.content,
+        duration: dto.duration,
+        waveform: dto.waveform,
         status: 0,
       },
     });
   }
 
-  async markUploaded(uploadId: string) {
+  async findById(uploadId: string) {
+    return this.prisma.uploadSession.findUnique({ where: { id: uploadId } });
+  }
+
+  async markUploaded(uploadId: string, chunkSize: number) {
     return this.prisma.uploadSession.update({
       where: { id: uploadId },
       data: {
         uploadedCount: { increment: 1 },
+        uploadedBytes: { increment: chunkSize },
         status: 1,
       },
     });
@@ -43,6 +56,13 @@ export class SessionService {
     return this.prisma.uploadSession.update({
       where: { id: uploadId },
       data: { status: 3 },
+    });
+  }
+
+  async setFile(uploadId: string, fileId: string) {
+    return this.prisma.uploadSession.update({
+      where: { id: uploadId },
+      data: { fileId },
     });
   }
 }

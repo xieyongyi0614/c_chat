@@ -25,8 +25,7 @@ import {
   WebContentEvents,
 } from '@c_chat/shared-types';
 import { WindowManager } from '@c_chat/electron_client/main/windows';
-import { generateLastMsgContent, to } from '@c_chat/shared-utils';
-import { sendSocketMessageWithFile } from '../uploadTaskRunner';
+import { generateLastMsgContent } from '@c_chat/shared-utils';
 
 interface QueuedEvent {
   event: ClientDecodeProtoMapKey;
@@ -77,7 +76,7 @@ export class MessageHandler extends MessageHandlerRegistry {
   ): void {
     const window = WindowManager.getInstance().getWindow(this.windowId);
     if (!window) {
-      throw new Error(`窗口${this.windowId}不存在`);
+      throw new Error(`窗口 ${this.windowId} 不存在`);
     }
     if (!window?.webContents || window.isDestroyed()) {
       console.log('[Socket] Cannot send to renderer: window not available');
@@ -258,45 +257,20 @@ export class MessageHandler extends MessageHandlerRegistry {
           removedConversationIds: removedConversationIds ?? [],
         });
       },
-      [ServiceToClientEvent.sendFileUploadComplete]: async (data) => {
+      [ServiceToClientEvent.sendFileUploadComplete]: (data) => {
         const { uploadId, fileId } = data ?? {};
         if (!uploadId || !fileId) return;
 
-        try {
-          const task = uploadTaskTableClass.getByUploadSessionId(uploadId);
-          if (!task) return;
+        const task = uploadTaskTableClass.getByUploadSessionId(uploadId);
+        if (!task) return;
 
-          uploadTaskTableClass.updateFields(task.id, {
-            file_id: fileId,
-            status: UploadStatusEnum.success,
-          });
+        uploadTaskTableClass.updateFields(task.id, {
+          file_id: fileId,
+          status: UploadStatusEnum.success,
+        });
 
-          if (task.clientMsgId) {
-            messageTableClass.updateFileIdByClientId(task.clientMsgId, fileId);
-          }
-
-          const msg = messageTableClass.getByClientMsgId(task.clientMsgId);
-          console.log('sendFileUploadComplete waveform', typeof msg?.waveform, msg?.waveform);
-          if (msg) {
-            const [sendErr] = await to(
-              sendSocketMessageWithFile(task.windowId ?? 1, {
-                conversationId: msg.conversationId,
-                clientMsgId: msg.clientMsgId,
-                fileId,
-                durationSec: msg.duration,
-                waveform: msg.waveform,
-                type: msg.type,
-                mediaGroupId: msg.mediaGroupId || undefined,
-                content: msg.content,
-              }),
-            );
-
-            if (sendErr) {
-              throw sendErr;
-            }
-          }
-        } catch (err) {
-          console.error('[Socket] handle uploadComplete error', err);
+        if (task.clientMsgId) {
+          messageTableClass.updateFileIdByClientId(task.clientMsgId, fileId);
         }
       },
     };
@@ -311,7 +285,7 @@ export class MessageHandler extends MessageHandlerRegistry {
           handle(data as never);
           return;
         }
-        // console.log(`subscribeToEvent ${e}锛歚, data);
+        // 未注册处理器的事件暂不处理
       });
     });
   }
