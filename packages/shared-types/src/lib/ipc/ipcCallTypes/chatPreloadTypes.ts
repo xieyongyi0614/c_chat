@@ -2,6 +2,7 @@ import { FileInfoListItem, IpcMethod } from '../ipcTypes';
 import type { IGetGroupDetailResponse, IGroupOperationResponse } from '@c_chat/shared-protobuf';
 import { SocketTypes } from '../../socket.types';
 import { LocalConversationListItem, LocalMessageListItem } from '../../db';
+import type { MediaPreviewPayload } from '../webContentEvent';
 
 interface CreateConversationParams {
   targetId: string;
@@ -31,6 +32,7 @@ export type GroupActionParams = {
   groupId: string;
 };
 export type GroupOperationResult = IGroupOperationResponse;
+export type OpenMediaPreviewParams = MediaPreviewPayload;
 
 export type GetMessageHistoryParams = {
   conversationId: string;
@@ -72,6 +74,8 @@ export interface ChatPreloadTypes {
   InviteGroupMembers: IpcMethod<InviteGroupMembersParams, GroupOperationResult>;
   LeaveGroup: IpcMethod<GroupActionParams, GroupOperationResult>;
   DismissGroup: IpcMethod<GroupActionParams, GroupOperationResult>;
+  OpenMediaPreview: IpcMethod<OpenMediaPreviewParams, boolean>;
+  GetMediaPreviewPayload: IpcMethod<void, MediaPreviewPayload | null>;
   GetConversationList: IpcMethod<
     GetConversationListParams,
     SocketTypes.ResponseList<LocalConversationListItem>

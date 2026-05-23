@@ -12,4 +12,14 @@ export const windowTools: WindowToolsEventType = {
     }
     ipcRenderer.send('window:close', id);
   },
+  focusWindowById: (id) => {
+    if (!id) {
+      console.log('windowId is null');
+      return;
+    }
+    ipcRenderer.send('window:focus', id);
+  },
+  minimizeCurrentWindow: () => {
+    ipcRenderer.send('window:minimize-current');
+  },
 };
