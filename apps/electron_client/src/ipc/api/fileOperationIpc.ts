@@ -1,4 +1,4 @@
-import { dialog, BrowserWindow } from 'electron';
+import { dialog, BrowserWindow, shell } from 'electron';
 import { addActionHandler } from '../util';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -78,6 +78,16 @@ addActionHandler('ReadLocalFile', async (params) => {
 
   const data = await fs.promises.readFile(path);
   return data;
+});
+
+addActionHandler('OpenLocalFile', async (params) => {
+  const { path } = params;
+  if (!path) {
+    throw new Error('缺少 filePath');
+  }
+
+  const error = await shell.openPath(path);
+  return error === '';
 });
 
 addActionHandler('SaveFile', async (params) => {

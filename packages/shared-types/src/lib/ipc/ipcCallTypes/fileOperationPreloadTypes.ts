@@ -33,6 +33,10 @@ export type ReadLocalFileParams = {
   path: string;
 };
 
+export type OpenLocalFileParams = {
+  path: string;
+};
+
 export type SaveFileParams = {
   fileName: string;
   data: number[];
@@ -47,5 +51,6 @@ export type SaveFileResult = {
 export interface FileOperationPreloadTypes {
   SelectFiles: IpcMethod<SelectFilesParams | undefined, FileInfoListItem[]>;
   ReadLocalFile: IpcMethod<ReadLocalFileParams, Uint8Array<ArrayBuffer>>;
+  OpenLocalFile: IpcMethod<OpenLocalFileParams, boolean>;
   SaveFile: IpcMethod<SaveFileParams, SaveFileResult>;
 }

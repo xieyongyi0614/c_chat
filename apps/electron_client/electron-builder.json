@@ -6,6 +6,7 @@
     "output": "release/${version}",
     "buildResources": "build"
   },
+  "files": ["dist/**", "package.json"],
   "extraResources": [
     {
       "from": "resources",

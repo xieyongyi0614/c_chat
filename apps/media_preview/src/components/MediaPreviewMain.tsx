@@ -1,6 +1,15 @@
 import type { MediaPreviewItem } from '@c_chat/shared-types';
 import { cn } from '@c_chat/ui';
-import { ArrowLeft, ArrowRight, Info } from 'lucide-react';
+import {
+  ArrowDownToLine,
+  ArrowLeft,
+  ArrowRight,
+  FolderOpen,
+  Info,
+  RotateCw,
+  ZoomIn,
+  ZoomOut,
+} from 'lucide-react';
 import { ImagePreview } from './ImagePreview';
 import { PreviewThumb } from './PreviewThumb';
 import { VideoPreview } from './VideoPreview';
@@ -16,7 +25,10 @@ interface MediaPreviewMainProps {
   showInfo: boolean;
   showThumbnails: boolean;
   onCurrentIndexChange: (index: number) => void;
+  onDownload: () => void;
   onGo: (delta: number) => void;
+  onImageAction: (action: 'zoom-in' | 'zoom-out' | 'rotate' | 'reset') => void;
+  onOpenLocalFile: () => void;
 }
 
 export function MediaPreviewMain({
@@ -28,7 +40,10 @@ export function MediaPreviewMain({
   showInfo,
   showThumbnails,
   onCurrentIndexChange,
+  onDownload,
   onGo,
+  onImageAction,
+  onOpenLocalFile,
 }: MediaPreviewMainProps) {
   return (
     <main className="relative flex-1 overflow-hidden bg-[#f6f6f6]">
@@ -86,6 +101,47 @@ export function MediaPreviewMain({
         <ImagePreview item={item} resetKey={`${item.id}-${currentIndex}`} />
       )}
       {item?.type === 'video' && <VideoPreview item={item} />}
+
+      {item?.type === 'image' && (
+        <div className="absolute bottom-5 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1 rounded-md bg-white/92 px-2 py-2 text-black/70 shadow-lg backdrop-blur">
+          <button
+            className="media-toolbar-button"
+            type="button"
+            title="放大"
+            onClick={() => onImageAction('zoom-in')}
+          >
+            <ZoomIn className="size-[20px]" />
+          </button>
+          <button
+            className="media-toolbar-button"
+            type="button"
+            title="缩小"
+            onClick={() => onImageAction('zoom-out')}
+          >
+            <ZoomOut className="size-[20px]" />
+          </button>
+          <button
+            className="media-toolbar-button"
+            type="button"
+            title="旋转"
+            onClick={() => onImageAction('rotate')}
+          >
+            <RotateCw className="size-[20px]" />
+          </button>
+          <button className="media-toolbar-button" type="button" title="下载" onClick={onDownload}>
+            <ArrowDownToLine className="size-[20px]" />
+          </button>
+          <button
+            className="media-toolbar-button"
+            disabled={!item.filePath}
+            type="button"
+            title="打开原文件"
+            onClick={onOpenLocalFile}
+          >
+            <FolderOpen className="size-[20px]" />
+          </button>
+        </div>
+      )}
 
       {hasMultiple && (
         <>

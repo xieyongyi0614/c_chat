@@ -1,13 +1,14 @@
 import type { MediaPreviewItem } from '@c_chat/shared-types';
+import { Button } from '@c_chat/ui';
 import { useEffect, useRef, useState } from 'react';
 import { resolveMediaUrl, revokeObjectUrl } from '../utils/media';
+import { clamp, getMediaErrorMessage } from '../utils/preview';
 
 interface ImagePreviewProps {
   item: MediaPreviewItem;
   resetKey: string;
 }
 
-const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 type ImageAction = 'zoom-in' | 'zoom-out' | 'rotate' | 'reset';
 
 export function ImagePreview({ item, resetKey }: ImagePreviewProps) {
@@ -18,6 +19,7 @@ export function ImagePreview({ item, resetKey }: ImagePreviewProps) {
   const [rotation, setRotation] = useState(0);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [dragging, setDragging] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
   const dragRef = useRef<{ x: number; y: number; startX: number; startY: number } | null>(null);
 
   useEffect(() => {
@@ -40,14 +42,30 @@ export function ImagePreview({ item, resetKey }: ImagePreviewProps) {
 
         objectUrl = url;
         setSrc(url);
-        setLoading(false);
+        if (!url) {
+          setError(getMediaErrorMessage('image', 'empty-source'));
+          setLoading(false);
+          return;
+        }
 
-        if (!url) setError('图片地址为空');
+        const image = new Image();
+        image.onload = async () => {
+          if (!active) return;
+          if (image.decode) await image.decode().catch(() => undefined);
+          setLoading(false);
+        };
+        image.onerror = () => {
+          if (active) {
+            setError(getMediaErrorMessage('image', 'load-failed'));
+            setLoading(false);
+          }
+        };
+        image.src = url;
       })
       .catch((err) => {
         console.error('Failed to load image:', err);
         if (active) {
-          setError('图片加载失败');
+          setError(getMediaErrorMessage('image', 'load-failed'));
           setLoading(false);
         }
       });
@@ -56,7 +74,7 @@ export function ImagePreview({ item, resetKey }: ImagePreviewProps) {
       active = false;
       revokeObjectUrl(objectUrl);
     };
-  }, [item, resetKey]);
+  }, [item, resetKey, reloadKey]);
 
   const zoom = (delta: number) => {
     setScale((value) => clamp(Number((value + delta).toFixed(2)), 0.2, 5));
@@ -97,8 +115,11 @@ export function ImagePreview({ item, resetKey }: ImagePreviewProps) {
       )}
 
       {!loading && error && (
-        <div className="absolute inset-0 flex items-center justify-center text-sm text-black/60">
-          {error}
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-sm text-black/60">
+          <div>{error}</div>
+          <Button variant="outline" size="sm" onClick={() => setReloadKey((value) => value + 1)}>
+            重试
+          </Button>
         </div>
       )}
 
