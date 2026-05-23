@@ -22,4 +22,11 @@ export const windowTools: WindowToolsEventType = {
   minimizeCurrentWindow: () => {
     ipcRenderer.send('window:minimize-current');
   },
+  toggleCurrentWindowMaximize: () => {
+    ipcRenderer.send('window:toggle-maximize-current');
+  },
+  toggleCurrentWindowAlwaysOnTop: () => {
+    const result = ipcRenderer.sendSync('window:toggle-always-on-top-current') as unknown;
+    return result === true;
+  },
 };

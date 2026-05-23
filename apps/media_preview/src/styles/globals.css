@@ -1,4 +1,4 @@
-@import 'tailwindcss';
+@import '@c_chat/ui/styles';
 
 html,
 body,
@@ -57,6 +57,16 @@ video {
 .media-window-button:hover {
   background: rgba(0, 0, 0, 0.08);
   color: rgba(0, 0, 0, 0.9);
+}
+
+.media-toolbar-button.is-active {
+  background: rgba(37, 99, 235, 0.14);
+  color: #1d4ed8;
+}
+
+.media-toolbar-button.is-active:hover {
+  background: rgba(37, 99, 235, 0.2);
+  color: #1e40af;
 }
 
 .media-toolbar-button:disabled,

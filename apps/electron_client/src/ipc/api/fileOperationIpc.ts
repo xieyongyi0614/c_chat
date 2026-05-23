@@ -79,3 +79,26 @@ addActionHandler('ReadLocalFile', async (params) => {
   const data = await fs.promises.readFile(path);
   return data;
 });
+
+addActionHandler('SaveFile', async (params) => {
+  const { fileName, data, filters } = params;
+  const browserWindow = BrowserWindow.getFocusedWindow();
+  if (!browserWindow) {
+    return { canceled: true };
+  }
+  const result = await dialog.showSaveDialog(browserWindow, {
+    title: '保存文件',
+    defaultPath: fileName,
+    filters,
+  });
+
+  if (result.canceled || !result.filePath) {
+    return { canceled: true };
+  }
+
+  await fs.promises.writeFile(result.filePath, Buffer.from(data));
+  return {
+    canceled: false,
+    filePath: result.filePath,
+  };
+});
