@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bull';
 import { SessionService } from './services/session.service';
@@ -10,6 +10,9 @@ import { FileService } from './services/file.service';
 
 @Injectable()
 export class UploadService {
+  private static readonly REDIS_CHECK_TIMEOUT_MS = 1500;
+  private static readonly REDIS_ADD_TIMEOUT_MS = 3000;
+
   constructor(
     private file: FileService,
     private session: SessionService,
@@ -44,11 +47,51 @@ export class UploadService {
 
   async complete(uploadId: string, usage: 'file' | 'message' = 'file') {
     if (usage === 'message') {
-      await this.queue.add('merge-message', { uploadId });
+      await this.ensureQueueAvailable();
+      await this.withTimeout(
+        this.queue.add('merge-message', { uploadId }),
+        UploadService.REDIS_ADD_TIMEOUT_MS,
+        'Redis unavailable while queueing upload merge',
+      );
       return { queued: true };
     }
 
     const file = await this.merge.merge(uploadId);
     return { queued: false, file: { ...file, size: Number(file.size) } };
+  }
+
+  private async ensureQueueAvailable() {
+    if (this.queue.client.status === 'end') {
+      throw new ServiceUnavailableException('Redis 未启动，无法排队合并文件');
+    }
+
+    await this.withTimeout(
+      this.queue.client.ping(),
+      UploadService.REDIS_CHECK_TIMEOUT_MS,
+      'Redis 未连接，无法排队合并文件',
+    );
+  }
+
+  private async withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string) {
+    let timer: NodeJS.Timeout | undefined;
+
+    try {
+      return await Promise.race<T>([
+        promise,
+        new Promise<T>((_, reject) => {
+          timer = setTimeout(() => reject(new ServiceUnavailableException(message)), timeoutMs);
+        }),
+      ]);
+    } catch (error) {
+      if (error instanceof ServiceUnavailableException) {
+        throw error;
+      }
+
+      throw new ServiceUnavailableException(message);
+    } finally {
+      if (timer) {
+        clearTimeout(timer);
+      }
+    }
   }
 }
