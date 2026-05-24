@@ -1,158 +1,190 @@
 import { spawnSync } from 'node:child_process';
-import net from 'node:net';
 
 const composeFile = 'docker-compose.service-dev.yml';
-const mysqlPort = 3306;
-const redisPort = 6379;
+const isWin = process.platform === 'win32';
 
 function run(command, args, options = {}) {
-  const result = spawnSync(command, args, {
+  const isCmdScript =
+    process.platform === 'win32' && ['pnpm', 'npm', 'npx', 'turbo'].includes(command);
+
+  const actualCommand = process.platform === 'win32' && isCmdScript ? `${command}.cmd` : command;
+
+  const result = spawnSync(actualCommand, args, {
     stdio: 'inherit',
-    shell: process.platform === 'win32',
+    shell: isCmdScript,
     ...options,
   });
+
+  if (result.error) {
+    throw result.error;
+  }
 
   if (result.status !== 0) {
     throw new Error(`${command} ${args.join(' ')} failed`);
   }
 }
 
-function canRun(command, args) {
+function runSilent(command, args) {
   const result = spawnSync(command, args, {
     stdio: 'ignore',
-    shell: process.platform === 'win32',
+    shell: false,
   });
+
   return result.status === 0;
 }
 
+function ensureDockerInstalled() {
+  const installed = runSilent('docker', ['--version']) || runSilent('docker.exe', ['--version']);
+
+  if (!installed) {
+    throw new Error(`
+未检测到 Docker。
+
+请先安装 Docker Desktop：
+https://www.docker.com/products/docker-desktop/
+`);
+  }
+}
+
+function ensureDockerRunning() {
+  const running = runSilent('docker', ['info']) || runSilent('docker.exe', ['info']);
+
+  if (!running) {
+    throw new Error(`
+Docker Desktop 未启动。
+
+请先：
+
+1. 打开 Docker Desktop
+2. 等待显示 "Engine running"
+3. 再重新执行当前命令
+
+如果 Docker 无法启动，请检查：
+
+- WSL2 是否安装
+- BIOS 是否开启虚拟化
+`);
+  }
+}
+
 function detectDockerCompose() {
-  if (canRun('docker', ['compose', 'version'])) {
+  if (runSilent('docker', ['compose', 'version'])) {
     return ['docker', ['compose']];
   }
 
-  if (canRun('docker-compose', ['version'])) {
+  if (runSilent('docker-compose', ['version'])) {
     return ['docker-compose', []];
   }
 
-  throw new Error('未检测到 Docker Compose，请先安装 Docker Desktop 或 docker compose 插件。');
+  throw new Error(`
+未检测到 Docker Compose。
+
+请升级 Docker Desktop，
+或者安装 docker compose plugin。
+`);
 }
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function isPortOpen(port, host = '127.0.0.1') {
-  return new Promise((resolve) => {
-    const socket = net.createConnection({ host, port });
-
-    socket.once('connect', () => {
-      socket.destroy();
-      resolve(true);
-    });
-
-    socket.once('error', () => {
-      socket.destroy();
-      resolve(false);
-    });
-
-    socket.setTimeout(1000, () => {
-      socket.destroy();
-      resolve(false);
-    });
-  });
-}
-
-async function waitForLocalPort(name, port) {
+async function waitForService(name, healthcheckArgs, composeCommand, composeBaseArgs) {
   const maxRetries = 60;
 
-  for (let attempt = 1; attempt <= maxRetries; attempt += 1) {
-    if (await isPortOpen(port)) {
-      return;
-    }
-
-    await sleep(2000);
-  }
-
-  throw new Error(`${name} 端口 ${port} 等待超时，请确认服务是否正常启动。`);
-}
-
-async function waitForService(name, args, composeCommand, composeBaseArgs) {
-  const maxRetries = 60;
+  console.log(`> 等待 ${name} 就绪`);
 
   for (let attempt = 1; attempt <= maxRetries; attempt += 1) {
-    const result = spawnSync(composeCommand, [...composeBaseArgs, 'exec', '-T', name, ...args], {
-      stdio: 'ignore',
-      shell: process.platform === 'win32',
-    });
+    const result = spawnSync(
+      composeCommand,
+      [...composeBaseArgs, 'exec', '-T', name, ...healthcheckArgs],
+      {
+        stdio: 'ignore',
+        shell: false,
+      },
+    );
 
     if (result.status === 0) {
+      console.log(`> ${name} 已就绪`);
       return;
     }
+
+    process.stdout.write(`\r> ${name} 启动中 (${attempt}/${maxRetries})`);
 
     await sleep(2000);
   }
 
-  throw new Error(`${name} 启动超时，请检查 Docker 容器日志。`);
+  console.log('');
+
+  throw new Error(`
+${name} 启动超时。
+
+请执行以下命令查看日志：
+
+docker compose -f ${composeFile} logs ${name}
+`);
 }
 
 async function main() {
+  console.log('> 检查 Docker 环境');
+
+  ensureDockerInstalled();
+
+  ensureDockerRunning();
+
   const [composeCommand, composeArgs] = detectDockerCompose();
+
   const composeBaseArgs = [...composeArgs, '-f', composeFile];
-  const shouldStartMysql = !(await isPortOpen(mysqlPort));
-  const shouldStartRedis = !(await isPortOpen(redisPort));
-  const servicesToStart = [
-    shouldStartMysql ? 'mysql' : null,
-    shouldStartRedis ? 'redis' : null,
-  ].filter(Boolean);
 
-  if (servicesToStart.length > 0) {
-    console.log(`> 启动 ${servicesToStart.join(' / ')}`);
-    run(composeCommand, [...composeBaseArgs, 'up', '-d', ...servicesToStart]);
-  } else {
-    console.log('> 检测到本机 3306 和 6379 已有服务，跳过 Docker 启动');
-  }
+  console.log('> 启动 mysql / redis');
 
-  if (shouldStartMysql) {
-    console.log('> 等待 Docker MySQL 就绪');
-    await waitForService(
-      'mysql',
-      ['mysqladmin', 'ping', '-h', 'localhost', '-uroot', '-proot', '--silent'],
-      composeCommand,
-      composeBaseArgs,
-    );
-  } else {
-    console.log('> 使用本机已有 MySQL：localhost:3306');
-    await waitForLocalPort('MySQL', mysqlPort);
-  }
+  run(composeCommand, [...composeBaseArgs, 'up', '-d', 'mysql', 'redis']);
 
-  if (shouldStartRedis) {
-    console.log('> 等待 Docker Redis 就绪');
-    await waitForService(
-      'redis',
-      ['redis-cli', '-a', 'redis123456', 'ping'],
-      composeCommand,
-      composeBaseArgs,
-    );
-  } else {
-    console.log('> 使用本机已有 Redis：localhost:6379');
-    await waitForLocalPort('Redis', redisPort);
-  }
+  await waitForService(
+    'mysql',
+    ['mysqladmin', 'ping', '-h', 'localhost', '-uroot', '-proot', '--silent'],
+    composeCommand,
+    composeBaseArgs,
+  );
 
+  await waitForService(
+    'redis',
+    ['redis-cli', '-a', 'redis123456', 'ping'],
+    composeCommand,
+    composeBaseArgs,
+  );
+
+  console.log('');
   console.log('> 安装依赖');
+
   run('pnpm', ['install']);
 
+  console.log('');
   console.log('> 生成 Prisma Client');
+
   run('pnpm', ['--filter', 'c_chat_service', 'prisma:generate']);
 
-  console.log('> 同步 Prisma schema 到本地开发数据库');
+  console.log('');
+  console.log('> 同步 Prisma schema');
+
   run('pnpm', ['--filter', 'c_chat_service', 'prisma:push']);
 
   console.log('');
-  console.log('Service 本地依赖已准备完成。');
-  console.log('下一步可运行：pnpm run dev');
+  console.log('✅ Service 本地开发环境已准备完成');
+  console.log('');
+  console.log('下一步运行：');
+  console.log('pnpm run dev');
 }
 
 main().catch((error) => {
-  console.error(error.message);
+  console.error('');
+  console.error('❌ 启动失败');
+  console.error('');
+
+  if (error instanceof Error) {
+    console.error(error.message);
+  } else {
+    console.error(error);
+  }
+
   process.exit(1);
 });
