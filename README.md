@@ -87,7 +87,7 @@ pnpm --filter c_chat_service prisma:push
 ### 💬 消息功能
 
 - [x] **实时消息传递** - 基于 WebSocket 的即时通讯
-- [ ] **群聊功能** - 支持创建和加入多人聊天室
+- [x] **群聊功能** - 支持创建和加入多人聊天室
 - [ ] **消息撤回** - 支持已发送消息的撤回操作
 - [ ] **消息转发** - 支持消息转发给其他联系人
 - [ ] **消息搜索** - 快速搜索历史消息记录
@@ -96,8 +96,8 @@ pnpm --filter c_chat_service prisma:push
 ### 📁 文件功能
 
 - [x] **文件传输** - 支持图片、文档、音视频等文件分享
-- [ ] **云端存储** - 文件云同步，跨设备访问
-- [ ] **文件预览** - 图片、文档在线预览功能
+- [x] **云端存储** - 文件云同步，跨设备访问
+- [x] **文件预览** - 图片、文档在线预览功能
 - [x] **断点续传** - 大文件分片上传，支持断点续传
 
 ### 🎧 通讯功能
@@ -111,7 +111,7 @@ pnpm --filter c_chat_service prisma:push
 
 - [ ] **好友系统** - 好友添加、删除、备注
 - [ ] **联系人管理** - 分组管理联系人列表
-- [ ] **用户资料** - 个人头像、昵称、个性签名
+- [x] **用户资料** - 个人头像、昵称、个性签名
 - [ ] **在线状态** - 显示好友在线/离线状态
 
 ### 🔄 多账号支持
@@ -149,13 +149,18 @@ pnpm --filter c_chat_service prisma:push
     [<img src="./docs/img/signUp.png" height=300>](./docs/img/signUp.png)
 
 2.  聊天页面<br />
-    [<img src="./docs/img/chat.png" height=300>](./docs/img/chat.png)
+    [<img src="./docs/img/chat_group.png" height=300>](./docs/img/chat_group.png)
+    [<img src="./docs/img/chat_group_info.png" height=300>](./docs/img/chat_group_info.png)
 
 3.  账号信息<br />
     [<img src="./docs/img/userInfo.png" height=300>](./docs/img/userInfo.png)
 
 4.  托盘多账号<br />
     [<img src="./docs/img/tray.png" height=300>](./docs/img/tray.png)
+
+5.  文件预览
+    [<img src="./docs/img/media_preview_image.png" height=300>](./docs/img/media_preview_image.png)
+    [<img src="./docs/img/media_preview_video.png" height=300>](./docs/img/media_preview_video.png)
 
 ## 📞 联系方式
 
