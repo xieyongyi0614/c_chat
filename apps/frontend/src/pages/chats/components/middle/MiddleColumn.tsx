@@ -9,6 +9,7 @@ import { ChatInput } from './input/ChatInput';
 import { ConversationTypeEnum } from '@c_chat/shared-types';
 import { GroupDetailDialog } from './GroupDetailDialog';
 import { getChatAvatarFallbackClass } from '../chat-avatar-style';
+import { useCallStore } from '@c_chat/frontend/stores';
 
 interface RightSideProps {
   openCreateConversationDialog: (open: boolean) => void;
@@ -24,8 +25,21 @@ const MiddleColumn = (props: RightSideProps) => {
   const { historyState, loadOlderMessages, openCreateConversationDialog } = props;
 
   const { selectedConversation, selectedUserForDraft, setSelectedUserForDraft } = useChatStore();
+  const startCall = useCallStore((s) => s.startCall);
   const isGroupConversation = selectedConversation?.type === ConversationTypeEnum.Group;
   const [groupDetailOpen, setGroupDetailOpen] = useState(false);
+
+  const startConversationCall = async (callType: 'audio' | 'video') => {
+    const conversationId = selectedConversation?.id;
+    const targetUserId = selectedConversation?.targetId;
+    if (!conversationId || !targetUserId || isGroupConversation) return;
+
+    await startCall({
+      conversationId,
+      targetUserId,
+      callType,
+    });
+  };
 
   const activeTitle = (() => {
     if (selectedConversation) {
@@ -91,6 +105,8 @@ const MiddleColumn = (props: RightSideProps) => {
             size="icon"
             variant="ghost"
             className="hidden size-8 rounded-full sm:inline-flex lg:size-10"
+            disabled={!selectedConversation || isGroupConversation}
+            onClick={() => void startConversationCall('video')}
           >
             <Video size={22} className="stroke-muted-foreground" />
           </Button>
@@ -98,6 +114,8 @@ const MiddleColumn = (props: RightSideProps) => {
             size="icon"
             variant="ghost"
             className="hidden size-8 rounded-full sm:inline-flex lg:size-10"
+            disabled={!selectedConversation || isGroupConversation}
+            onClick={() => void startConversationCall('audio')}
           >
             <Phone size={22} className="stroke-muted-foreground" />
           </Button>

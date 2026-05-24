@@ -3,9 +3,14 @@ import logger from '../logger';
 import { storeTableClass } from '@c_chat/electron_client/db';
 import { ELECTRON_TO_CLIENT_CHANNELS, SOCKET_ERROR_CODE } from '@c_chat/shared-config';
 import { MessageHandler } from './message.handler';
+import { callManager } from '@c_chat/electron_client/utils/call/CallManager';
 
 import { WebContentEvents } from '@c_chat/shared-types';
-import { ClientToServiceEvent, ServiceToClientEvent } from '@c_chat/shared-protobuf/protoMap';
+import {
+  ClientToServiceEvent,
+  ServiceToClientEvent,
+  type ServiceDecodeProtoMapKey,
+} from '@c_chat/shared-protobuf/protoMap';
 
 export interface ServerToClientEvents {
   message: (data: Uint8Array | Buffer) => void;
@@ -98,6 +103,7 @@ export class SocketService extends MessageHandler {
       this.reconnectAttempts = 0;
       this.isReconnecting = false;
       logger.success(`[Socket ${this.windowId}] 连接成功. ID: ${this.socket?.id}`);
+      callManager.handleSocketReconnected();
       this.setupPingTimer();
 
       this.subscribeToEvent(ServiceToClientEvent.pong, () => {
@@ -114,6 +120,7 @@ export class SocketService extends MessageHandler {
     this.socket.on('disconnect', (reason) => {
       this.rejectAllWaiters(new Error(`Socket 断开: ${reason}`));
       logger.warn(`[Socket ${this.windowId}] Disconnected: ${reason}`);
+      callManager.handleSocketDisconnected();
       this.sendToRenderer(ELECTRON_TO_CLIENT_CHANNELS.SocketDisconnected, reason);
 
       /** 非主动断开时尝试重连 */
@@ -272,6 +279,10 @@ export class SocketService extends MessageHandler {
     data?: Parameters<WebContentEvents[T]>[0],
   ) {
     this._sendToRenderer(channel, data);
+  }
+
+  sendCallSignal(event: ServiceDecodeProtoMapKey, payload: Uint8Array) {
+    this._sendMessageToService(event, payload);
   }
 }
 

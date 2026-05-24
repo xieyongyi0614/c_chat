@@ -11,4 +11,6 @@ export * from './lib/ipc/windowToolsEvent';
 
 export * from './lib/socket.types';
 
+export * from './lib/call';
+
 export * from './utils';

@@ -1,0 +1,32 @@
+{
+  "name": "@c_chat/call_window",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "lint": "eslint .",
+    "typecheck": "tsc -b --noEmit",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@c_chat/shared-config": "workspace:*",
+    "@c_chat/shared-types": "workspace:*",
+    "@c_chat/shared-utils": "workspace:^",
+    "@c_chat/ui": "workspace:*",
+    "@tailwindcss/vite": "^4.2.1",
+    "@vitejs/plugin-react": "^5.1.0",
+    "lucide-react": "^0.576.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "sonner": "^2.0.7",
+    "vite": "^7.2.2"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "@types/react": "^19.2.2",
+    "@types/react-dom": "^19.2.2",
+    "typescript": "~5.9.3"
+  }
+}

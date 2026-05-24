@@ -22,6 +22,7 @@ import { SOCKET_ERROR_CODE } from 'src/constants/errorCode';
 import { ServiceToClientEvent } from '@c_chat/shared-protobuf/protoMap';
 import { FileTypes } from 'src/types/api/file-types';
 import { buildMessageInfoPayload, MessageHistoryWithMedia } from '../utils/message-to-proto.util';
+import { CallService } from 'src/api/call/call.service';
 
 @WebSocketGateway({
   namespace: '/chat',
@@ -64,8 +65,9 @@ export class ChatGateway
     private authService: AuthService,
     userService: UsersService,
     prisma: PrismaService,
+    callService: CallService,
   ) {
-    super(userService, messageService, chatService, prisma);
+    super(userService, messageService, chatService, prisma, callService);
   }
 
   /**

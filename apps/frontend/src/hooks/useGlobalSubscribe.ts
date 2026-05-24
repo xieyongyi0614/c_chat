@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { useChatStore, useMessageStore, useUserStore } from '../stores';
+import { useCallStore, useChatStore, useMessageStore, useUserStore } from '../stores';
 import { ELECTRON_TO_CLIENT_CHANNELS } from '@c_chat/shared-config';
 import { toast } from 'sonner';
 import {
@@ -14,6 +14,8 @@ export const useGlobalSubscribe = () => {
   const { userInfo, isSignedIn } = useUserStore();
   const { upsertAndPinConversation, removeConversation } = useChatStore();
   const { updateMsg, updateMsgs, addMsgList } = useMessageStore();
+  const setCallSnapshot = useCallStore((s) => s.setSnapshot);
+  const hydrateCallSnapshot = useCallStore((s) => s.hydrate);
   const dataConversationId = useMessageStore((s) => s.dataConversationId);
   const hasSelectedDraft = useChatStore((s) => Boolean(s.selectedUserForDraft));
 
@@ -76,6 +78,10 @@ export const useGlobalSubscribe = () => {
     }
   });
 
+  const callStateUpdatedHandle = useLastCallback<WebContentEvents['callStateUpdated']>((data) => {
+    setCallSnapshot(data);
+  });
+
   const subscribeAll = (subscriptions: ReturnType<WebContentEventType['on']>[]) => () =>
     subscriptions.forEach((unSub) => unSub());
 
@@ -94,9 +100,11 @@ export const useGlobalSubscribe = () => {
 
   useEffect(() => {
     if (isSignedIn()) {
+      void hydrateCallSnapshot();
       const unSubscriptions = [
         window.c_chat.on(ELECTRON_TO_CLIENT_CHANNELS.newUpdateMessage, newUpdateMessageHandle),
         window.c_chat.on(ELECTRON_TO_CLIENT_CHANNELS.uploadProgress, uploadProgressHandle),
+        window.c_chat.on(ELECTRON_TO_CLIENT_CHANNELS.CallStateUpdated, callStateUpdatedHandle),
       ];
       return subscribeAll(unSubscriptions);
     }

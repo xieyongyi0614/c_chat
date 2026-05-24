@@ -3,6 +3,7 @@ import { ErrorResult } from '@c_chat/shared-protobuf';
 import { AuthTypes } from './apiTypes';
 import { SocketTypes } from '../socket.types';
 import { LocalConversationListItem, LocalMessageListItem } from '../db';
+import type { CallStoreSnapshot, CallRtcSignalPayload } from './ipcCallTypes';
 type Unsubscribe = () => void;
 export interface WebContentEventType {
   on: <T extends keyof WebContentEvents>(channel: T, callback: WebContentEvents[T]) => Unsubscribe;
@@ -17,6 +18,7 @@ const {
   SocketReconnecting,
   Toast,
   newUpdateMessage,
+  CallStateUpdated,
   uploadProgress,
   MediaPreviewPayloadUpdated,
 } = ELECTRON_TO_CLIENT_CHANNELS;
@@ -31,6 +33,8 @@ export interface WebContentEvents {
     conversations?: LocalConversationListItem[];
     removedConversationIds?: string[];
   }) => void;
+  [CallStateUpdated]: (data: CallStoreSnapshot) => void;
+  [CallRtcSignalReceived]: (data: CallRtcSignalPayload) => void;
   [MediaPreviewPayloadUpdated]: (data: MediaPreviewPayload) => void;
   [uploadProgress]: (data: { clientMsgId: string; progress: number }) => void;
 

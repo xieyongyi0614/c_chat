@@ -23,6 +23,26 @@ import {
   LeaveGroupRequest,
   DismissGroupRequest,
   GroupOperationResponse,
+  CallInviteRequest,
+  CallInviteResponse,
+  CallIncomingNotify,
+  CallAcceptRequest,
+  CallRejectRequest,
+  CallCancelRequest,
+  CallHangupRequest,
+  CallEndedNotify,
+  CallBusyNotify,
+  CallTimeoutNotify,
+  CallStateSyncNotify,
+  CallSdpOffer,
+  CallSdpAnswer,
+  CallIceCandidate,
+  CallIceRestartRequest,
+  CallIceRestartNotify,
+  CallDeviceStateUpdate,
+  CallMuteAudioUpdate,
+  CallCameraStateUpdate,
+  CallNetworkStateUpdate,
 } from '.';
 
 /** 服务端发送socket事件 */
@@ -44,6 +64,21 @@ export const ServiceToClientEvent = {
   newConversation: 'newConversation',
 
   sendFileUploadComplete: 'sendFileUploadComplete',
+
+  callInviteResponse: 'callInviteResponse',
+  callIncomingNotify: 'callIncomingNotify',
+  callEndedNotify: 'callEndedNotify',
+  callBusyNotify: 'callBusyNotify',
+  callTimeoutNotify: 'callTimeoutNotify',
+  callStateSyncNotify: 'callStateSyncNotify',
+  callSdpOffer: 'callSdpOffer',
+  callSdpAnswer: 'callSdpAnswer',
+  callIceCandidate: 'callIceCandidate',
+  callIceRestartNotify: 'callIceRestartNotify',
+  callDeviceStateUpdate: 'callDeviceStateUpdate',
+  callMuteAudioUpdate: 'callMuteAudioUpdate',
+  callCameraStateUpdate: 'callCameraStateUpdate',
+  callNetworkStateUpdate: 'callNetworkStateUpdate',
 } as const;
 
 /** 客户端使用 */
@@ -66,6 +101,21 @@ export const clientDecodeProtoMap = {
   [ServiceToClientEvent.newUpdateMessage]: NewUpdateMessage,
   [ServiceToClientEvent.newConversation]: ConversationInfo,
   [ServiceToClientEvent.sendFileUploadComplete]: SendFileUploadComplete,
+
+  [ServiceToClientEvent.callInviteResponse]: CallInviteResponse,
+  [ServiceToClientEvent.callIncomingNotify]: CallIncomingNotify,
+  [ServiceToClientEvent.callEndedNotify]: CallEndedNotify,
+  [ServiceToClientEvent.callBusyNotify]: CallBusyNotify,
+  [ServiceToClientEvent.callTimeoutNotify]: CallTimeoutNotify,
+  [ServiceToClientEvent.callStateSyncNotify]: CallStateSyncNotify,
+  [ServiceToClientEvent.callSdpOffer]: CallSdpOffer,
+  [ServiceToClientEvent.callSdpAnswer]: CallSdpAnswer,
+  [ServiceToClientEvent.callIceCandidate]: CallIceCandidate,
+  [ServiceToClientEvent.callIceRestartNotify]: CallIceRestartNotify,
+  [ServiceToClientEvent.callDeviceStateUpdate]: CallDeviceStateUpdate,
+  [ServiceToClientEvent.callMuteAudioUpdate]: CallMuteAudioUpdate,
+  [ServiceToClientEvent.callCameraStateUpdate]: CallCameraStateUpdate,
+  [ServiceToClientEvent.callNetworkStateUpdate]: CallNetworkStateUpdate,
 };
 
 export type ClientDecodeProtoMapKey = keyof typeof clientDecodeProtoMap;
@@ -98,6 +148,19 @@ export const ClientToServiceEvent = {
   inviteGroupMembers: 'inviteGroupMembers',
   leaveGroup: 'leaveGroup',
   dismissGroup: 'dismissGroup',
+  callInvite: 'callInvite',
+  callAccept: 'callAccept',
+  callReject: 'callReject',
+  callCancel: 'callCancel',
+  callHangup: 'callHangup',
+  callSdpOffer: 'callSdpOffer',
+  callSdpAnswer: 'callSdpAnswer',
+  callIceCandidate: 'callIceCandidate',
+  callIceRestart: 'callIceRestart',
+  callDeviceStateUpdate: 'callDeviceStateUpdate',
+  callMuteAudioUpdate: 'callMuteAudioUpdate',
+  callCameraStateUpdate: 'callCameraStateUpdate',
+  callNetworkStateUpdate: 'callNetworkStateUpdate',
 } as const;
 
 /** 服务端使用 */
@@ -116,6 +179,19 @@ export const serviceDecodeProtoMap = {
   [ClientToServiceEvent.inviteGroupMembers]: InviteGroupMembersRequest,
   [ClientToServiceEvent.leaveGroup]: LeaveGroupRequest,
   [ClientToServiceEvent.dismissGroup]: DismissGroupRequest,
+  [ClientToServiceEvent.callInvite]: CallInviteRequest,
+  [ClientToServiceEvent.callAccept]: CallAcceptRequest,
+  [ClientToServiceEvent.callReject]: CallRejectRequest,
+  [ClientToServiceEvent.callCancel]: CallCancelRequest,
+  [ClientToServiceEvent.callHangup]: CallHangupRequest,
+  [ClientToServiceEvent.callSdpOffer]: CallSdpOffer,
+  [ClientToServiceEvent.callSdpAnswer]: CallSdpAnswer,
+  [ClientToServiceEvent.callIceCandidate]: CallIceCandidate,
+  [ClientToServiceEvent.callIceRestart]: CallIceRestartRequest,
+  [ClientToServiceEvent.callDeviceStateUpdate]: CallDeviceStateUpdate,
+  [ClientToServiceEvent.callMuteAudioUpdate]: CallMuteAudioUpdate,
+  [ClientToServiceEvent.callCameraStateUpdate]: CallCameraStateUpdate,
+  [ClientToServiceEvent.callNetworkStateUpdate]: CallNetworkStateUpdate,
 };
 export type ServiceDecodeProtoMapKey = keyof typeof serviceDecodeProtoMap;
 
@@ -144,6 +220,7 @@ export const ClientPaddingRequestsEvent = {
   [ClientToServiceEvent.inviteGroupMembers]: ServiceToClientEvent.groupOperationResponse,
   [ClientToServiceEvent.leaveGroup]: ServiceToClientEvent.groupOperationResponse,
   [ClientToServiceEvent.dismissGroup]: ServiceToClientEvent.groupOperationResponse,
+  [ClientToServiceEvent.callInvite]: ServiceToClientEvent.callInviteResponse,
 } as const;
 
 export type ClientPaddingRequestsCallback = {

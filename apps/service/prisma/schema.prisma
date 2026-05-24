@@ -35,6 +35,10 @@ model User {
   ownedGroups              Group[]                   @relation("GroupOwner")
 
   groupMembers GroupMember[]
+  initiatedCallSessions CallSession[] @relation("CallInitiator")
+  targetCallSessions    CallSession[] @relation("CallTarget")
+  callParticipants      CallParticipant[]
+  callHistories         CallHistory[]
   // chatRoomParticipants ChatRoomParticipant[]
 }
 
@@ -98,10 +102,107 @@ model Conversation {
   // 关联
   messages     MessageHistory[]
   participants ConversationParticipant[]
+  callSessions CallSession[]
+  callHistories CallHistory[]
   // 注意：私聊的唯一性建议在代码层控制 (如 A-B 和 B-A 生成同一个 Conversation ID)
 
   // 索引优化
   @@index([type, targetId])
+}
+
+model CallSession {
+  id             String    @id @default(cuid())
+  clientCallId   String    @map("client_call_id")
+  conversationId String    @map("conversation_id")
+  callType       String    @map("call_type")
+  mode           String    @default("p2p")
+  initiatorId    String    @map("initiator_id")
+  targetUserId   String    @map("target_user_id")
+  state          String
+  startAt        DateTime  @map("start_at")
+  acceptedAt     DateTime? @map("accepted_at")
+  connectedAt    DateTime? @map("connected_at")
+  endedAt        DateTime? @map("ended_at")
+  duration       Int?
+  endReason      String?   @map("end_reason")
+  sfuRoomId      String?   @map("sfu_room_id")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  conversation Conversation      @relation(fields: [conversationId], references: [id])
+  initiator    User              @relation("CallInitiator", fields: [initiatorId], references: [id])
+  targetUser   User              @relation("CallTarget", fields: [targetUserId], references: [id])
+  participants CallParticipant[]
+  histories    CallHistory[]
+  rtcEvents    RtcEvent[]
+
+  @@unique([initiatorId, clientCallId])
+  @@index([initiatorId, state])
+  @@index([targetUserId, state])
+  @@index([conversationId, createdAt])
+  @@index([state, updatedAt])
+  @@map("call_session")
+}
+
+model CallParticipant {
+  id            String    @id @default(cuid())
+  callId        String    @map("call_id")
+  userId        String    @map("user_id")
+  deviceId      String?   @map("device_id")
+  role          String
+  state         String
+  joinedAt      DateTime? @map("joined_at")
+  leftAt        DateTime? @map("left_at")
+  muteAudio     Boolean   @default(false) @map("mute_audio")
+  muteVideo     Boolean   @default(false) @map("mute_video")
+  screenSharing Boolean   @default(false) @map("screen_sharing")
+  networkState  String?   @map("network_state")
+  lastSeenAt    DateTime? @map("last_seen_at")
+
+  call CallSession @relation(fields: [callId], references: [id])
+  user User        @relation(fields: [userId], references: [id])
+
+  @@unique([callId, userId, deviceId])
+  @@index([userId, state])
+  @@index([callId, state])
+  @@map("call_participant")
+}
+
+model CallHistory {
+  id             String   @id @default(cuid())
+  callId         String   @map("call_id")
+  conversationId String   @map("conversation_id")
+  userId         String   @map("user_id")
+  peerUserId     String   @map("peer_user_id")
+  direction      String
+  callType       String   @map("call_type")
+  result         String
+  duration       Int?
+  startedAt      DateTime @map("started_at")
+  endedAt        DateTime @map("ended_at")
+
+  call         CallSession @relation(fields: [callId], references: [id])
+  conversation Conversation @relation(fields: [conversationId], references: [id])
+  user         User        @relation(fields: [userId], references: [id])
+
+  @@index([userId, endedAt])
+  @@index([conversationId, endedAt])
+  @@map("call_history")
+}
+
+model RtcEvent {
+  id        String   @id @default(cuid())
+  callId    String   @map("call_id")
+  userId    String   @map("user_id")
+  deviceId  String?  @map("device_id")
+  eventType String   @map("event_type")
+  payload   Json?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  call CallSession @relation(fields: [callId], references: [id])
+
+  @@index([callId, createdAt])
+  @@map("rtc_event")
 }
 
 model ConversationSequence {

@@ -4,6 +4,7 @@ import {
   ChatPreloadTypes,
   FileOperationPreloadTypes,
 } from './ipcCallTypes';
+import type { CallPreloadTypes } from './ipcCallTypes';
 
 export * from './ipcCallTypes';
 
@@ -25,7 +26,8 @@ export interface IpcResponse<T = any> {
 export type IpcTypes = AuthPreloadTypes &
   ChatPreloadTypes &
   FileOperationPreloadTypes &
-  AudioPreloadTypes;
+  AudioPreloadTypes &
+  CallPreloadTypes;
 
 export type IpcBridgeApi = {
   ipcCall: (message: IpcMessage) => Promise<IpcResponse>;

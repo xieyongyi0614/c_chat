@@ -7,6 +7,7 @@ export * from './lib/constants';
 export * from './lib/fileType';
 export * from './lib/toast.config';
 export * from './lib/mediaPreview';
+export * from './lib/callWindow';
 
 /** electron renderer port */
 export const ELECTRON_RENDERER_PORT = 3000;

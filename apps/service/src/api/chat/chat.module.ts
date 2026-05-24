@@ -5,10 +5,11 @@ import { ChatService } from './services/chat.service';
 import { AuthModule } from '../../auth/auth.module';
 import { UsersService } from 'src/api/web/users/users.service';
 import { UploadModule } from 'src/modules/upload/upload.module';
+import { CallService } from '../call/call.service';
 
 @Module({
   imports: [AuthModule, forwardRef(() => UploadModule)],
-  providers: [ChatGateway, MessageService, ChatService, UsersService],
-  exports: [ChatGateway, MessageService, ChatService],
+  providers: [ChatGateway, MessageService, ChatService, UsersService, CallService],
+  exports: [ChatGateway, MessageService, ChatService, CallService],
 })
 export class ChatModule {}

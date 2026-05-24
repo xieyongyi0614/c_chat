@@ -10,6 +10,8 @@ export const ELECTRON_TO_CLIENT_CHANNELS = {
 
   newUpdateMessage: 'newUpdateMessage',
   MediaPreviewPayloadUpdated: 'mediaPreviewPayloadUpdated',
+  CallStateUpdated: 'callStateUpdated',
+  CallRtcSignalReceived: 'callRtcSignalReceived',
 
   /** 上传进度 */
   uploadProgress: 'uploadProgress',

@@ -1,0 +1,127 @@
+syntax = "proto3";
+
+message CallInfo {
+  string call_id = 1;
+  string client_call_id = 2;
+  string conversation_id = 3;
+  string initiator_id = 4;
+  string target_user_id = 5;
+  string call_type = 6;
+  string state = 7;
+  optional int64 started_at = 8;
+  optional int64 accepted_at = 9;
+  optional int64 connected_at = 10;
+  optional int64 ended_at = 11;
+  optional int32 duration_sec = 12;
+  optional string end_reason = 13;
+}
+
+message CallSignalMeta {
+  string call_id = 1;
+  string client_call_id = 2;
+  string conversation_id = 3;
+  string sender_id = 4;
+  string target_user_id = 5;
+  string sender_device_id = 6;
+  optional string target_device_id = 7;
+  int64 seq = 8;
+  int64 timestamp = 9;
+}
+
+message CallInviteRequest {
+  string client_call_id = 1;
+  string conversation_id = 2;
+  string target_user_id = 3;
+  string call_type = 4;
+  string sender_device_id = 5;
+}
+
+message CallInviteResponse {
+  CallInfo call = 1;
+}
+
+message CallIncomingNotify {
+  CallInfo call = 1;
+  string sender_device_id = 2;
+}
+
+message CallAcceptRequest {
+  CallSignalMeta meta = 1;
+}
+
+message CallRejectRequest {
+  CallSignalMeta meta = 1;
+  optional string reason = 2;
+}
+
+message CallCancelRequest {
+  CallSignalMeta meta = 1;
+}
+
+message CallHangupRequest {
+  CallSignalMeta meta = 1;
+  optional string reason = 2;
+}
+
+message CallEndedNotify {
+  CallInfo call = 1;
+  string reason = 2;
+}
+
+message CallBusyNotify {
+  CallInfo call = 1;
+}
+
+message CallTimeoutNotify {
+  CallInfo call = 1;
+}
+
+message CallStateSyncNotify {
+  CallInfo call = 1;
+}
+
+message CallSdpOffer {
+  CallSignalMeta meta = 1;
+  string sdp = 2;
+}
+
+message CallSdpAnswer {
+  CallSignalMeta meta = 1;
+  string sdp = 2;
+}
+
+message CallIceCandidate {
+  CallSignalMeta meta = 1;
+  string candidate = 2;
+  optional string sdp_mid = 3;
+  optional int32 sdp_m_line_index = 4;
+}
+
+message CallIceRestartRequest {
+  CallSignalMeta meta = 1;
+}
+
+message CallIceRestartNotify {
+  CallSignalMeta meta = 1;
+}
+
+message CallDeviceStateUpdate {
+  CallSignalMeta meta = 1;
+  optional string input_device_id = 2;
+  optional string output_device_id = 3;
+}
+
+message CallMuteAudioUpdate {
+  CallSignalMeta meta = 1;
+  bool muted = 2;
+}
+
+message CallCameraStateUpdate {
+  CallSignalMeta meta = 1;
+  bool enabled = 2;
+}
+
+message CallNetworkStateUpdate {
+  CallSignalMeta meta = 1;
+  string state = 2;
+}

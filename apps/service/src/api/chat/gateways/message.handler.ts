@@ -1,6 +1,10 @@
-import { Injectable } from '@nestjs/common';
+import { ConflictException, Injectable } from '@nestjs/common';
 import { MessageHandlerRegistry } from './message-handler.registry';
-import { ClientToServiceEvent, ServiceToClientEvent } from '@c_chat/shared-protobuf/protoMap';
+import {
+  ClientDecodeProtoMapKey,
+  ClientToServiceEvent,
+  ServiceToClientEvent,
+} from '@c_chat/shared-protobuf/protoMap';
 import { ChatSocket } from 'src/types/socket.types';
 import { UsersService } from 'src/api/web/users/users.service';
 import { PrismaService } from 'src/core/database';
@@ -30,6 +34,26 @@ import {
   LeaveGroupRequest,
   DismissGroupRequest,
   ITargetInfo,
+  CallInviteRequest,
+  CallInviteResponse,
+  CallIncomingNotify,
+  CallAcceptRequest,
+  CallRejectRequest,
+  CallCancelRequest,
+  CallHangupRequest,
+  CallEndedNotify,
+  CallBusyNotify,
+  CallStateSyncNotify,
+  CallSdpOffer,
+  CallSdpAnswer,
+  CallIceCandidate,
+  CallIceRestartRequest,
+  CallIceRestartNotify,
+  CallDeviceStateUpdate,
+  CallMuteAudioUpdate,
+  CallCameraStateUpdate,
+  CallNetworkStateUpdate,
+  ICallSignalMeta,
 } from '@c_chat/shared-protobuf';
 import { buildMessageInfoPayload } from '../utils/message-to-proto.util';
 import { MessageService } from '../services/message.service';
@@ -37,6 +61,8 @@ import { ChatService } from '../services/chat.service';
 import { Server } from 'socket.io';
 import { RequestListParams } from 'src/common';
 import { transformPaginationParams } from 'src/utils';
+import { CallService } from 'src/api/call/call.service';
+import { CallSessionState } from '@c_chat/shared-types';
 
 @Injectable()
 export abstract class MessageHandler extends MessageHandlerRegistry {
@@ -48,6 +74,7 @@ export abstract class MessageHandler extends MessageHandlerRegistry {
     protected messageService: MessageService,
     protected chatService: ChatService,
     protected prisma: PrismaService,
+    protected callService: CallService,
   ) {
     super();
   }
@@ -70,6 +97,19 @@ export abstract class MessageHandler extends MessageHandlerRegistry {
     this.handlers.set(ClientToServiceEvent.inviteGroupMembers, this.handleInviteGroupMembers);
     this.handlers.set(ClientToServiceEvent.leaveGroup, this.handleLeaveGroup);
     this.handlers.set(ClientToServiceEvent.dismissGroup, this.handleDismissGroup);
+    this.handlers.set(ClientToServiceEvent.callInvite, this.handleCallInvite);
+    this.handlers.set(ClientToServiceEvent.callAccept, this.handleCallAccept);
+    this.handlers.set(ClientToServiceEvent.callReject, this.handleCallReject);
+    this.handlers.set(ClientToServiceEvent.callCancel, this.handleCallCancel);
+    this.handlers.set(ClientToServiceEvent.callHangup, this.handleCallHangup);
+    this.handlers.set(ClientToServiceEvent.callSdpOffer, this.handleCallSdpOffer);
+    this.handlers.set(ClientToServiceEvent.callSdpAnswer, this.handleCallSdpAnswer);
+    this.handlers.set(ClientToServiceEvent.callIceCandidate, this.handleCallIceCandidate);
+    this.handlers.set(ClientToServiceEvent.callIceRestart, this.handleCallIceRestart);
+    this.handlers.set(ClientToServiceEvent.callDeviceStateUpdate, this.handleCallDeviceStateUpdate);
+    this.handlers.set(ClientToServiceEvent.callMuteAudioUpdate, this.handleCallMuteAudioUpdate);
+    this.handlers.set(ClientToServiceEvent.callCameraStateUpdate, this.handleCallCameraStateUpdate);
+    this.handlers.set(ClientToServiceEvent.callNetworkStateUpdate, this.handleCallNetworkStateUpdate);
   }
 
   private handlePing(client: ChatSocket) {
@@ -125,6 +165,410 @@ export abstract class MessageHandler extends MessageHandlerRegistry {
       updateTime: group.updateTime.getTime(),
       createTime: group.createTime.getTime(),
     });
+  }
+
+  private buildCallInfo(call: {
+    id: string;
+    clientCallId: string;
+    conversationId: string;
+    initiatorId: string;
+    targetUserId: string;
+    callType: string;
+    state: string;
+    startAt: Date;
+    acceptedAt?: Date | null;
+    connectedAt?: Date | null;
+    endedAt?: Date | null;
+    duration?: number | null;
+    endReason?: string | null;
+  }) {
+    return {
+      callId: call.id,
+      clientCallId: call.clientCallId,
+      conversationId: call.conversationId,
+      initiatorId: call.initiatorId,
+      targetUserId: call.targetUserId,
+      callType: call.callType,
+      state: call.state,
+      startedAt: call.startAt.getTime(),
+      acceptedAt: call.acceptedAt?.getTime(),
+      connectedAt: call.connectedAt?.getTime(),
+      endedAt: call.endedAt?.getTime(),
+      durationSec: call.duration ?? undefined,
+      endReason: call.endReason ?? undefined,
+    };
+  }
+
+  private forwardCallPayload(
+    targetUserId: string,
+    event: ClientDecodeProtoMapKey,
+    payload: Uint8Array,
+    senderId: string,
+  ) {
+    this.sendMessageToUser(targetUserId, event, payload, senderId);
+  }
+
+  private handleCallInvite = async (
+    client: ChatSocket,
+    payload?: CallInviteRequest | null,
+    requestId?: string,
+  ) => {
+    const userId = client.data.user?.id;
+    if (!userId || !payload) return;
+
+    try {
+      const call = await this.callService.invite(userId, {
+        clientCallId: payload.clientCallId,
+        conversationId: payload.conversationId,
+        targetUserId: payload.targetUserId,
+        callType: payload.callType,
+        senderDeviceId: payload.senderDeviceId,
+      });
+
+      const callInfo = this.buildCallInfo(call);
+      this.sendMessageToClient(
+        client,
+        ServiceToClientEvent.callInviteResponse,
+        CallInviteResponse.encode(CallInviteResponse.create({ call: callInfo })).finish(),
+        requestId,
+      );
+      this.forwardCallPayload(
+        payload.targetUserId,
+        ServiceToClientEvent.callIncomingNotify,
+        CallIncomingNotify.encode(
+          CallIncomingNotify.create({
+            call: callInfo,
+            senderDeviceId: payload.senderDeviceId,
+          }),
+        ).finish(),
+        userId,
+      );
+    } catch (error) {
+      if (error instanceof ConflictException) {
+        this.sendMessageToClient(
+          client,
+          ServiceToClientEvent.callBusyNotify,
+          CallBusyNotify.encode(
+            CallBusyNotify.create({
+              call: {
+                clientCallId: payload.clientCallId,
+                conversationId: payload.conversationId,
+                initiatorId: userId,
+                targetUserId: payload.targetUserId,
+                callType: payload.callType,
+                state: CallSessionState.busy,
+              },
+            }),
+          ).finish(),
+          requestId,
+        );
+        return;
+      }
+      throw error;
+    }
+  };
+
+  private handleCallAccept = async (client: ChatSocket, payload?: CallAcceptRequest | null) => {
+    const userId = client.data.user?.id;
+    if (!userId || !payload?.meta) return;
+    const meta = this.parseCallSignalMeta(payload.meta);
+    if (!meta) return;
+
+    const call = await this.callService.accept(userId, {
+      callId: meta.callId,
+      clientCallId: meta.clientCallId,
+      conversationId: meta.conversationId,
+      senderId: meta.senderId,
+      targetUserId: meta.targetUserId,
+      senderDeviceId: meta.senderDeviceId,
+      targetDeviceId: meta.targetDeviceId,
+      seq: meta.seq,
+      timestamp: meta.timestamp,
+    });
+
+    this.forwardCallPayload(
+      meta.targetUserId,
+      ServiceToClientEvent.callStateSyncNotify,
+      CallStateSyncNotify.encode(
+        CallStateSyncNotify.create({
+          call: this.buildCallInfo(call),
+        }),
+      ).finish(),
+      userId,
+    );
+  };
+
+  private handleCallReject = async (client: ChatSocket, payload?: CallRejectRequest | null) => {
+    await this.handleCallEnd(client, payload?.meta, CallSessionState.rejected, payload?.reason || 'rejected');
+  };
+
+  private handleCallCancel = async (client: ChatSocket, payload?: CallCancelRequest | null) => {
+    await this.handleCallEnd(client, payload?.meta, CallSessionState.cancelled, 'cancelled');
+  };
+
+  private handleCallHangup = async (client: ChatSocket, payload?: CallHangupRequest | null) => {
+    await this.handleCallEnd(client, payload?.meta, CallSessionState.ended, payload?.reason || 'ended');
+  };
+
+  private async handleCallEnd(
+    client: ChatSocket,
+    meta: ICallSignalMeta | undefined | null,
+    state: CallSessionState,
+    reason: string,
+  ) {
+    const userId = client.data.user?.id;
+    const signalMeta = this.parseCallSignalMeta(meta);
+    if (!userId || !signalMeta) return;
+
+    const call = await this.callService.end(
+      userId,
+      {
+        callId: signalMeta.callId,
+        clientCallId: signalMeta.clientCallId,
+        conversationId: signalMeta.conversationId,
+        senderId: signalMeta.senderId,
+        targetUserId: signalMeta.targetUserId,
+        senderDeviceId: signalMeta.senderDeviceId,
+        targetDeviceId: signalMeta.targetDeviceId,
+        seq: signalMeta.seq,
+        timestamp: signalMeta.timestamp,
+      },
+      state,
+      reason,
+    );
+
+    const response = CallEndedNotify.encode(
+      CallEndedNotify.create({
+        call: this.buildCallInfo(call),
+        reason,
+      }),
+    ).finish();
+    this.sendMessageToClient(client, ServiceToClientEvent.callEndedNotify, response);
+    this.forwardCallPayload(signalMeta.targetUserId, ServiceToClientEvent.callEndedNotify, response, userId);
+  }
+
+  private handleCallSdpOffer = async (client: ChatSocket, payload?: CallSdpOffer | null) => {
+    await this.forwardCallSdpOffer(client, payload);
+  };
+
+  private handleCallSdpAnswer = async (client: ChatSocket, payload?: CallSdpAnswer | null) => {
+    await this.forwardCallSdpAnswer(client, payload);
+  };
+
+  private handleCallIceCandidate = async (
+    client: ChatSocket,
+    payload?: CallIceCandidate | null,
+  ) => {
+    await this.forwardCallIceCandidate(client, payload);
+  };
+
+  private handleCallIceRestart = async (
+    client: ChatSocket,
+    payload?: CallIceRestartRequest | null,
+  ) => {
+    await this.forwardCallIceRestart(client, payload);
+  };
+
+  private handleCallDeviceStateUpdate = async (
+    client: ChatSocket,
+    payload?: CallDeviceStateUpdate | null,
+  ) => {
+    await this.forwardCallDeviceStateUpdate(client, payload);
+  };
+
+  private handleCallMuteAudioUpdate = async (
+    client: ChatSocket,
+    payload?: CallMuteAudioUpdate | null,
+  ) => {
+    await this.forwardCallMuteAudioUpdate(client, payload);
+  };
+
+  private handleCallCameraStateUpdate = async (
+    client: ChatSocket,
+    payload?: CallCameraStateUpdate | null,
+  ) => {
+    await this.forwardCallCameraStateUpdate(client, payload);
+  };
+
+  private handleCallNetworkStateUpdate = async (
+    client: ChatSocket,
+    payload?: CallNetworkStateUpdate | null,
+  ) => {
+    await this.forwardCallNetworkStateUpdate(client, payload);
+  };
+
+  private getCallSenderId(client: ChatSocket, payloadMeta?: ICallSignalMeta | null) {
+    const userId = client.data.user?.id;
+    if (!userId || !payloadMeta) return null;
+
+    return userId;
+  }
+
+  private parseCallSignalMeta(meta?: ICallSignalMeta | null) {
+    if (
+      !meta?.callId ||
+      !meta.clientCallId ||
+      !meta.conversationId ||
+      !meta.senderId ||
+      !meta.targetUserId ||
+      !meta.senderDeviceId
+    ) {
+      return null;
+    }
+
+    return {
+      callId: meta.callId,
+      clientCallId: meta.clientCallId,
+      conversationId: meta.conversationId,
+      senderId: meta.senderId,
+      targetUserId: meta.targetUserId,
+      senderDeviceId: meta.senderDeviceId,
+      targetDeviceId: meta.targetDeviceId ?? null,
+      seq: Number(meta.seq),
+      timestamp: Number(meta.timestamp),
+    };
+  }
+
+  private async forwardCallSdpOffer(client: ChatSocket, payload?: CallSdpOffer | null) {
+    if (!payload) return;
+    const userId = this.getCallSenderId(client, payload.meta);
+    const meta = this.parseCallSignalMeta(payload.meta);
+    if (!userId || !meta) return;
+
+    await this.callService.syncRtcEvent(meta.callId, userId, 'sdp_offer');
+    this.forwardCallPayload(
+      meta.targetUserId,
+      ServiceToClientEvent.callSdpOffer,
+      CallSdpOffer.encode(payload).finish(),
+      userId,
+    );
+  }
+
+  private async forwardCallSdpAnswer(client: ChatSocket, payload?: CallSdpAnswer | null) {
+    if (!payload) return;
+    const userId = this.getCallSenderId(client, payload.meta);
+    const meta = this.parseCallSignalMeta(payload.meta);
+    if (!userId || !meta) return;
+
+    await this.callService.syncRtcEvent(meta.callId, userId, 'sdp_answer');
+    this.forwardCallPayload(
+      meta.targetUserId,
+      ServiceToClientEvent.callSdpAnswer,
+      CallSdpAnswer.encode(payload).finish(),
+      userId,
+    );
+  }
+
+  private async forwardCallIceCandidate(client: ChatSocket, payload?: CallIceCandidate | null) {
+    if (!payload) return;
+    const userId = this.getCallSenderId(client, payload.meta);
+    const meta = this.parseCallSignalMeta(payload.meta);
+    if (!userId || !meta) return;
+
+    await this.callService.syncRtcEvent(meta.callId, userId, 'ice_candidate');
+    this.forwardCallPayload(
+      meta.targetUserId,
+      ServiceToClientEvent.callIceCandidate,
+      CallIceCandidate.encode(payload).finish(),
+      userId,
+    );
+  }
+
+  private async forwardCallIceRestart(client: ChatSocket, payload?: CallIceRestartRequest | null) {
+    if (!payload) return;
+    const userId = this.getCallSenderId(client, payload.meta);
+    const meta = this.parseCallSignalMeta(payload.meta);
+    if (!userId || !meta) return;
+
+    await this.callService.syncRtcEvent(meta.callId, userId, 'ice_restart');
+    const notify = CallIceRestartNotify.create({ meta: payload.meta });
+    this.forwardCallPayload(
+      meta.targetUserId,
+      ServiceToClientEvent.callIceRestartNotify,
+      CallIceRestartNotify.encode(notify).finish(),
+      userId,
+    );
+  }
+
+  private async forwardCallDeviceStateUpdate(
+    client: ChatSocket,
+    payload?: CallDeviceStateUpdate | null,
+  ) {
+    if (!payload) return;
+    const userId = this.getCallSenderId(client, payload.meta);
+    const meta = this.parseCallSignalMeta(payload.meta);
+    if (!userId || !meta) return;
+
+    await this.callService.syncRtcEvent(meta.callId, userId, 'device_state', {
+      input_device_id: payload.inputDeviceId,
+      output_device_id: payload.outputDeviceId,
+    });
+    this.forwardCallPayload(
+      meta.targetUserId,
+      ServiceToClientEvent.callDeviceStateUpdate,
+      CallDeviceStateUpdate.encode(payload).finish(),
+      userId,
+    );
+  }
+
+  private async forwardCallMuteAudioUpdate(
+    client: ChatSocket,
+    payload?: CallMuteAudioUpdate | null,
+  ) {
+    if (!payload) return;
+    const userId = this.getCallSenderId(client, payload.meta);
+    const meta = this.parseCallSignalMeta(payload.meta);
+    if (!userId || !meta) return;
+
+    await this.callService.syncRtcEvent(meta.callId, userId, 'mute_audio', {
+      muted: payload.muted,
+    });
+    this.forwardCallPayload(
+      meta.targetUserId,
+      ServiceToClientEvent.callMuteAudioUpdate,
+      CallMuteAudioUpdate.encode(payload).finish(),
+      userId,
+    );
+  }
+
+  private async forwardCallCameraStateUpdate(
+    client: ChatSocket,
+    payload?: CallCameraStateUpdate | null,
+  ) {
+    if (!payload) return;
+    const userId = this.getCallSenderId(client, payload.meta);
+    const meta = this.parseCallSignalMeta(payload.meta);
+    if (!userId || !meta) return;
+
+    await this.callService.syncRtcEvent(meta.callId, userId, 'camera_state', {
+      enabled: payload.enabled,
+    });
+    this.forwardCallPayload(
+      meta.targetUserId,
+      ServiceToClientEvent.callCameraStateUpdate,
+      CallCameraStateUpdate.encode(payload).finish(),
+      userId,
+    );
+  }
+
+  private async forwardCallNetworkStateUpdate(
+    client: ChatSocket,
+    payload?: CallNetworkStateUpdate | null,
+  ) {
+    if (!payload) return;
+    const userId = this.getCallSenderId(client, payload.meta);
+    const meta = this.parseCallSignalMeta(payload.meta);
+    if (!userId || !meta) return;
+
+    await this.callService.syncRtcEvent(meta.callId, userId, 'network_state', {
+      state: payload.state,
+    });
+    this.forwardCallPayload(
+      meta.targetUserId,
+      ServiceToClientEvent.callNetworkStateUpdate,
+      CallNetworkStateUpdate.encode(payload).finish(),
+      userId,
+    );
   }
 
   private buildGroupConversationInfo(

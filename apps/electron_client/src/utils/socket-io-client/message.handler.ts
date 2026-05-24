@@ -26,6 +26,7 @@ import {
 } from '@c_chat/shared-types';
 import { WindowManager } from '@c_chat/electron_client/main/windows';
 import { generateLastMsgContent } from '@c_chat/shared-utils';
+import { callManager } from '@c_chat/electron_client/utils/call/CallManager';
 
 interface QueuedEvent {
   event: ClientDecodeProtoMapKey;
@@ -272,6 +273,24 @@ export class MessageHandler extends MessageHandlerRegistry {
         if (task.clientMsgId) {
           messageTableClass.updateFileIdByClientId(task.clientMsgId, fileId);
         }
+      },
+      [ServiceToClientEvent.callInviteResponse]: (data) => {
+        callManager.handleCallUpdate(data?.call, 'outgoing');
+      },
+      [ServiceToClientEvent.callIncomingNotify]: (data) => {
+        callManager.handleIncoming(data?.call);
+      },
+      [ServiceToClientEvent.callStateSyncNotify]: (data) => {
+        callManager.handleCallUpdate(data?.call);
+      },
+      [ServiceToClientEvent.callEndedNotify]: (data) => {
+        callManager.handleCallUpdate(data?.call);
+      },
+      [ServiceToClientEvent.callBusyNotify]: (data) => {
+        callManager.handleCallUpdate(data?.call);
+      },
+      [ServiceToClientEvent.callTimeoutNotify]: (data) => {
+        callManager.handleCallUpdate(data?.call);
       },
     };
 
