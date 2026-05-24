@@ -158,7 +158,7 @@ pnpm --filter c_chat_service prisma:push
 4.  托盘多账号<br />
     [<img src="./docs/img/tray.png" height=300>](./docs/img/tray.png)
 
-5.  文件预览
+5.  文件预览<br />
     [<img src="./docs/img/media_preview_image.png" height=300>](./docs/img/media_preview_image.png)
     [<img src="./docs/img/media_preview_video.png" height=300>](./docs/img/media_preview_video.png)
 
