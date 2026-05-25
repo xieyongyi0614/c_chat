@@ -1,7 +1,7 @@
 import { messageTableClass, uploadTaskTableClass } from '../db';
 import { MessageStatusEnum, UploadStatusEnum, UploadTypes } from '@c_chat/shared-types';
 import { ELECTRON_TO_CLIENT_CHANNELS, UPLOAD_CHUNK_SIZE } from '@c_chat/shared-config';
-import { ApiClient } from './axios/service/apiService';
+import { ApiClient } from './axios';
 import { readChunkAsBlob } from './calcFileHash';
 import { runWithActionCtx } from '@c_chat/electron_client/ipc/actionContext';
 import { WindowManager } from '@c_chat/electron_client/main/windows';

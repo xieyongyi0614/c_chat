@@ -1,7 +1,7 @@
 import { app, BrowserWindow, ipcMain } from 'electron';
 import { electronApp } from '@electron-toolkit/utils';
 
-import { ApiClient } from '../utils/axios/service/apiService';
+import { ApiClient } from '../utils/axios';
 import { WindowManager } from './windows';
 import { dbManager } from '../db/DatabaseManager';
 import { db } from '@c_chat/shared-config';

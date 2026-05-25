@@ -19,7 +19,7 @@ export class UserController {
   // @ApiResponse({ status: 200, description: '获取用户列表成功' })
   // async list(
   //   @Query() query: UserSearchDto
-  // ): Promise<API.ApiResponseList<UsersTypes.UsersItem>['data']> {
+  // ): Promise<ApiResponseList<UsersTypes.UsersItem>['data']> {
   //   const { page, pageSize, username, email } = query;
   //   const where: Record<string, unknown> = {
   //     deletedAt: null

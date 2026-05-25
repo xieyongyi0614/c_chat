@@ -26,7 +26,7 @@ import {
   MessageType,
   messageTypeMap,
 } from '@c_chat/shared-config';
-import { ApiClient } from '@c_chat/electron_client/utils/axios/service/apiService';
+import { ApiClient } from '@c_chat/electron_client/utils/axios';
 import { uploadScheduler } from '@c_chat/electron_client/utils/UploadScheduler';
 
 type RemoteMessageInfo = GetMessageHistoryResponse['list'][number];

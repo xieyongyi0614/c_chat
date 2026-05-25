@@ -2,6 +2,7 @@ import { Injectable, NestInterceptor, ExecutionContext, CallHandler, Inject } fr
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { v4 as uuidv4 } from 'uuid';
+import type { ApiResponse } from '@c_chat/shared-types';
 import { ContextLoggerService, RequestContextService } from '../../common';
 
 // 配置接口
@@ -28,7 +29,7 @@ type ApiResponseLike = {
 };
 
 @Injectable()
-export class ResponseInterceptor<T> implements NestInterceptor<T, API.ApiResponse<T> | T> {
+export class ResponseInterceptor<T> implements NestInterceptor<T, ApiResponse<T> | T> {
   private readonly config: ResponseInterceptorConfig;
 
   constructor(
@@ -41,7 +42,7 @@ export class ResponseInterceptor<T> implements NestInterceptor<T, API.ApiRespons
     this.config = { useStatusCodeAsCode: true, excludePaths: [], ...config };
   }
 
-  intercept(context: ExecutionContext, next: CallHandler<T>): Observable<API.ApiResponse<T> | T> {
+  intercept(context: ExecutionContext, next: CallHandler<T>): Observable<ApiResponse<T> | T> {
     const request = context.switchToHttp().getRequest<HttpRequestLike>();
 
     if (this.shouldSkip(request.url ?? '')) {
@@ -51,11 +52,11 @@ export class ResponseInterceptor<T> implements NestInterceptor<T, API.ApiRespons
     return next.handle().pipe(map((data) => this.transformResponse(context, data)));
   }
 
-  private transformResponse(context: ExecutionContext, data: unknown): API.ApiResponse<T> {
+  private transformResponse(context: ExecutionContext, data: unknown): ApiResponse<T> {
     const response = context.switchToHttp().getResponse<HttpResponseLike>();
 
     const statusCode = this.getNormalizedStatusCode(response.statusCode || 200);
-    const baseResponse: API.ApiResponse<T> = {
+    const baseResponse: ApiResponse<T> = {
       code: this.resolveCode(data, statusCode),
       message: this.resolveMessage(data, statusCode),
       data: this.resolveData(data),

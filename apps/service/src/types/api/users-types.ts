@@ -1,4 +1,5 @@
 import { User } from 'generated/prisma/browser';
+import type { RequestListParams } from '@c_chat/shared-types';
 
 export namespace UsersTypes {
   export interface AuthResponse {
@@ -16,7 +17,7 @@ export namespace UsersTypes {
     INACTIVE = 0,
     ACTIVE = 1,
   }
-  export interface GetAdminUsersParams extends API.RequestListParams {
+  export interface GetAdminUsersParams extends RequestListParams {
     username?: string;
     email?: string;
   }

@@ -25,6 +25,7 @@
     "@c_chat/shared-protobuf": "workspace:^",
     "@c_chat/shared-types": "workspace:*",
     "@c_chat/shared-utils": "workspace:^",
+    "@c_chat/shared-api": "workspace:^",
     "@electron-toolkit/preload": "^3.0.2",
     "@electron-toolkit/utils": "^4.0.0",
     "axios": "^1.13.5",

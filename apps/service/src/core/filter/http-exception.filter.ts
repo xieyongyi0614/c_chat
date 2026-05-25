@@ -1,5 +1,6 @@
 import { ExceptionFilter, Catch, ArgumentsHost, HttpException, HttpStatus } from '@nestjs/common';
 import { Response } from 'express';
+import type { ApiResponse } from '@c_chat/shared-types';
 import { ContextLoggerService } from '../../common';
 
 const defaultErrorMessage = 'Internal Server Error';
@@ -15,7 +16,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<RequestWithId>();
-    const errorResponse: API.ApiResponse<null> = {
+    const errorResponse: ApiResponse<null> = {
       code: HttpStatus.INTERNAL_SERVER_ERROR,
       message: defaultErrorMessage,
       data: null,
