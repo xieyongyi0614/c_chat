@@ -1,4 +1,4 @@
-import { UploadStatusEnum } from '@c_chat/shared-types';
+import { UploadStatus } from '@c_chat/shared-types';
 import { uploadTaskTableClass } from '../db';
 import { startUpload } from './uploadTaskRunner';
 
@@ -18,7 +18,7 @@ class UploadScheduler {
 
     this.queue.push(taskId);
 
-    uploadTaskTableClass.updateStatus(taskId, UploadStatusEnum.waiting);
+    uploadTaskTableClass.updateStatus(taskId, UploadStatus.waiting);
 
     this.schedule();
   }
@@ -60,7 +60,7 @@ class UploadScheduler {
 
     tasks.forEach((task) => {
       if (!task.isRunning) {
-        this.addTask(task.id);
+        this.addTask(task.id as string);
       }
     });
   }

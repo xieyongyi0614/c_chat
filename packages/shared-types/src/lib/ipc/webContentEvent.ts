@@ -1,8 +1,8 @@
 import { ELECTRON_TO_CLIENT_CHANNELS } from '@c_chat/shared-config';
-import { ErrorResult } from '@c_chat/shared-protobuf';
-import { AuthTypes } from './apiTypes';
-import { SocketTypes } from '../socket.types';
-import { LocalConversationListItem, LocalMessageListItem } from '../db';
+import type { ErrorResult } from '@c_chat/shared-protobuf';
+import type { AuthTypes } from './apiTypes';
+import type { SocketTypes } from '../socket.types';
+import type { LocalConversationListItem, LocalMessageListItem } from '../db';
 type Unsubscribe = () => void;
 export interface WebContentEventType {
   on: <T extends keyof WebContentEvents>(channel: T, callback: WebContentEvents[T]) => Unsubscribe;

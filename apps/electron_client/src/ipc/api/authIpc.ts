@@ -13,27 +13,37 @@ const notifyWindowStateChange = () => {
   WindowManager.getInstance().notifyWindowStateChange();
 };
 
+/** 登录/注册成功后的统一收尾：落库 token、通知窗口、建立 socket */
+const completeAuth = async (windowId: number, accessToken: string | undefined, action: string) => {
+  if (!accessToken) {
+    throw new Error(`${action}失败,不存在token`);
+  }
+  storeTableClass.setAccessToken(accessToken, windowId);
+  notifyWindowStateChange();
+  await socketManager.initSocket(windowId);
+};
+
 /** 登录 */
 addActionHandler('SignIn', async (params) => {
   const res = await ApiClient.auth.signIn(params);
-  if (!res?.access_token) {
-    throw new Error('登录失败,不存在token');
-  }
-  storeTableClass.setAccessToken(res.access_token, params.windowId);
-  notifyWindowStateChange();
-  await socketManager.initSocket(params.windowId);
+  await completeAuth(params.windowId, res?.access_token, '登录');
+});
+
+/** 注册 */
+addActionHandler('SignUp', async (params) => {
+  const res = await ApiClient.auth.signUp(params);
+  await completeAuth(params.windowId, res?.access_token, '注册');
 });
 
 /** 自动登录 - 检查token并初始化socket连接 */
 addActionHandler('AutoSignIn', async (params) => {
-  // 先检查token是否存在
   const accessToken = storeTableClass.getAccessToken(params.windowId);
   if (!accessToken) {
     logger.info(`[AutoSignIn] 窗口${params.windowId}没有token，跳过socket初始化`);
     throw new Error('窗口没有token，请重新登录');
   }
 
-  socketManager.initSocket(params.windowId);
+  await socketManager.initSocket(params.windowId);
 });
 
 /** 退出登录 */
@@ -41,18 +51,6 @@ addActionHandler('Logout', async (params) => {
   socketManager.destroySocket(params.windowId);
   storeTableClass.clearAuthData(params.windowId);
   notifyWindowStateChange();
-});
-
-/** 注册 */
-addActionHandler('SignUp', async (params) => {
-  const res = await ApiClient.auth.signUp(params);
-  if (!res?.access_token) {
-    throw new Error('注册失败,不存在token');
-  }
-  storeTableClass.setAccessToken(res.access_token, params.windowId);
-  notifyWindowStateChange();
-  await socketManager.initSocket(params.windowId);
-  // return ;
 });
 
 /** 获取用户信息 */

@@ -33,20 +33,4 @@ export class AuthController {
   async login(@Body() loginDto: LoginDto): Promise<AuthResponseDto> {
     return this.authService.login(loginDto);
   }
-
-  /**
-   * 从 Authorization 请求头中提取 token
-   */
-  private extractTokenFromHeader(authorization: string | undefined): string | null {
-    if (!authorization) {
-      return null;
-    }
-
-    const parts = authorization.split(' ');
-    if (parts.length !== 2 || parts[0] !== 'Bearer') {
-      return null;
-    }
-
-    return parts[1];
-  }
 }

@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { MessageStatusEnum, type LocalMessageListItem } from '@c_chat/shared-types';
+import { MessageStatus, type LocalMessageListItem } from '@c_chat/shared-types';
 import { ipc } from '@c_chat/shared-utils';
 import { cn } from '@c_chat/ui';
 import { useMessageStore } from '@c_chat/frontend/stores';
@@ -17,9 +17,9 @@ interface VideoMessageProps {
 }
 
 const VideoMessage = ({ msg, isMe, isRead, onRetry, retrying }: VideoMessageProps) => {
-  const isUploading = msg.status === MessageStatusEnum.uploading;
-  const isSending = msg.status === MessageStatusEnum.sending;
-  const isFailed = msg.status === MessageStatusEnum.fail;
+  const isUploading = msg.status === MessageStatus.uploading;
+  const isSending = msg.status === MessageStatus.sending;
+  const isFailed = msg.status === MessageStatus.fail;
   const showOverlay = isUploading || isSending || isFailed;
   const videoSrc = msg.fileUrl
     ? formatFileUrl(msg.fileUrl)

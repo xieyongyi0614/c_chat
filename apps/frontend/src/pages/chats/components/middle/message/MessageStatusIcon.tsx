@@ -1,10 +1,10 @@
-import { MessageStatusEnum } from '@c_chat/shared-types';
+import { MessageStatus } from '@c_chat/shared-types';
 import { cn } from '@c_chat/ui';
 import { Check, CheckCheck, CircleAlert, Clock, RefreshCw } from 'lucide-react';
 import { memo } from 'react';
 
 interface MessageStatusIconProps {
-  status: MessageStatusEnum;
+  status: MessageStatus;
   isRead: boolean;
   onRetry?: () => void;
   retrying?: boolean;
@@ -15,7 +15,7 @@ const MessageStatusIcon = (props: MessageStatusIconProps) => {
 
   return (
     <span className="inline-flex w-4 justify-center">
-      {status === MessageStatusEnum.fail && (
+      {status === MessageStatus.fail && (
         <button
           type="button"
           className="inline-flex size-4 items-center justify-center text-[var(--destructive)]"
@@ -33,9 +33,9 @@ const MessageStatusIcon = (props: MessageStatusIconProps) => {
           )}
         </button>
       )}
-      {status === MessageStatusEnum.success &&
+      {status === MessageStatus.success &&
         (isRead ? <CheckCheck className={iconStyle} /> : <Check className={iconStyle} />)}
-      {status === MessageStatusEnum.sending && <Clock className={iconStyle} />}
+      {status === MessageStatus.sending && <Clock className={iconStyle} />}
     </span>
   );
 };

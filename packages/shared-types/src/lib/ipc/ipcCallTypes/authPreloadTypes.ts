@@ -1,6 +1,6 @@
-import { AuthTypes, UserTypes } from '../apiTypes';
-import { IpcMethod } from '../ipcTypes';
-import { SocketTypes } from '../../socket.types';
+import type { AuthTypes, UserTypes } from '../apiTypes';
+import type { IpcMethod } from '../ipcTypes';
+import type { SocketTypes } from '../../socket.types';
 
 export type GetUserListParams = SocketTypes.RequestListParams;
 export interface AuthPreloadTypes {

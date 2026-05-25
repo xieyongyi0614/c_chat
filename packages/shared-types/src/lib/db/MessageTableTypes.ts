@@ -1,4 +1,13 @@
-import { MessageType } from '@c_chat/shared-config';
+import type { MessageType } from '@c_chat/shared-config';
+
+export const MessageStatus = {
+  default: 0,
+  sending: 1,
+  success: 2,
+  uploading: 3,
+  fail: -1,
+} as const;
+export type MessageStatus = (typeof MessageStatus)[keyof typeof MessageStatus];
 
 export interface LocalMessageListItem {
   id: string;
@@ -11,7 +20,7 @@ export interface LocalMessageListItem {
   senderEmail?: string;
   content: string;
   type: MessageType;
-  status: MessageStatusEnum;
+  status: MessageStatus;
   updateTime: number;
   createTime: number;
   localTime: number;
@@ -26,12 +35,4 @@ export interface LocalMessageListItem {
   waveform?: string;
   duration?: number;
   progress?: number;
-}
-
-export enum MessageStatusEnum {
-  default = 0,
-  sending = 1,
-  success = 2,
-  uploading = 3,
-  fail = -1,
 }

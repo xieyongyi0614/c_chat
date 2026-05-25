@@ -1,7 +1,7 @@
 import { forwardRef, memo, useImperativeHandle, useMemo, useState } from 'react';
 import LeftColumnHeader from './LeftColumnHeader';
 import { useChatStore } from '@c_chat/frontend/stores';
-import { ConversationTypeEnum, type LocalConversationListItem } from '@c_chat/shared-types';
+import { ConversationType, type LocalConversationListItem } from '@c_chat/shared-types';
 import ConversationList from './ConversationList';
 export interface LeftColumnRef {
   filterConversations: LocalConversationListItem[];
@@ -19,9 +19,8 @@ const LeftColumn = forwardRef<LeftColumnRef, LeftColumnProps>((props, ref) => {
     const keyword = search.trim().toLowerCase();
     const folderFiltered = (conversationData.list ?? []).filter((item) => {
       if (selectedConversationFolder === 'unread') return (item.unreadCount ?? 0) > 0;
-      if (selectedConversationFolder === 'personal')
-        return item.type === ConversationTypeEnum.Direct;
-      if (selectedConversationFolder === 'groups') return item.type === ConversationTypeEnum.Group;
+      if (selectedConversationFolder === 'personal') return item.type === ConversationType.Single;
+      if (selectedConversationFolder === 'groups') return item.type === ConversationType.Group;
       if (selectedConversationFolder === 'archive') return false;
       return true;
     });

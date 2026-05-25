@@ -22,7 +22,7 @@ import VideoMessage from './types/VideoMessage';
 import AudioMessage from './types/AudioMessage';
 import MessageDate from './MessageDate';
 import { MESSAGE_TYPE } from '@c_chat/shared-config';
-import { MessageStatusEnum } from '@c_chat/shared-types';
+import { MessageStatus } from '@c_chat/shared-types';
 import type { SenderProfile } from './senderProfile';
 
 interface MessageItemProps {
@@ -83,7 +83,7 @@ const MessageItem = ({
   const showSender = Boolean(isGroupConversation);
   const isVideoMessage = msg.type === MESSAGE_TYPE.Video;
   const failedOwnMessages = isMe
-    ? messages.filter((item) => item.status === MessageStatusEnum.fail && item.clientMsgId)
+    ? messages.filter((item) => item.status === MessageStatus.fail && item.clientMsgId)
     : [];
 
   const handleResend = async () => {
@@ -93,7 +93,7 @@ const MessageItem = ({
     updateMsgs(
       failedOwnMessages.map((item) => ({
         ...item,
-        status: MessageStatusEnum.sending,
+        status: MessageStatus.sending,
         updateTime: Date.now(),
       })),
     );
@@ -107,7 +107,7 @@ const MessageItem = ({
         updateMsgs(
           failedOwnMessages.map((failedItem) => ({
             ...failedItem,
-            status: MessageStatusEnum.fail,
+            status: MessageStatus.fail,
             updateTime: Date.now(),
           })),
         );

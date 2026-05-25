@@ -1,4 +1,4 @@
-import { FileInfoListItem, IpcMethod } from '../ipcTypes';
+import type { FileInfoListItem, IpcMethod } from '../ipcTypes';
 
 interface MetaDataType {
   duration: number;

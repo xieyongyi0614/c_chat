@@ -1,4 +1,4 @@
-import { LocalMessageListItem, MessageStatusEnum } from '@c_chat/shared-types';
+import { LocalMessageListItem, MessageStatus } from '@c_chat/shared-types';
 import { TableConnection } from '../Table';
 import { DEFAULT_MESSAGE_PAGE_SIZE } from '@c_chat/shared-config';
 
@@ -282,7 +282,7 @@ export class MessageTable extends TableConnection {
   /**
    * 更新发送状态
    */
-  updateMessageStatus(id: string, status: MessageStatusEnum) {
+  updateMessageStatus(id: string, status: MessageStatus) {
     this.run(`UPDATE ${this.TABLE_NAME} SET status = ?, update_time = ? WHERE id = ?`, [
       status,
       Date.now(),
@@ -290,7 +290,7 @@ export class MessageTable extends TableConnection {
     ]);
   }
 
-  updateMessageStateByClientId(clientMsgId: string, status: MessageStatusEnum) {
+  updateMessageStateByClientId(clientMsgId: string, status: MessageStatus) {
     this.run(`UPDATE ${this.TABLE_NAME} SET status = ?, update_time = ? WHERE client_msg_id = ?`, [
       status,
       Date.now(),

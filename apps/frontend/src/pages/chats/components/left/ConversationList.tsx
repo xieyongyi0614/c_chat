@@ -1,5 +1,5 @@
 import { useChatStore } from '@c_chat/frontend/stores';
-import { ConversationTypeEnum, type LocalConversationListItem } from '@c_chat/shared-types';
+import { ConversationType, type LocalConversationListItem } from '@c_chat/shared-types';
 import { formatRelativeTime } from '@c_chat/shared-utils';
 import { Avatar, AvatarFallback, AvatarImage, cn, ScrollArea, Separator } from '@c_chat/ui';
 import { Users } from 'lucide-react';
@@ -18,7 +18,7 @@ const ConversationList = (props: ConversationListProps) => {
     <ScrollArea className="-mx-3 h-full overflow-auto p-3" type="auto">
       {list.map((convo) => {
         const { id, lastMsgContent, lastMsgTime, targetName, targetAvatar, unreadCount } = convo;
-        const isGroup = convo.type === ConversationTypeEnum.Group;
+        const isGroup = convo.type === ConversationType.Group;
         const avatarFallback = targetName?.slice(0, 2).toUpperCase() || '??';
         const displayTime = lastMsgTime ? formatRelativeTime(lastMsgTime) : null;
 

@@ -6,7 +6,7 @@ import { ArrowLeft, MoreVertical, Phone, Video } from 'lucide-react';
 
 import HistoryMessageList from './MessageHistoryList';
 import { ChatInput } from './input/ChatInput';
-import { ConversationTypeEnum } from '@c_chat/shared-types';
+import { ConversationType } from '@c_chat/shared-types';
 import { GroupDetailDialog } from './GroupDetailDialog';
 import { getChatAvatarFallbackClass } from '../chat-avatar-style';
 
@@ -24,7 +24,7 @@ const MiddleColumn = (props: RightSideProps) => {
   const { historyState, loadOlderMessages, openCreateConversationDialog } = props;
 
   const { selectedConversation, selectedUserForDraft, setSelectedUserForDraft } = useChatStore();
-  const isGroupConversation = selectedConversation?.type === ConversationTypeEnum.Group;
+  const isGroupConversation = selectedConversation?.type === ConversationType.Group;
   const [groupDetailOpen, setGroupDetailOpen] = useState(false);
 
   const activeTitle = (() => {
@@ -123,7 +123,7 @@ const MiddleColumn = (props: RightSideProps) => {
       <GroupDetailDialog
         open={groupDetailOpen}
         conversation={
-          selectedConversation?.type === ConversationTypeEnum.Group ? selectedConversation : null
+          selectedConversation?.type === ConversationType.Group ? selectedConversation : null
         }
         onOpenChange={setGroupDetailOpen}
       />

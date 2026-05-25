@@ -1,5 +1,5 @@
 import {
-  ConversationTypeEnum,
+  ConversationType,
   DBConversationListItem,
   LocalConversationListItem,
 } from '@c_chat/shared-types';
@@ -35,7 +35,7 @@ export class ConversationTable extends TableConnection {
     const rows = this.all<DBConversationListItem>(
       `SELECT * FROM ${this.TABLE_NAME} ORDER BY last_msg_time DESC`,
     );
-    return rows.map(this.mapRowToRecord);
+    return rows.map(this.mapRowToRecord.bind(this));
   }
 
   /**
@@ -50,7 +50,7 @@ export class ConversationTable extends TableConnection {
       `SELECT * FROM ${this.TABLE_NAME} ORDER BY last_msg_time DESC LIMIT ? OFFSET ?`,
       [pageSize, offset],
     );
-    return rows.map(this.mapRowToRecord);
+    return rows.map(this.mapRowToRecord.bind(this));
   }
 
   /**
@@ -197,11 +197,11 @@ export class ConversationTable extends TableConnection {
   reconcileGroupConversations(remoteConvos: LocalConversationListItem[]) {
     const remoteGroupById = new Map(
       remoteConvos
-        .filter((item) => item.type === ConversationTypeEnum.Group)
+        .filter((item) => item.type === ConversationType.Group)
         .map((item) => [item.id, item]),
     );
     const localGroups = this.getConversationByIds(Array.from(remoteGroupById.keys())).filter(
-      (item) => item.type === ConversationTypeEnum.Group,
+      (item) => item.type === ConversationType.Group,
     );
 
     const inconsistent = localGroups.filter((local) => {

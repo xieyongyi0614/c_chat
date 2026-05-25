@@ -1,13 +1,19 @@
 import { Injectable, UnauthorizedException, ConflictException, Inject } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../core/database';
-import { RegisterDto, LoginDto, AuthResponseDto } from '.';
+import { RegisterDto, LoginDto, AuthResponseDto } from './dto/auth.dto';
 import * as bcrypt from 'bcryptjs';
 import { Socket } from 'socket.io';
 import { WsException } from '@nestjs/websockets';
-import { jwtConfig } from 'src/config';
-import { AuthTypes } from 'src/types/api/users-types';
+import { jwtConfig } from '../config';
+import { AuthTypes } from '../types/api/users-types';
 import { ConfigType } from '@nestjs/config';
+import { Prisma } from 'generated/prisma/client';
+
+const BCRYPT_SALT_ROUNDS = 10;
+const PRISMA_UNIQUE_CONSTRAINT = 'P2002';
+const USER_STATE_NORMAL = 0;
+const DEFAULT_GENDER = 2;
 
 @Injectable()
 export class AuthService {
@@ -22,44 +28,35 @@ export class AuthService {
    * 用户注册
    */
   async register(registerDto: RegisterDto): Promise<AuthResponseDto> {
-    const { email, username, password } = registerDto;
+    const { email, username, password, phone, gender } = registerDto;
 
-    // 检查邮箱是否已存在
-    const existingUser = await this.prisma.user.findUnique({
-      where: { email },
-    });
-    if (existingUser) {
-      throw new ConflictException('该邮箱已被注册');
-    }
+    await this.ensureUniqueAccount(email, phone);
 
-    // 检查手机号是否已存在（如果提供了手机号）
-    if (registerDto.phone) {
-      const existingPhoneUser = await this.prisma.user.findUnique({
-        where: { phone: registerDto.phone },
+    const hashedPassword = await bcrypt.hash(password, BCRYPT_SALT_ROUNDS);
+
+    try {
+      const user = await this.prisma.user.create({
+        data: {
+          email,
+          password: hashedPassword,
+          nickname: username,
+          phone: phone || null,
+          gender: gender ?? DEFAULT_GENDER,
+          state: USER_STATE_NORMAL,
+        },
+        select: { id: true, email: true },
       });
-      if (existingPhoneUser) {
-        throw new ConflictException('该手机号已被注册');
+      return { access_token: this.signToken(user) };
+    } catch (error) {
+      // 兜底竞态：两次预检通过、写入时仍可能撞到唯一索引
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === PRISMA_UNIQUE_CONSTRAINT
+      ) {
+        throw new ConflictException('邮箱或手机号已被注册');
       }
+      throw error;
     }
-
-    // 哈希密码
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    const user = await this.prisma.user.create({
-      data: {
-        email,
-        password: hashedPassword,
-        nickname: username, // 将 username 映射到 nickname
-        phone: registerDto.phone || null,
-        gender: registerDto.gender ?? 2, // 默认其他
-        state: 0, // 正常状态
-      },
-    });
-
-    const payload = { id: user.id, email: user.email };
-    const access_token = this.jwtService.sign<AuthTypes.JWTPayload>(payload);
-
-    return { access_token };
   }
 
   /**
@@ -68,32 +65,24 @@ export class AuthService {
   async login(loginDto: LoginDto): Promise<AuthResponseDto> {
     const { email, password } = loginDto;
 
-    // 查找用户
     const user = await this.prisma.user.findUnique({
       where: { email },
-      select: { password: true, id: true, email: true, state: true },
+      select: { id: true, email: true, password: true, state: true },
     });
 
     if (!user) {
       throw new UnauthorizedException('邮箱或密码错误');
     }
-
-    // 检查账号状态
-    if (user.state !== 0) {
+    if (user.state !== USER_STATE_NORMAL) {
       throw new UnauthorizedException('账号已被禁用或注销');
     }
 
-    // 验证密码
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
       throw new UnauthorizedException('邮箱或密码错误');
     }
 
-    // 生成JWT token
-    const payload = { id: user.id, email: user.email };
-    const access_token = this.jwtService.sign<AuthTypes.JWTPayload>(payload);
-
-    return { access_token };
+    return { access_token: this.signToken(user) };
   }
 
   /**
@@ -111,7 +100,7 @@ export class AuthService {
         updateTime: true,
       },
     });
-    if (!user || user.state !== 0) {
+    if (!user || user.state !== USER_STATE_NORMAL) {
       return null;
     }
 
@@ -136,5 +125,22 @@ export class AuthService {
     } catch (error) {
       throw new WsException(`认证失败: ${(error as Error)?.message}`);
     }
+  }
+
+  private signToken(user: AuthTypes.JWTPayload): string {
+    return this.jwtService.sign<AuthTypes.JWTPayload>({ id: user.id, email: user.email });
+  }
+
+  private async ensureUniqueAccount(email: string, phone?: string): Promise<void> {
+    const existing = await this.prisma.user.findFirst({
+      where: phone ? { OR: [{ email }, { phone }] } : { email },
+      select: { email: true, phone: true },
+    });
+    if (!existing) return;
+
+    if (existing.email === email) {
+      throw new ConflictException('该邮箱已被注册');
+    }
+    throw new ConflictException('该手机号已被注册');
   }
 }

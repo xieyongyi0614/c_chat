@@ -2,7 +2,7 @@ import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useStat
 import { ArrowDown, Loader2 } from 'lucide-react';
 import { Button } from '@c_chat/ui';
 import { useChatStore, useMessageStore } from '@c_chat/frontend/stores';
-import { ConversationTypeEnum } from '@c_chat/shared-types';
+import { ConversationType } from '@c_chat/shared-types';
 import { ipc, to } from '@c_chat/shared-utils';
 import MessageGroup from './message/MessageGroup';
 import type { SenderProfile } from './message/senderProfile';
@@ -37,7 +37,7 @@ const MessageHistoryList = ({ historyState, loadOlderMessages }: MessageHistoryL
   const isLoadingOlderRef = useRef(false);
   const keepBottomUntilRef = useRef(0);
   const lastScrollHeightRef = useRef(0);
-  const isGroupConversation = selectedConversation?.type === ConversationTypeEnum.Group;
+  const isGroupConversation = selectedConversation?.type === ConversationType.Group;
 
   useEffect(() => {
     if (!isGroupConversation || !selectedConversation?.targetId) {

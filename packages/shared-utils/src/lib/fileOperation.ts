@@ -3,9 +3,9 @@ import {
   fileMimeMap,
   fileTypeMap,
   FILE_TYPE,
-  FileType,
+  type FileType,
 } from '@c_chat/shared-config';
-import { FileInfoListItem } from '@c_chat/shared-types';
+import type { FileInfoListItem } from '@c_chat/shared-types';
 
 import { v4 as uuidv4 } from 'uuid';
 export function getFileTypeFromExtension(extension: string) {

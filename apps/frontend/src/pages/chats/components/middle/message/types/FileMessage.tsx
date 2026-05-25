@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { MessageStatusEnum, type LocalMessageListItem } from '@c_chat/shared-types';
+import { MessageStatus, type LocalMessageListItem } from '@c_chat/shared-types';
 import { cn } from '@c_chat/ui';
 import { FileIcon } from 'lucide-react';
 import { formatFileSize } from '@c_chat/shared-utils';
@@ -36,7 +36,7 @@ const FileMessage = ({ msg, isMe, onRetry, retrying }: FileMessageProps) => {
         {/* 文件信息 */}
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium truncate text-foreground">{fileName}</p>
-          {msg.status === MessageStatusEnum.uploading ? (
+          {msg.status === MessageStatus.uploading ? (
             <div className="mt-1 flex items-center gap-2">
               <div className="flex-1 h-1 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                 <div
@@ -63,7 +63,7 @@ const FileMessage = ({ msg, isMe, onRetry, retrying }: FileMessageProps) => {
 
         {/* 下载按钮 */}
         {/* <div className="flex-shrink-0 flex items-center gap-2">
-          {msg.status !== MessageStatusEnum.fail && (
+          {msg.status !== MessageStatus.fail && (
             <Download className="w-4 h-4 text-gray-400 group-hover:text-[var(--message-green)] transition-colors opacity-0 group-hover:opacity-100" />
           )}
         </div> */}
