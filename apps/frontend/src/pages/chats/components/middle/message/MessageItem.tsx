@@ -81,6 +81,7 @@ const MessageItem = ({
   ]);
   const senderName = sender.nickname || sender.email || sender.id;
   const showSender = Boolean(isGroupConversation);
+  const isVideoMessage = msg.type === MESSAGE_TYPE.Video;
   const failedOwnMessages = isMe
     ? messages.filter((item) => item.status === MessageStatusEnum.fail && item.clientMsgId)
     : [];
@@ -212,6 +213,7 @@ const MessageItem = ({
             'rounded-2xl py-2 text-sm',
             isMe ? 'rounded-br-sm pl-3 pr-2' : 'rounded-bl-sm bg-muted pl-2 pr-3',
             msg.type === MESSAGE_TYPE.Image ? 'relative group' : 'shadow-sm',
+            isVideoMessage && 'bg-transparent p-0 shadow-none',
           )}
         >
           {renderContent()}
