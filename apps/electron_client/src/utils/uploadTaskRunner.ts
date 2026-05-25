@@ -1,5 +1,5 @@
 import { messageTableClass, uploadTaskTableClass } from '../db';
-import { MessageStatusEnum, UploadStatusEnum, UploadTypes } from '@c_chat/shared-types';
+import { MessageStatus, UploadStatus, UploadTypes } from '@c_chat/shared-types';
 import { ELECTRON_TO_CLIENT_CHANNELS, UPLOAD_CHUNK_SIZE } from '@c_chat/shared-config';
 import { ApiClient } from './axios';
 import { readChunkAsBlob } from './calcFileHash';
@@ -71,7 +71,7 @@ async function startUploadInContext(
   const totalChunks = Math.max(1, Number(session.totalChunks));
 
   try {
-    uploadTaskTableClass.updateStatus(taskId, UploadStatusEnum.uploading);
+    uploadTaskTableClass.updateStatus(taskId, UploadStatus.uploading);
 
     const statusRes = await ApiClient.upload.getUploadStatus(task.uploadSessionId);
     const serverIndices = new Set(statusRes?.uploadedChunks ?? []);
@@ -120,17 +120,17 @@ async function startUploadInContext(
     }
     uploadTaskTableClass.updateFields(taskId, {
       file_id: completeRes.file.id,
-      status: UploadStatusEnum.success,
+      status: UploadStatus.success,
       progress: 100,
       uploaded_bytes: task.fileSize,
     });
   } catch (e) {
     console.error('startUpload error:', e);
 
-    uploadTaskTableClass.updateStatus(taskId, UploadStatusEnum.fail);
+    uploadTaskTableClass.updateStatus(taskId, UploadStatus.fail);
 
     if (task.clientMsgId) {
-      messageTableClass.updateMessageStateByClientId(task.clientMsgId, MessageStatusEnum.fail);
+      messageTableClass.updateMessageStateByClientId(task.clientMsgId, MessageStatus.fail);
       const msg = messageTableClass.getByClientMsgId(task.clientMsgId);
       if (msg) {
         WindowManager.sendToWindow(

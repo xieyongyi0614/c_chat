@@ -228,15 +228,15 @@ Command { event, userId, client, requestId, payload[] }
 
 ### 类型分类
 
-| 类别        | 文件                                     | 内容                                                                          |
-| ----------- | ---------------------------------------- | ----------------------------------------------------------------------------- |
-| IPC 基础    | `lib/ipc/ipcTypes.ts`                    | `IpcMethod<P,R>`、`IpcMessage`、`IpcResponse`、`IpcBridgeApi`                 |
-| 认证类型    | `lib/ipc/apiTypes/authTypes.ts`          | `SignIn`、`SignUp`、`GetUserInfo` 等方法的参数与返回值                        |
-| 聊天类型    | `lib/ipc/apiTypes/chatTypes.ts`          | `SendMessage`、`GetConversationList` 等方法签名                               |
-| 文件类型    | `lib/ipc/apiTypes/fileOperationTypes.ts` | `SelectFiles` 等方法签名                                                      |
-| 数据库类型  | `lib/db/`                                | `ConversationTypeEnum`、`MessageTypeEnum`、`MessageStatusEnum` 及本地表行类型 |
-| Socket 类型 | `lib/socket.types.ts`                    | 分页请求/响应、WebSocket 事件回调类型                                         |
-| 全局声明    | `src/global.ts`                          | `window.c_chat` 的类型增强                                                    |
+| 类别        | 文件                                     | 内容                                                                      |
+| ----------- | ---------------------------------------- | ------------------------------------------------------------------------- |
+| IPC 基础    | `lib/ipc/ipcTypes.ts`                    | `IpcMethod<P,R>`、`IpcMessage`、`IpcResponse`、`IpcBridgeApi`             |
+| 认证类型    | `lib/ipc/apiTypes/authTypes.ts`          | `SignIn`、`SignUp`、`GetUserInfo` 等方法的参数与返回值                    |
+| 聊天类型    | `lib/ipc/apiTypes/chatTypes.ts`          | `SendMessage`、`GetConversationList` 等方法签名                           |
+| 文件类型    | `lib/ipc/apiTypes/fileOperationTypes.ts` | `SelectFiles` 等方法签名                                                  |
+| 数据库类型  | `lib/db/`                                | `ConversationTypeEnum`、`MessageTypeEnum`、`MessageStatus` 及本地表行类型 |
+| Socket 类型 | `lib/socket.types.ts`                    | 分页请求/响应、WebSocket 事件回调类型                                     |
+| 全局声明    | `src/global.ts`                          | `window.c_chat` 的类型增强                                                |
 
 ---
 

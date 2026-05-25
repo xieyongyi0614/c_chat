@@ -1,7 +1,7 @@
 import { memo, useEffect, useState } from 'react';
 import type { CSSProperties } from 'react';
 import {
-  MessageStatusEnum,
+  MessageStatus,
   type LocalMessageListItem,
   type MediaPreviewItem,
 } from '@c_chat/shared-types';
@@ -66,9 +66,9 @@ const ImagePreview = ({ msg, idx, imgClass, containerStyle, onOpen }: ImagePrevi
   }, [msg.filePath, msg.fileUrl, msg.mimeType]);
 
   const renderOverlay = () => {
-    const isUploading = msg.status === MessageStatusEnum.uploading;
-    const isSending = msg.status === MessageStatusEnum.sending;
-    const isFailed = msg.status === MessageStatusEnum.fail;
+    const isUploading = msg.status === MessageStatus.uploading;
+    const isSending = msg.status === MessageStatus.sending;
+    const isFailed = msg.status === MessageStatus.fail;
 
     if (isUploading) {
       return (
@@ -125,16 +125,16 @@ const ImagePreview = ({ msg, idx, imgClass, containerStyle, onOpen }: ImagePrevi
 const ImageGroup = ({ messages, isMe, isRead, onRetry, retrying }: ImageGroupProps) => {
   const count = messages.length;
   const groupStatus = (() => {
-    if (messages.some((item) => item.status === MessageStatusEnum.fail)) {
-      return MessageStatusEnum.fail;
+    if (messages.some((item) => item.status === MessageStatus.fail)) {
+      return MessageStatus.fail;
     }
-    if (messages.some((item) => item.status === MessageStatusEnum.uploading)) {
-      return MessageStatusEnum.uploading;
+    if (messages.some((item) => item.status === MessageStatus.uploading)) {
+      return MessageStatus.uploading;
     }
-    if (messages.some((item) => item.status === MessageStatusEnum.sending)) {
-      return MessageStatusEnum.sending;
+    if (messages.some((item) => item.status === MessageStatus.sending)) {
+      return MessageStatus.sending;
     }
-    return messages[0]?.status ?? MessageStatusEnum.default;
+    return messages[0]?.status ?? MessageStatus.default;
   })();
   const groupTime = messages[0]?.createTime ?? Date.now();
   const openPreview = (initialIndex: number) => {

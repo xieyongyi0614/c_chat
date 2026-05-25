@@ -1,4 +1,4 @@
-import type { MessageStatusEnum } from '@c_chat/shared-types';
+import type { MessageStatus } from '@c_chat/shared-types';
 import { formatChatTime } from '@c_chat/shared-utils';
 import { cn } from '@c_chat/ui';
 import { memo, type ComponentProps } from 'react';
@@ -6,7 +6,7 @@ import MessageStatusIcon from './MessageStatusIcon';
 
 interface MessageDateProps extends ComponentProps<'div'> {
   time: number;
-  status: MessageStatusEnum;
+  status: MessageStatus;
   isMe: boolean;
   isRead: boolean;
   onRetry?: () => void;

@@ -1,7 +1,7 @@
 import { IPC_CONFIG } from '@c_chat/shared-config';
 import type { IpcBridgeApi } from './lib/ipc/ipcTypes';
-import { WebContentEventType } from './lib/ipc/webContentEvent';
-import { WindowToolsEventType } from './lib/ipc/windowToolsEvent';
+import type { WebContentEventType } from './lib/ipc/webContentEvent';
+import type { WindowToolsEventType } from './lib/ipc/windowToolsEvent';
 
 declare global {
   interface Window {

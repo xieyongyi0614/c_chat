@@ -1,11 +1,12 @@
-export enum ConversationTypeEnum {
-  Single = 1,
-  Group = 2,
-}
+export const ConversationType = {
+  Single: 1,
+  Group: 2,
+} as const;
+export type ConversationType = (typeof ConversationType)[keyof typeof ConversationType];
 
 export interface DBConversationListItem {
   id: string;
-  type: ConversationTypeEnum;
+  type: ConversationType;
   target_id: string;
   target_name: string;
   target_avatar: string;
@@ -19,7 +20,7 @@ export interface DBConversationListItem {
 
 export interface LocalConversationListItem {
   id: string;
-  type: ConversationTypeEnum;
+  type: ConversationType;
   targetId: string;
   targetName: string;
   targetAvatar: string;

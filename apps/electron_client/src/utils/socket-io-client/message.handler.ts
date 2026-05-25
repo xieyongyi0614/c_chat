@@ -16,12 +16,12 @@ import {
   uploadTaskTableClass,
 } from '../../db';
 import {
-  ConversationTypeEnum,
+  ConversationType,
   LocalConversationListItem,
   LocalMessageListItem,
-  MessageStatusEnum,
+  MessageStatus,
   RequiredNonNullable,
-  UploadStatusEnum,
+  UploadStatus,
   WebContentEvents,
 } from '@c_chat/shared-types';
 import { WindowManager } from '@c_chat/electron_client/main/windows';
@@ -185,7 +185,7 @@ export class MessageHandler extends MessageHandlerRegistry {
               duration: media?.durationSec ?? 0,
               mediaGroupId: mediaGroupId ?? '',
               type: type as MessageType,
-              status: MessageStatusEnum.success,
+              status: MessageStatus.success,
               createTime: numCreateTime,
               localTime: numUpdateTime,
               updateTime: numUpdateTime,
@@ -197,7 +197,7 @@ export class MessageHandler extends MessageHandlerRegistry {
         const pushedConversations: LocalConversationListItem[] =
           conversations?.map((convo) => ({
             id: convo.id ?? '',
-            type: convo.type ?? ConversationTypeEnum.Single,
+            type: (convo.type ?? ConversationType.Single) as ConversationType,
             targetId: convo.targetInfo?.id ?? '',
             targetName: convo.targetInfo?.name ?? '',
             targetAvatar: convo.targetInfo?.avatarUrl ?? '',
@@ -266,7 +266,7 @@ export class MessageHandler extends MessageHandlerRegistry {
 
         uploadTaskTableClass.updateFields(task.id, {
           file_id: fileId,
-          status: UploadStatusEnum.success,
+          status: UploadStatus.success,
         });
 
         if (task.clientMsgId) {

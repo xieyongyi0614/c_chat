@@ -1,9 +1,9 @@
-import React, { FC, PropsWithChildren } from 'react';
+import type { FC, PropsWithChildren, ReactNode } from 'react';
 import { Spinner } from '../spinner';
 
 interface BackDropLoadingProps {
   isLoading?: boolean;
-  text?: string | React.ReactNode;
+  text?: string | ReactNode;
 }
 export const BackDropLoading: FC<PropsWithChildren<BackDropLoadingProps>> = (props) => {
   const { children, isLoading = false, text = '加载中...' } = props;

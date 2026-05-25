@@ -12,9 +12,9 @@ import { to, uuidv4 } from '@c_chat/shared-utils';
 import {
   AuthTypes,
   LocalMessageListItem,
-  MessageStatusEnum,
+  MessageStatus,
   SendMessageParams,
-  UploadStatusEnum,
+  UploadStatus,
   FileInfoListItem,
 } from '@c_chat/shared-types';
 import { ClientToServiceEvent } from '@c_chat/shared-protobuf/protoMap';
@@ -61,7 +61,7 @@ const mapRemoteMessage = (msg: RemoteMessageInfo): LocalMessageListItem => ({
   fileSize: Number(msg.media?.file?.size ?? 0),
   waveform: msg.media?.waveform ?? '',
   duration: msg.media?.durationSec ?? 0,
-  status: MessageStatusEnum.success,
+  status: MessageStatus.success,
   updateTime: Number(msg.updateTime),
   localTime: Number(msg.createTime),
   createTime: Number(msg.createTime),
@@ -152,7 +152,7 @@ const generateLocalMessageData = (data: Partial<LocalMessageListItem>): LocalMes
     senderEmail: data.senderEmail ?? '',
     content: data.content ?? '',
     type: data.type ?? MESSAGE_TYPE.Text,
-    status: MessageStatusEnum.sending,
+    status: MessageStatus.sending,
     createTime: now(),
     localTime: now(),
     updateTime: now(),
@@ -185,7 +185,7 @@ addActionHandler('SendMessage', async (params) => {
     senderNickname: senderInfo?.nickname ?? senderInfo?.email ?? '',
     senderAvatar: senderInfo?.avatarUrl ?? '',
     senderEmail: senderInfo?.email ?? '',
-    status: MessageStatusEnum.sending,
+    status: MessageStatus.sending,
   });
   messageTableClass.insert(localMessageData);
 
@@ -199,7 +199,7 @@ addActionHandler('SendMessage', async (params) => {
     ),
   );
   if (err || res.status !== 'ok') {
-    messageTableClass.updateMessageStatus(localMessageData.id, MessageStatusEnum.fail);
+    messageTableClass.updateMessageStatus(localMessageData.id, MessageStatus.fail);
     console.log('发送消息失败', err);
     throw err || new Error('发送消息失败');
   }
@@ -207,7 +207,7 @@ addActionHandler('SendMessage', async (params) => {
   return [localMessageData];
 });
 
-const getMessageAfterStatusUpdate = (clientMsgId: string, status: MessageStatusEnum) => {
+const getMessageAfterStatusUpdate = (clientMsgId: string, status: MessageStatus) => {
   messageTableClass.updateMessageStateByClientId(clientMsgId, status);
   return messageTableClass.getByClientMsgId(clientMsgId);
 };
@@ -273,7 +273,7 @@ const recreateUploadTaskForRetry = async (windowId: number, msg: LocalMessageLis
     fileSize: msg.fileSize ?? 0,
     mimeType: msg.mimeType ?? '',
     fileHash,
-    status: UploadStatusEnum.waiting,
+    status: UploadStatus.waiting,
     progress: 0,
     uploadedBytes: 0,
     isRunning: 0,
@@ -298,11 +298,11 @@ addActionHandler('ResendMessage', async (params) => {
     throw new Error('消息不存在');
   }
 
-  if (msg.status === MessageStatusEnum.success) {
+  if (msg.status === MessageStatus.success) {
     return [msg];
   }
 
-  const sendingMsg = getMessageAfterStatusUpdate(clientMsgId, MessageStatusEnum.sending);
+  const sendingMsg = getMessageAfterStatusUpdate(clientMsgId, MessageStatus.sending);
   if (!sendingMsg) {
     throw new Error('消息不存在');
   }
@@ -325,7 +325,7 @@ addActionHandler('ResendMessage', async (params) => {
     await sendSocketMessage(windowId, sendingMsg);
     return [messageTableClass.getByClientMsgId(clientMsgId) ?? sendingMsg];
   } catch (error) {
-    getMessageAfterStatusUpdate(clientMsgId, MessageStatusEnum.fail);
+    getMessageAfterStatusUpdate(clientMsgId, MessageStatus.fail);
     console.error('重发消息失败:', error);
     throw error instanceof Error ? error : new Error('重发消息失败');
   }
@@ -405,7 +405,7 @@ const processSingleFile = async (
     senderNickname: senderInfo?.nickname ?? senderInfo?.email ?? '',
     senderAvatar: senderInfo?.avatarUrl ?? '',
     senderEmail: senderInfo?.email ?? '',
-    status: MessageStatusEnum.sending,
+    status: MessageStatus.sending,
     ...(mediaGroupId && { mediaGroupId }),
   });
 
@@ -427,7 +427,7 @@ const processSingleFile = async (
   if (!uploadInit) {
     messageTableClass.updateMessageStateByClientId(
       localMessageData.clientMsgId,
-      MessageStatusEnum.fail,
+      MessageStatus.fail,
     );
     throw new Error('上传失败');
   }
@@ -441,7 +441,7 @@ const processSingleFile = async (
   if (!uploadInit?.uploadSession?.id) {
     messageTableClass.updateMessageStateByClientId(
       localMessageData.clientMsgId,
-      MessageStatusEnum.fail,
+      MessageStatus.fail,
     );
     return null;
   }
@@ -454,7 +454,7 @@ const processSingleFile = async (
     fileSize,
     mimeType,
     fileHash,
-    status: UploadStatusEnum.waiting,
+    status: UploadStatus.waiting,
     progress: 0,
     uploadedBytes: 0,
     isRunning: 0,

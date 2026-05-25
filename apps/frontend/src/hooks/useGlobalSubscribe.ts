@@ -3,7 +3,7 @@ import { useChatStore, useMessageStore, useUserStore } from '../stores';
 import { ELECTRON_TO_CLIENT_CHANNELS } from '@c_chat/shared-config';
 import { toast } from 'sonner';
 import {
-  MessageStatusEnum,
+  MessageStatus,
   type LocalMessageListItem,
   type WebContentEvents,
   type WebContentEventType,
@@ -69,7 +69,7 @@ export const useGlobalSubscribe = () => {
     if (existingMsg) {
       updateMsg({
         ...existingMsg,
-        status: MessageStatusEnum.uploading,
+        status: MessageStatus.uploading,
         progress: data.progress,
         updateTime: Date.now(),
       });

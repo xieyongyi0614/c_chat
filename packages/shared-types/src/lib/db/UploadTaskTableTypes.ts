@@ -1,11 +1,15 @@
-export enum UploadStatusEnum {
-  waiting = 0, // 等待队列
-  hashing = 1, // 计算 hash
-  uploading = 2, // 上传中
-  success = 3,
-  fail = -1,
-  paused = -2,
-}
+export const UploadStatus = {
+  /** 等待队列 */
+  waiting: 0,
+  /** 计算 hash */
+  hashing: 1,
+  /** 上传中 */
+  uploading: 2,
+  success: 3,
+  fail: -1,
+  paused: -2,
+} as const;
+export type UploadStatus = (typeof UploadStatus)[keyof typeof UploadStatus];
 
 export interface LocalUploadTaskListItem {
   id: string;
@@ -19,7 +23,7 @@ export interface LocalUploadTaskListItem {
 
   fileId?: string;
 
-  status: UploadStatusEnum;
+  status: UploadStatus;
   progress: number;
   uploadedBytes: number;
   isRunning: number;

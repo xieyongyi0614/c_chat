@@ -13,7 +13,7 @@ import {
 } from '@c_chat/shared-protobuf';
 import { conversationTableClass } from '../../../db';
 import { ipc, to, transformPageParams } from '@c_chat/shared-utils';
-import { ConversationTypeEnum, LocalConversationListItem, SocketTypes } from '@c_chat/shared-types';
+import { ConversationType, LocalConversationListItem, SocketTypes } from '@c_chat/shared-types';
 import { ClientToServiceEvent } from '@c_chat/shared-protobuf/protoMap';
 
 const toLocalConversation = (convo: IConversationInfo): LocalConversationListItem => {
@@ -23,7 +23,7 @@ const toLocalConversation = (convo: IConversationInfo): LocalConversationListIte
 
   return {
     id: convo.id,
-    type: convo.type ?? ConversationTypeEnum.Single,
+    type: (convo.type ?? ConversationType.Single) as ConversationType,
     targetId: convo.targetInfo?.id ?? '',
     targetName: convo.targetInfo?.name ?? '',
     targetAvatar: convo.targetInfo?.avatarUrl ?? '',

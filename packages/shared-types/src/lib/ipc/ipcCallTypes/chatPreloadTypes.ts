@@ -1,7 +1,7 @@
-import { FileInfoListItem, IpcMethod } from '../ipcTypes';
+import type { FileInfoListItem, IpcMethod } from '../ipcTypes';
 import type { IGetGroupDetailResponse, IGroupOperationResponse } from '@c_chat/shared-protobuf';
-import { SocketTypes } from '../../socket.types';
-import { LocalConversationListItem, LocalMessageListItem } from '../../db';
+import type { SocketTypes } from '../../socket.types';
+import type { LocalConversationListItem, LocalMessageListItem } from '../../db';
 import type { MediaPreviewPayload } from '../webContentEvent';
 
 interface CreateConversationParams {

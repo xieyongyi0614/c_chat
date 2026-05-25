@@ -1,4 +1,4 @@
-import { LocalUploadTaskListItem, UploadStatusEnum } from '@c_chat/shared-types';
+import { LocalUploadTaskListItem, UploadStatus } from '@c_chat/shared-types';
 import { TableConnection } from '../Table';
 
 export class UploadTaskTable extends TableConnection {
@@ -128,7 +128,7 @@ export class UploadTaskTable extends TableConnection {
   }
 
   // ✅ 更新状态
-  updateStatus(id: string, status: UploadStatusEnum) {
+  updateStatus(id: string, status: UploadStatus) {
     const sql = `
       UPDATE ${this.TABLE_NAME}
       SET status = ?, update_time = ?
@@ -151,7 +151,7 @@ export class UploadTaskTable extends TableConnection {
       WHERE id = ?
     `;
 
-    this.run(sql, [UploadStatusEnum.waiting, Date.now(), id]);
+    this.run(sql, [UploadStatus.waiting, Date.now(), id]);
   }
 
   updateFileHash(id: string, fileHash: string) {

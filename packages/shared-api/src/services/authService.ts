@@ -2,31 +2,23 @@ import type { AuthTypes } from '@c_chat/shared-types';
 import { BaseService } from './baseService';
 
 export class AuthService extends BaseService {
-  /** 用户登录 */
+  /** 用户登录 — 失败时直接抛出，由调用方决定如何处理 */
   public async signIn(params: AuthTypes.PostSignInParams) {
-    const [err, response] = await this.apiTool(
-      this.httpClient.post<AuthTypes.PostSignInResponse>('/auth/sign-in', params, {
-        skipAuth: true,
-      }),
+    const response = await this.httpClient.post<AuthTypes.PostSignInResponse>(
+      '/auth/sign-in',
+      params,
+      { skipAuth: true },
     );
-    if (err) {
-      console.error('登录失败:', err.message);
-      return;
-    }
     return response.data.data;
   }
 
-  /** 用户注册 */
+  /** 用户注册 — 失败时直接抛出，由调用方决定如何处理 */
   public async signUp(params: AuthTypes.PostSignUpParams) {
-    const [err, response] = await this.apiTool(
-      this.httpClient.post<AuthTypes.PostSignUpResponse>('/auth/sign-up', params, {
-        skipAuth: true,
-      }),
+    const response = await this.httpClient.post<AuthTypes.PostSignUpResponse>(
+      '/auth/sign-up',
+      params,
+      { skipAuth: true },
     );
-    if (err) {
-      console.error('注册失败:', err.message);
-      return;
-    }
     return response.data.data;
   }
 

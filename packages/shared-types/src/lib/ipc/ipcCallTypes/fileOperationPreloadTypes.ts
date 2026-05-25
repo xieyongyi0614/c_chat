@@ -1,5 +1,5 @@
-import { FileType } from '@c_chat/shared-config';
-import { IpcMethod } from '../ipcTypes';
+import type { FileType } from '@c_chat/shared-config';
+import type { IpcMethod } from '../ipcTypes';
 
 export type SelectFilesParams = {
   filters?: Array<{ name: string; extensions: string[] }>;
