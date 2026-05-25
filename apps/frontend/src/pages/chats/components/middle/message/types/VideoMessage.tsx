@@ -1,13 +1,12 @@
 import { memo } from 'react';
 import { MessageStatusEnum, type LocalMessageListItem } from '@c_chat/shared-types';
-import { formatCompactTime } from '@c_chat/shared-utils';
 import { ipc } from '@c_chat/shared-utils';
 import { cn } from '@c_chat/ui';
 import { useMessageStore } from '@c_chat/frontend/stores';
 import { formatFileUrl } from '@c_chat/frontend/common/formatFileUrl';
 import { Play } from 'lucide-react';
 import { buildConversationPreviewItems, toMediaPreviewItem } from '../mediaPreviewItems';
-import MessageStatusIcon from '../MessageStatusIcon';
+import MessageDate from '../MessageDate';
 
 interface VideoMessageProps {
   msg: LocalMessageListItem;
@@ -49,18 +48,18 @@ const VideoMessage = ({ msg, isMe, isRead, onRetry, retrying }: VideoMessageProp
 
   return (
     <div className="relative inline-block">
-      <div className="relative rounded-lg overflow-hidden bg-black/10 dark:bg-black/30 w-48 h-28">
-        <div className="w-full h-full bg-gray-900 flex items-center justify-center">
-          {videoSrc && (
-            <video
-              src={videoSrc}
-              className={cn('w-full h-full object-cover', showOverlay && 'opacity-60')}
-              muted
-              playsInline
-              preload="metadata"
-            />
-          )}
-        </div>
+      <div className="relative h-28 w-48 overflow-hidden rounded-xl bg-transparent">
+        {videoSrc ? (
+          <video
+            src={videoSrc}
+            className={cn('h-full w-full object-cover', showOverlay && 'opacity-60')}
+            muted
+            playsInline
+            preload="metadata"
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center bg-gray-900" />
+        )}
 
         <div className="absolute inset-0 z-20 flex items-center justify-center">
           <button
@@ -72,16 +71,16 @@ const VideoMessage = ({ msg, isMe, isRead, onRetry, retrying }: VideoMessageProp
           </button>
         </div>
 
-        <div className="absolute bottom-2 right-2 z-30 flex items-center gap-1 bg-black/60 rounded px-1.5 py-0.5 backdrop-blur-sm">
-          <span className="text-white text-[10px]">{formatCompactTime(msg.createTime)}</span>
-          {isMe && (
-            <MessageStatusIcon
-              status={msg.status}
-              isRead={isRead}
-              onRetry={onRetry}
-              retrying={retrying}
-            />
-          )}
+        <div className="pointer-events-auto absolute bottom-1 right-1 z-30 flex rounded-full bg-black/55 px-1.5 py-0.5 text-white backdrop-blur-sm [&_span]:text-white">
+          <MessageDate
+            time={msg.createTime}
+            status={msg.status}
+            isMe={isMe}
+            isRead={isRead}
+            onRetry={onRetry}
+            retrying={retrying}
+            className="float-none ml-0 text-[11px]"
+          />
         </div>
 
         {isUploading && (
