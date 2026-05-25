@@ -1,5 +1,5 @@
 import { storeTableClass } from '../../db';
-import { ApiClient } from '../../utils/axios/service/apiService';
+import { ApiClient } from '../../utils/axios';
 import logger from '../../utils/logger';
 import { addActionHandler } from '../util';
 import { socketManager } from '@c_chat/electron_client/utils/socket-io-client';
@@ -69,8 +69,6 @@ addActionHandler('UpdateUserProfile', async (params) => {
   const userInfo = await ApiClient.auth.updateUserProfile({
     nickname: params.nickname,
     avatarUrl,
-    windowId: params.windowId,
-    webContentId: params.webContentId,
   });
   if (userInfo) {
     storeTableClass.setUserInfo(userInfo, params.windowId);

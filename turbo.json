@@ -1,6 +1,6 @@
 {
   "$schema": "https://turborepo.com/schema.json",
-  "concurrency": "11",
+  "concurrency": "20",
   "tasks": {
     "build": {
       "cache": false,
@@ -53,6 +53,11 @@
       "dependsOn": ["build", "^build"]
     },
     "@c_chat/shared-utils#dev": {
+      "cache": false,
+      "persistent": true,
+      "dependsOn": ["build", "^build"]
+    },
+    "@c_chat/shared-api#dev": {
       "cache": false,
       "persistent": true,
       "dependsOn": ["build", "^build"]

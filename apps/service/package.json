@@ -28,6 +28,7 @@
   },
   "dependencies": {
     "@c_chat/shared-protobuf": "workspace:^",
+    "@c_chat/shared-types": "workspace:^",
     "@nestjs/bull": "^11.0.4",
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^4.0.2",
