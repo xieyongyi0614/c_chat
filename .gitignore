@@ -49,6 +49,7 @@ apps/service/generated/prisma
 apps/service/uploads/*
 
 AGENTS.md
+CLAUDE.md
 
 .cursor/
 .claude/

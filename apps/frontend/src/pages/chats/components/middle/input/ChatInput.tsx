@@ -18,7 +18,7 @@ import { type FileInfoListItem } from '@c_chat/shared-types';
 import RecordingButton from './RecordingButton';
 
 export function ChatInput() {
-  const { selectedConversation, selectedUserForDraft, updateConversationSnapshot } = useChatStore();
+  const { selectedConversation, selectedUserForDraft, upsertAndPinConversation } = useChatStore();
   const { addMsgList } = useMessageStore();
 
   const [inputValue, setInputValue] = useState('');
@@ -111,11 +111,11 @@ export function ChatInput() {
       const latestMessage = messages.reduce((latest, message) =>
         (message.createTime ?? 0) > (latest.createTime ?? 0) ? message : latest,
       );
-      updateConversationSnapshot(
-        selectedConversation.id,
-        generateLastMsgContent(latestMessage.type, latestMessage.content),
-        latestMessage.createTime ?? Date.now(),
-      );
+      upsertAndPinConversation({
+        ...selectedConversation,
+        lastMsgContent: generateLastMsgContent(latestMessage.type, latestMessage.content),
+        lastMsgTime: latestMessage.createTime ?? Date.now(),
+      });
     }
     window.dispatchEvent(new Event('chat:scroll-to-bottom'));
     return true;

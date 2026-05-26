@@ -17,16 +17,13 @@ export interface ChatStoreType extends ChatStoreData {
   setSelectedUserForDraft: SetStateType<ChatStoreData['selectedUserForDraft']>;
   setSelectedConversationFolder: SetStateType<ChatStoreData['selectedConversationFolder']>;
 
-  updateConversationSnapshot: (
-    conversationId: string,
-    lastMsgContent: string,
-    lastMsgTime: number,
-  ) => void;
   upsertAndPinConversation: (conversation: LocalConversationListItem) => void;
   removeConversation: (conversationId: string) => void;
 
   markConversationAsRead: (conversationId: string) => Promise<void>;
 }
+
+const markReadInFlight = new Set<string>();
 
 type SetData = <T extends keyof ChatStoreData>(
   key: T,
@@ -77,47 +74,29 @@ export const useChatStore = create<ChatStoreType>((set, get) => {
       setData('selectedConversationFolder', data ?? 'all');
     },
 
-    updateConversationSnapshot(conversationId, lastMsgContent, lastMsgTime) {
-      set((state) => {
-        const index = state.conversationData.list.findIndex((c) => c.id === conversationId);
-        if (index === -1) return state;
-        const isActiveConversation = state.selectedConversation?.id === conversationId;
-        const updatedConversation = {
-          ...state.conversationData.list[index],
-          lastMsgContent,
-          lastMsgTime,
-          unreadCount:
-            (state.conversationData.list[index].unreadCount || 0) + (isActiveConversation ? 0 : 1),
-        };
-        const nextList = [...state.conversationData.list];
-        nextList.splice(index, 1);
-        nextList.unshift(updatedConversation);
-        if (isActiveConversation) {
-          get().markConversationAsRead(conversationId);
-        }
-        return {
-          conversationData: {
-            ...state.conversationData,
-            list: nextList,
-          },
-        };
-      });
-    },
     upsertAndPinConversation(conversation) {
+      let shouldMarkRead = false;
       set((state) => {
         const current = state.conversationData.list.find((item) => item.id === conversation.id);
-        const mergedConversation = current ? { ...current, ...conversation } : conversation;
+        let mergedConversation = current ? { ...current, ...conversation } : conversation;
+
+        const isActive = state.selectedConversation?.id === conversation.id;
+        if (isActive && (mergedConversation.unreadCount ?? 0) > 0) {
+          mergedConversation = { ...mergedConversation, unreadCount: 0 };
+          shouldMarkRead = true;
+        }
+
         return {
           conversationData: {
             ...state.conversationData,
             list: pinConversation(state.conversationData.list, mergedConversation),
           },
-          selectedConversation:
-            state.selectedConversation?.id === conversation.id
-              ? mergedConversation
-              : state.selectedConversation,
+          selectedConversation: isActive ? mergedConversation : state.selectedConversation,
         };
       });
+      if (shouldMarkRead) {
+        get().markConversationAsRead(conversation.id);
+      }
     },
     removeConversation(conversationId) {
       set((state) => ({
@@ -131,32 +110,47 @@ export const useChatStore = create<ChatStoreType>((set, get) => {
     },
 
     async markConversationAsRead(conversationId) {
+      if (markReadInFlight.has(conversationId)) return;
+      markReadInFlight.add(conversationId);
+
+      set((state) => {
+        const list = state.conversationData.list;
+        const index = list.findIndex((item) => item.id === conversationId);
+        if (index === -1 || !list[index].unreadCount) return state;
+        const newList = [...list];
+        newList[index] = { ...newList[index], unreadCount: 0 };
+        return {
+          conversationData: { ...state.conversationData, list: newList },
+          selectedConversation:
+            state.selectedConversation?.id === conversationId
+              ? newList[index]
+              : state.selectedConversation,
+        };
+      });
+
       const [err, res] = await to(ipc.ReadMessage({ conversationId }));
+      markReadInFlight.delete(conversationId);
       if (err) {
         console.error('markConversationAsRead failed:', err);
         return;
       }
 
       set((state) => {
-        const { conversationData } = state;
-        const newList = [...conversationData.list];
-        const index = newList.findIndex((item) => item.id === conversationId);
-        if (index === -1) {
-          return state;
-        }
-
+        const list = state.conversationData.list;
+        const index = list.findIndex((item) => item.id === conversationId);
+        if (index === -1) return state;
+        const newList = [...list];
         newList[index] = {
           ...newList[index],
           unreadCount: res.unreadCount,
-          lastReadMessageId: res.messageId ?? 0,
+          lastReadMessageId: res.messageId ?? newList[index].lastReadMessageId ?? 0,
         };
-
         return {
-          conversationData: {
-            ...conversationData,
-            list: newList,
-          },
-          selectedConversation: newList[index],
+          conversationData: { ...state.conversationData, list: newList },
+          selectedConversation:
+            state.selectedConversation?.id === conversationId
+              ? newList[index]
+              : state.selectedConversation,
         };
       });
     },
