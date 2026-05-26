@@ -7,7 +7,7 @@ import { generateLastMsgContent, ipc, to } from '@c_chat/shared-utils';
 import { useChatStore, useMessageStore } from '@c_chat/frontend/stores';
 import { toast } from 'sonner';
 const RecordingButton = () => {
-  const { selectedConversation, selectedUserForDraft, updateConversationSnapshot } = useChatStore();
+  const { selectedConversation, selectedUserForDraft, upsertAndPinConversation } = useChatStore();
   const { addMsgList } = useMessageStore();
 
   const { isRecording, recording, duration } = useAudioRecorder();
@@ -48,11 +48,11 @@ const RecordingButton = () => {
       const latestMessage = messages.reduce((latest, message) =>
         (message.createTime ?? 0) > (latest.createTime ?? 0) ? message : latest,
       );
-      updateConversationSnapshot(
-        selectedConversation.id,
-        generateLastMsgContent(latestMessage.type, latestMessage.content),
-        latestMessage.createTime ?? Date.now(),
-      );
+      upsertAndPinConversation({
+        ...selectedConversation,
+        lastMsgContent: generateLastMsgContent(latestMessage.type, latestMessage.content),
+        lastMsgTime: latestMessage.createTime ?? Date.now(),
+      });
     }
     window.dispatchEvent(new Event('chat:scroll-to-bottom'));
   };

@@ -17,7 +17,7 @@ export const useUserStore = create<UserState>((set, get) => ({
   userInfo: null,
   isSignedIn: () => !!get().userInfo?.id,
 
-  setUserInfo: async (userInfo) => {
+  setUserInfo: (userInfo) => {
     set({ userInfo });
   },
 
