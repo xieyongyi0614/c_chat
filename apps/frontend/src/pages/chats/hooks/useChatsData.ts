@@ -2,7 +2,7 @@ import { useChatStore, useMessageStore } from '@c_chat/frontend/stores';
 import { DEFAULT_MESSAGE_PAGE_SIZE } from '@c_chat/shared-config';
 import type { LocalMessageListItem } from '@c_chat/shared-types';
 import { ipc, to } from '@c_chat/shared-utils';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { useConversationData } from './useConversationData';
 
@@ -46,54 +46,46 @@ export const useChatsData = () => {
   const historyRequestRef = useRef({ isLoadingOlder: false, hasMoreOlder: false });
   const remoteBeforeMsgIdRef = useRef<bigint | null>(null);
 
-  const patchHistoryState = useCallback((patch: Partial<HistoryState>) => {
+  const patchHistoryState = (patch: Partial<HistoryState>) => {
     setHistoryState((prev) => ({ ...prev, ...patch }));
-  }, []);
+  };
 
-  const isStillActive = useCallback(
-    (conversationId: string) => useMessageStore.getState().dataConversationId === conversationId,
-    [],
-  );
+  const isStillActive = (conversationId: string) =>
+    useMessageStore.getState().dataConversationId === conversationId;
 
-  const fetchLocalMessageHistory = useCallback(
-    async (conversationId: string) => {
-      const [err, res] = await to(ipc.GetLocalMessageHistory({ conversationId }));
-      if (err) {
-        console.log('获取本地消息失败:', err);
-        toast.error('获取本地消息失败');
-        return;
-      }
-      if (isStillActive(conversationId)) addMsgList(res, 'history');
-    },
-    [addMsgList, isStillActive],
-  );
+  const fetchLocalMessageHistory = async (conversationId: string) => {
+    const [err, res] = await to(ipc.GetLocalMessageHistory({ conversationId }));
+    if (err) {
+      console.log('获取本地消息失败:', err);
+      toast.error('获取本地消息失败');
+      return;
+    }
+    if (isStillActive(conversationId)) addMsgList(res, 'history');
+  };
 
-  const fetchLatestMessageHistory = useCallback(
-    async (conversationId: string) => {
-      patchHistoryState({ isLoadingLatest: true, hasMoreOlder: false });
+  const fetchLatestMessageHistory = async (conversationId: string) => {
+    patchHistoryState({ isLoadingLatest: true, hasMoreOlder: false });
 
-      const [err, res] = await to(
-        ipc.GetMessageHistory({ conversationId, pageSize: DEFAULT_MESSAGE_PAGE_SIZE }),
-      );
-      if (err || !res) {
-        console.log('fetchMessageHistory error', err);
-        patchHistoryState({ isLoadingLatest: false });
-        return;
-      }
-      if (isStillActive(conversationId)) {
-        addMsgList(res, 'replaceDisconnectedHistory');
-      }
+    const [err, res] = await to(
+      ipc.GetMessageHistory({ conversationId, pageSize: DEFAULT_MESSAGE_PAGE_SIZE }),
+    );
+    if (err || !res) {
+      console.log('fetchMessageHistory error', err);
+      patchHistoryState({ isLoadingLatest: false });
+      return;
+    }
+    if (isStillActive(conversationId)) {
+      addMsgList(res, 'replaceDisconnectedHistory');
+    }
 
-      const { oldest } = getMsgIdRange(res);
-      remoteBeforeMsgIdRef.current = oldest;
-      const hasMoreOlder = Boolean(oldest) && res.length >= DEFAULT_MESSAGE_PAGE_SIZE;
-      historyRequestRef.current.hasMoreOlder = hasMoreOlder;
-      patchHistoryState({ isLoadingLatest: false, hasMoreOlder });
-    },
-    [addMsgList, isStillActive, patchHistoryState],
-  );
+    const { oldest } = getMsgIdRange(res);
+    remoteBeforeMsgIdRef.current = oldest;
+    const hasMoreOlder = Boolean(oldest) && res.length >= DEFAULT_MESSAGE_PAGE_SIZE;
+    historyRequestRef.current.hasMoreOlder = hasMoreOlder;
+    patchHistoryState({ isLoadingLatest: false, hasMoreOlder });
+  };
 
-  const loadOlderMessages = useCallback(async () => {
+  const loadOlderMessages = async () => {
     if (
       !selectedConversationId ||
       historyRequestRef.current.isLoadingOlder ||
@@ -147,7 +139,7 @@ export const useChatsData = () => {
     historyRequestRef.current.hasMoreOlder = hasMoreOlder;
     patchHistoryState({ isLoadingOlder: false, hasMoreOlder });
     return messages.length > 0;
-  }, [addMsgList, isStillActive, patchHistoryState, selectedConversationId]);
+  };
 
   useEffect(() => {
     if (!selectedConversationId) return;
