@@ -50,7 +50,7 @@ export class ChatGateway
   implements OnGatewayConnection, OnGatewayDisconnect
 {
   @WebSocketServer()
-  server: Server;
+  server!: Server;
 
   private readonly logger = new Logger(ChatGateway.name);
   // 存储用户 socket 连接映射 (userId -> socketId[])
@@ -197,7 +197,6 @@ export class ChatGateway
     const messagePayload = MessageInfo.create(buildMessageInfoPayload(message));
     const conversationByUserId = await this.buildConversationUpdatesByUserId(
       message.conversationId,
-      message.senderId,
       messagePayload,
     );
 

@@ -71,7 +71,6 @@ export namespace UploadTypes {
   export interface PostUploadCompleteResponse {
     queued: boolean;
     file?: GetFileByHashResponse;
-    createdMessage?: unknown;
   }
 
   /** GET /upload/status?uploadId= 已落盘的分片下标（与 .chunk 文件名一致，从 0 起） */

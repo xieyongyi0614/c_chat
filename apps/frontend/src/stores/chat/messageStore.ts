@@ -13,11 +13,11 @@ interface MessageStoreData {
 
 const getMessageIdentity = (msg: LocalMessageListItem) => {
   if (msg.clientMsgId) return `client:${msg.clientMsgId}`;
-  if (msg.msgId) return `server:${msg.conversationId}:${msg.msgId}`;
+  if (msg.seq) return `server:${msg.conversationId}:${msg.seq}`;
   return `local:${msg.id}`;
 };
 
-const getMessageSortValue = (msg: LocalMessageListItem) => msg.msgId ?? msg.createTime ?? 0;
+const getMessageSortValue = (msg: LocalMessageListItem) => msg.seq ?? msg.createTime ?? 0;
 
 const sortMessagesDesc = (messages: LocalMessageListItem[]) =>
   [...messages].sort((a, b) => getMessageSortValue(b) - getMessageSortValue(a));
@@ -29,9 +29,9 @@ const getServerMsgIdRange = (messages: LocalMessageListItem[]) => {
   let max: number | null = null;
 
   for (const msg of messages) {
-    if (!msg.msgId) continue;
-    min = min == null ? msg.msgId : Math.min(min, msg.msgId);
-    max = max == null ? msg.msgId : Math.max(max, msg.msgId);
+    if (!msg.seq) continue;
+    min = min == null ? msg.seq : Math.min(min, msg.seq);
+    max = max == null ? msg.seq : Math.max(max, msg.seq);
   }
 
   return { min, max };

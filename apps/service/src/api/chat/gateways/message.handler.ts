@@ -29,7 +29,6 @@ import {
   InviteGroupMembersRequest,
   LeaveGroupRequest,
   DismissGroupRequest,
-  ITargetInfo,
 } from '@c_chat/shared-protobuf';
 import { buildMessageInfoPayload } from '../utils/message-to-proto.util';
 import { MessageService } from '../services/message.service';
@@ -37,6 +36,7 @@ import { ChatService } from '../services/chat.service';
 import { Server } from 'socket.io';
 import { RequestListParams } from 'src/common';
 import { transformPaginationParams } from 'src/utils';
+import { ConversationType } from '@c_chat/shared-types';
 
 @Injectable()
 export abstract class MessageHandler extends MessageHandlerRegistry {
@@ -136,7 +136,7 @@ export abstract class MessageHandler extends MessageHandlerRegistry {
       updateTime: Date;
       createTime: Date;
       unreadCount?: number | null;
-      lastReadMessageId?: number | null;
+      lastReadSeq?: bigint | null;
     },
     group: { id: string; name: string; avatarUrl?: string | null },
   ) {
@@ -148,7 +148,7 @@ export abstract class MessageHandler extends MessageHandlerRegistry {
       updateTime: conversation.updateTime.getTime(),
       createTime: conversation.createTime.getTime(),
       unreadCount: conversation.unreadCount ?? 0,
-      lastReadMessageId: conversation.lastReadMessageId ?? 0,
+      lastReadSeq: String(conversation.lastReadSeq ?? 0n),
       targetInfo: {
         id: group.id,
         name: group.name,
@@ -177,7 +177,7 @@ export abstract class MessageHandler extends MessageHandlerRegistry {
       updateTime: Date;
       createTime: Date;
       unreadCount?: number | null;
-      lastReadMessageId?: number | null;
+      lastReadSeq?: bigint | null;
     } | null;
   }) {
     return GroupOperationResponse.create({
@@ -416,24 +416,8 @@ export abstract class MessageHandler extends MessageHandlerRegistry {
 
     const { list, total } = await this.chatService.getUserConversations(userId, page, pageSize);
 
-    const encodedList = list.map((c) => {
-      let targetInfo: ITargetInfo | undefined;
-
-      if (c.type === 2 && c.group) {
-        targetInfo = {
-          id: c.group.id,
-          name: c.group.name,
-          avatarUrl: c.group.avatarUrl,
-        };
-      } else if (c.user) {
-        targetInfo = {
-          id: c.user.id,
-          name: c.user.nickname,
-          avatarUrl: c.user.avatarUrl,
-        };
-      }
-
-      return ConversationInfo.create({
+    const encodedList = list.map((c) =>
+      ConversationInfo.create({
         id: c.id,
         type: c.type,
         lastMsgContent: c.lastMsgContent ?? undefined,
@@ -441,10 +425,14 @@ export abstract class MessageHandler extends MessageHandlerRegistry {
         updateTime: c.updateTime.getTime(),
         createTime: c.createTime.getTime(),
         unreadCount: c.unreadCount ?? 0,
-        lastReadMessageId: c.lastReadMessageId ?? 0,
-        targetInfo,
-      });
-    });
+        lastReadSeq: String(c.lastReadSeq ?? 0n),
+        targetInfo: {
+          id: c.targetId ?? '',
+          name: c.conversationName,
+          avatarUrl: c.conversationAvatar ?? '',
+        },
+      }),
+    );
 
     const responseData = {
       pagination: {
@@ -564,56 +552,54 @@ export abstract class MessageHandler extends MessageHandlerRegistry {
 
   protected async buildConversationUpdatesByUserId(
     conversationId: string,
-    senderId: string,
     message: MessageInfo,
   ): Promise<Map<string, IConversationInfo>> {
     const participants = await this.prisma.conversationParticipant.findMany({
-      where: {
-        conversationId,
-        isDeleted: false,
-      },
-      include: {
-        conversation: true,
-        user: true,
-      },
+      where: { conversationId, isDeleted: false },
+      include: { conversation: { select: { type: true, groupId: true } }, user: true },
     });
-
     const conversation = participants[0]?.conversation;
-    const group =
-      conversation?.type === 2 && conversation.targetId
-        ? await this.prisma.group.findUnique({ where: { id: conversation.targetId } })
-        : null;
+    const group = conversation?.groupId
+      ? await this.prisma.group.findUnique({
+          where: { id: conversation.groupId },
+          select: { id: true, name: true, avatarUrl: true },
+        })
+      : null;
+
+    const currentSeq = BigInt(message.seq);
 
     return new Map(
       participants.map((participant) => {
-        const peer = participants.find((item) => item.userId !== participant.userId)?.user;
-        const conversation = participant.conversation;
-        const targetInfo = group
-          ? {
-              id: group.id,
-              name: group.name,
-              avatarUrl: group.avatarUrl ?? '',
-            }
-          : peer
-            ? {
-                id: peer.id,
-                name: participant.remark || peer.nickname || '',
-                avatarUrl: peer.avatarUrl ?? '',
-              }
-            : undefined;
+        let targetInfo = {
+          id: group?.id ?? '',
+          name: group?.name ?? '',
+          avatarUrl: group?.avatarUrl ?? '',
+        };
+
+        if (participant.conversation.type === ConversationType.Single) {
+          const targetUser = participants.find((item) => item.userId !== participant.userId)?.user;
+          targetInfo = {
+            id: targetUser?.id ?? '',
+            name: participant.remark || targetUser?.nickname || targetUser?.id || '',
+            avatarUrl: targetUser?.avatarUrl ?? '',
+          };
+        }
+
+        const unreadCount =
+          currentSeq > participant.lastReadSeq ? Number(currentSeq - participant.lastReadSeq) : 0;
+
         return [
           participant.userId,
           ConversationInfo.create({
-            id: conversation.id,
-            type: conversation.type,
+            id: participant.conversationId,
+            type: participant.conversation.type,
             targetInfo,
             lastMsgContent: this.getLastMsgContent(message.content, message.type),
             lastMsgTime: message.createTime ? Number(message.createTime) : undefined,
             updateTime: message.updateTime ? Number(message.updateTime) : undefined,
-            createTime: conversation.createTime.getTime(),
-            unreadCount: participant.userId === senderId ? 0 : (participant.unreadCount ?? 0) + 1,
-            lastReadMessageId:
-              participant.userId === senderId ? message.msgId : participant.lastReadMessageId,
+            createTime: participant.createTime.getTime(),
+            unreadCount,
+            lastReadSeq: String(participant.lastReadSeq),
           }),
         ];
       }),
@@ -626,11 +612,7 @@ export abstract class MessageHandler extends MessageHandlerRegistry {
     removedConversationIds: string[] = [],
   ) {
     return NewUpdateMessage.encode(
-      NewUpdateMessage.create({
-        messages,
-        conversations,
-        removedConversationIds,
-      }),
+      NewUpdateMessage.create({ messages, conversations, removedConversationIds }),
     ).finish();
   }
 
@@ -654,12 +636,11 @@ export abstract class MessageHandler extends MessageHandlerRegistry {
     } = payload || {};
 
     let conversationId = payload?.conversationId;
-    let isNewConversation = false;
     if (!senderId || (!content && !fileId) || !clientMsgId || (!conversationId && !targetId)) {
       this.sendMessageToClient(
         client,
         ServiceToClientEvent.ackSendMessage,
-        AckSendMessage.encode(AckSendMessage.create({ clientMsgId, status: '' })).finish(),
+        AckSendMessage.encode(AckSendMessage.create({ clientMsgId, status: 'fail' })).finish(),
         requestId,
       );
       return;
@@ -673,23 +654,27 @@ export abstract class MessageHandler extends MessageHandlerRegistry {
     );
 
     if (!conversationId) {
-      const conversation = await this.chatService.getOrCreatePrivateConversation(
-        senderId,
-        targetId!,
-      );
-      isNewConversation = conversation.isNew;
-      conversationId = conversation.id;
+      try {
+        const conversation = await this.chatService.createOrGetPrivateConversation(
+          senderId,
+          targetId!,
+        );
+        conversationId = conversation.id;
+        if (conversation.isNew && targetId) {
+          await this.joinUserToRoom(this.server, [senderId, targetId], conversationId);
+        }
+      } catch (e) {
+        console.log('createOrGetPrivateConversation', e);
+        // TODO 创建会话失败处理
+        return;
+      }
     }
 
     try {
       await this.chatService.assertCanSendMessage(senderId, conversationId);
-    } catch {
-      this.sendMessageToClient(
-        client,
-        ServiceToClientEvent.ackSendMessage,
-        AckSendMessage.encode(AckSendMessage.create({ clientMsgId, status: 'fail' })).finish(),
-        requestId,
-      );
+    } catch (e) {
+      console.log('assertCanSendMessage', e);
+      //TODO 无法发送消息处理
       return;
     }
 
@@ -705,23 +690,20 @@ export abstract class MessageHandler extends MessageHandlerRegistry {
       waveform,
       thumbUrl: thumbUrl ?? undefined,
     });
-    const messagePayload = buildMessageInfoPayload(message);
-
-    if (isNewConversation && targetId) {
-      await this.joinUserToRoom(this.server, [senderId, targetId], conversationId);
-    }
-
-    const updateMessage = MessageInfo.create(messagePayload);
+    const updateMessage = MessageInfo.create(buildMessageInfoPayload(message));
 
     const conversationByUserId = await this.buildConversationUpdatesByUserId(
       conversationId,
-      senderId,
       updateMessage,
     );
 
     for (const [userId, conversation] of conversationByUserId) {
-      const response = this.buildNewUpdateMessage([updateMessage], [conversation]);
-      this.sendMessageToUser(userId, ServiceToClientEvent.newUpdateMessage, response, senderId);
+      this.sendMessageToUser(
+        userId,
+        ServiceToClientEvent.newUpdateMessage,
+        this.buildNewUpdateMessage([updateMessage], [conversation]),
+        senderId,
+      );
     }
   };
 }

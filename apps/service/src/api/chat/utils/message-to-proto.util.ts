@@ -25,8 +25,10 @@ export type ConversationUpdatePayload = Prisma.ConversationGetPayload<{
     };
   };
 }> & {
+  lastMsgContent?: string | null;
+  lastMsgTime?: Date | null;
   unreadCount?: number;
-  lastReadMessageId?: number;
+  lastReadSeq?: bigint;
 };
 
 export function buildConversationInfoPayload(
@@ -49,7 +51,7 @@ export function buildConversationInfoPayload(
     updateTime: conversation.updateTime.getTime(),
     createTime: conversation.createTime.getTime(),
     unreadCount: conversation.unreadCount ?? 0,
-    lastReadMessageId: conversation.lastReadMessageId ?? 0,
+    lastReadSeq: String(conversation.lastReadSeq ?? 0n),
   });
 }
 
@@ -82,7 +84,7 @@ export function buildMessageInfoPayload(m: MessageHistoryWithMedia): IMessageInf
 
   return {
     id: m.id,
-    msgId: m.msgId,
+    seq: Number(m.seq),
     senderId: m.senderId,
     senderInfo: {
       id: m.user.id,
@@ -93,7 +95,7 @@ export function buildMessageInfoPayload(m: MessageHistoryWithMedia): IMessageInf
     conversationId: m.conversationId,
     content: m.content ?? '',
     type: m.type,
-    state: m.state,
+    state: 0,
     createTime: m.createTime.getTime(),
     updateTime: m.updateTime.getTime(),
     clientMsgId: m.clientMsgId ?? '',

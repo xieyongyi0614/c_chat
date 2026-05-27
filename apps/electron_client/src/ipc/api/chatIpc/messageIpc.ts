@@ -31,7 +31,7 @@ import { uploadScheduler } from '@c_chat/electron_client/utils/UploadScheduler';
 
 type RemoteMessageInfo = GetMessageHistoryResponse['list'][number];
 
-const getMessageSortValue = (msg: LocalMessageListItem) => msg.msgId ?? msg.createTime ?? 0;
+const getMessageSortValue = (msg: LocalMessageListItem) => msg.seq ?? msg.createTime ?? 0;
 
 const sortMessagesDesc = (msgs: LocalMessageListItem[]) =>
   [...msgs].sort((a, b) => getMessageSortValue(b) - getMessageSortValue(a));
@@ -40,12 +40,12 @@ const getNewestLocalMessageTime = (msgs: LocalMessageListItem[]) =>
   msgs.reduce((max, msg) => Math.max(max, msg.createTime ?? msg.localTime ?? 0), 0);
 
 const getNewestServerMsgId = (msgs: LocalMessageListItem[]) =>
-  msgs.reduce((max, msg) => Math.max(max, msg.msgId ?? 0), 0);
+  msgs.reduce((max, msg) => Math.max(max, msg.seq ?? 0), 0);
 
 const mapRemoteMessage = (msg: RemoteMessageInfo): LocalMessageListItem => ({
   id: msg.id!,
   conversationId: msg.conversationId!,
-  msgId: msg.msgId!,
+  seq: msg.seq!,
   clientMsgId: msg.clientMsgId!,
   senderId: msg.senderId!,
   senderNickname: msg.senderInfo?.nickname ?? msg.senderInfo?.email ?? '',
@@ -144,7 +144,7 @@ const generateLocalMessageData = (data: Partial<LocalMessageListItem>): LocalMes
   return {
     id: uuidv4(),
     conversationId: data.conversationId ?? '',
-    msgId: data.msgId ?? null,
+    seq: data.seq ?? null,
     clientMsgId: uuidv4(),
     senderId: data.senderId ?? '',
     senderNickname: data.senderNickname ?? '',
