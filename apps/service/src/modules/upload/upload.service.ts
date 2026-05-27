@@ -55,6 +55,9 @@ export class UploadService {
 
   async complete(uploadId: string, usage: 'file' | 'message' = 'file') {
     const uploadSession = await this.session.findById(uploadId);
+    if (!uploadSession) {
+      throw new BadRequestException('上传会话不存在');
+    }
     const file = uploadSession?.fileId
       ? await this.file.findById(uploadSession.fileId)
       : await this.merge.merge(uploadId);
@@ -85,8 +88,7 @@ export class UploadService {
     });
 
     await this.chatGateway.notifyNewUploadMessage(message);
-
-    return { queued: false, file: normalizedFile, createdMessage: this.serializeMessage(message) };
+    return { queued: false, file: normalizedFile };
   }
 
   private serializeFile<T extends { size: bigint | number }>(file: T) {
@@ -103,20 +105,6 @@ export class UploadService {
         uploadSession.uploadedBytes == null
           ? uploadSession.uploadedBytes
           : Number(uploadSession.uploadedBytes),
-    };
-  }
-
-  private serializeMessage<
-    T extends { media?: { file?: { size: bigint | number } | null } | null },
-  >(message: T) {
-    if (!message.media?.file) return message;
-
-    return {
-      ...message,
-      media: {
-        ...message.media,
-        file: this.serializeFile(message.media.file),
-      },
     };
   }
 }

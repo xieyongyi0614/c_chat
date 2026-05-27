@@ -24,6 +24,16 @@ export interface ChatStoreType extends ChatStoreData {
 }
 
 const markReadInFlight = new Set<string>();
+const markReadTimers = new Map<string, ReturnType<typeof setTimeout>>();
+const MARK_READ_DEBOUNCE_MS = 800;
+
+const clearPendingMarkRead = (conversationId: string) => {
+  const timer = markReadTimers.get(conversationId);
+  if (timer) {
+    clearTimeout(timer);
+    markReadTimers.delete(conversationId);
+  }
+};
 
 type SetData = <T extends keyof ChatStoreData>(
   key: T,
@@ -94,8 +104,14 @@ export const useChatStore = create<ChatStoreType>((set, get) => {
           selectedConversation: isActive ? mergedConversation : state.selectedConversation,
         };
       });
+      // 活跃会话连发消息时，本地已置 0；服务端 markRead 用防抖合并，避免一条消息一次接口。
       if (shouldMarkRead) {
-        get().markConversationAsRead(conversation.id);
+        clearPendingMarkRead(conversation.id);
+        const timer = setTimeout(() => {
+          markReadTimers.delete(conversation.id);
+          get().markConversationAsRead(conversation.id);
+        }, MARK_READ_DEBOUNCE_MS);
+        markReadTimers.set(conversation.id, timer);
       }
     },
     removeConversation(conversationId) {
@@ -110,6 +126,7 @@ export const useChatStore = create<ChatStoreType>((set, get) => {
     },
 
     async markConversationAsRead(conversationId) {
+      clearPendingMarkRead(conversationId);
       if (markReadInFlight.has(conversationId)) return;
       markReadInFlight.add(conversationId);
 

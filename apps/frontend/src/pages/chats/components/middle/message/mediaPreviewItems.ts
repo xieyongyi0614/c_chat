@@ -1,8 +1,7 @@
 import { MESSAGE_TYPE } from '@c_chat/shared-config';
 import type { LocalMessageListItem, MediaPreviewItem } from '@c_chat/shared-types';
 
-const getSortValue = (msg: LocalMessageListItem) =>
-  msg.msgId ?? msg.createTime ?? msg.localTime ?? 0;
+const getSortValue = (msg: LocalMessageListItem) => msg.seq ?? msg.createTime ?? msg.localTime ?? 0;
 
 export const toMediaPreviewItem = (msg: LocalMessageListItem): MediaPreviewItem | null => {
   if (msg.type !== MESSAGE_TYPE.Image && msg.type !== MESSAGE_TYPE.Video) {

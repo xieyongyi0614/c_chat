@@ -1,6 +1,7 @@
 import { Command, ErrorResult } from '@c_chat/shared-protobuf';
 import {
   ClientDecodeProtoMapKey,
+  ServiceDecodeProtoCallback,
   serviceDecodeProtoMap,
   ServiceDecodeProtoMapKey,
   ServiceToClientEvent,
@@ -9,15 +10,23 @@ import { ChatSocket } from 'src/types/socket.types';
 import { Server, Socket } from 'socket.io';
 import { SOCKET_ERROR_CODE } from 'src/constants/errorCode';
 
+type Handler<K extends keyof ServiceDecodeProtoCallback> = (
+  client: ChatSocket,
+  payload: Parameters<ServiceDecodeProtoCallback[K]>[0],
+  requestId?: string,
+) => void | Promise<void>;
+
+interface HandlerMap {
+  get<K extends keyof ServiceDecodeProtoCallback>(event: K): Handler<K> | undefined;
+  set<K extends keyof ServiceDecodeProtoCallback>(event: K, handler: Handler<K>): this;
+}
+
 /** 消息命令处理器注册中心 */
 export abstract class MessageHandlerRegistry {
   public abstract server: Server;
   protected abstract userSockets: Map<string, Set<string>>;
 
-  protected readonly handlers = new Map<
-    ServiceDecodeProtoMapKey,
-    (client: ChatSocket, payload?: unknown, requestId?: string) => void | Promise<void>
-  >();
+  protected readonly handlers = new Map() as HandlerMap;
 
   protected abstract initializeHandlers(): void;
 
@@ -29,8 +38,7 @@ export abstract class MessageHandlerRegistry {
       console.warn(`⚠️ 未找到事件处理器: ${command.event}`, this.handlers);
       return;
     }
-    const clazz = serviceDecodeProtoMap[event];
-    const decodedResult = clazz?.decode(command.payload[0]);
+    const decodedResult = this.decodePayload(event, command);
     if (decodedResult) {
       console.log(
         '============================处理订阅广播========================================',
@@ -47,6 +55,18 @@ export abstract class MessageHandlerRegistry {
     // 假设我们传解码后的 body (需要根据你的逻辑调整)
 
     return handler(client, decodedResult, command.requestId);
+  }
+
+  private decodePayload<K extends ServiceDecodeProtoMapKey>(
+    event: K,
+    command: Command,
+  ): Parameters<ServiceDecodeProtoCallback[K]>[0] {
+    const clazz = serviceDecodeProtoMap[event];
+    if (!clazz) {
+      return null as Parameters<ServiceDecodeProtoCallback[K]>[0];
+    }
+
+    return clazz.decode(command.payload[0]) as Parameters<ServiceDecodeProtoCallback[K]>[0];
   }
 
   sendMessageToClient(
@@ -110,18 +130,22 @@ export abstract class MessageHandlerRegistry {
    * 将多个用户的所有连接加入指定 Socket.io 房间
    */
   protected async joinUserToRoom(server: Server, userIds: string[], roomId: string) {
+    if (!server) return;
+    const sockets = server.sockets as unknown as Map<string, Socket>;
+    const joins: Promise<unknown>[] = [];
+
     for (const userId of userIds) {
       const socketIds = this.userSockets.get(userId);
-      if (socketIds && server) {
-        for (const socketId of socketIds) {
-          const socket = (server.sockets as unknown as Map<string, Socket>).get(socketId);
-          if (socket) {
-            await socket.join(roomId);
-            console.log(`Socket ${socketId} (User: ${userId}) joined room ${roomId}`);
-          }
+      if (!socketIds) continue;
+      for (const socketId of socketIds) {
+        const socket = sockets.get(socketId);
+        if (socket) {
+          joins.push(Promise.resolve(socket.join(roomId)));
         }
       }
     }
+
+    await Promise.all(joins);
   }
 
   protected sendMessageToUser(
@@ -142,8 +166,6 @@ export abstract class MessageHandlerRegistry {
     });
     const responseBuffer = Command.encode(sendCommand).finish();
 
-    for (const socketId of socketIds) {
-      this.server.to(socketId).emit('message', responseBuffer);
-    }
+    this.server.to([...socketIds]).emit('message', responseBuffer);
   }
 }

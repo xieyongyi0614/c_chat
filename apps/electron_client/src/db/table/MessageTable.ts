@@ -7,7 +7,7 @@ export class MessageTable extends TableConnection {
   private readonly fields = [
     'id',
     'conversation_id',
-    'msg_id',
+    'seq',
     'client_msg_id',
     'sender_id',
     'sender_nickname',
@@ -35,8 +35,8 @@ export class MessageTable extends TableConnection {
       CREATE TABLE IF NOT EXISTS ${this.TABLE_NAME} (
         id TEXT PRIMARY KEY,
         conversation_id TEXT NOT NULL,
-        msg_id INTEGER,              
-        client_msg_id TEXT,           
+        seq INTEGER,
+        client_msg_id TEXT,
         sender_id TEXT,
         sender_nickname TEXT,
         sender_avatar TEXT,
@@ -56,7 +56,7 @@ export class MessageTable extends TableConnection {
         waveform TEXT,
         duration INTEGER,
         media_group_id TEXT,
-        UNIQUE(conversation_id, msg_id),
+        UNIQUE(conversation_id, seq),
         UNIQUE(conversation_id, client_msg_id)
       )
     `;
@@ -69,7 +69,7 @@ export class MessageTable extends TableConnection {
     // 🚀 核心索引（最重要）
     this.run(`
       CREATE INDEX IF NOT EXISTS idx_msg_conversation_msgid
-      ON ${this.TABLE_NAME}(conversation_id, msg_id DESC)
+      ON ${this.TABLE_NAME}(conversation_id, seq DESC)
     `);
 
     // 🚀 本地排序优化（秒开）
@@ -88,7 +88,7 @@ export class MessageTable extends TableConnection {
     return [
       msg.id,
       msg.conversationId,
-      msg.msgId,
+      msg.seq,
       msg.clientMsgId,
       msg.senderId,
       msg.senderNickname,
@@ -124,8 +124,8 @@ export class MessageTable extends TableConnection {
         `
         SELECT * FROM ${this.TABLE_NAME}
         WHERE conversation_id = ?
-          AND msg_id < ?
-        ORDER BY msg_id DESC
+          AND seq < ?
+        ORDER BY seq DESC
         LIMIT ?
         `,
         [conversationId, beforeMsgId, limit],
@@ -147,33 +147,33 @@ export class MessageTable extends TableConnection {
   }
 
   getLatestServerMsgId(conversationId: string) {
-    const row = this.get<[string], { msgId: number }>(
+    const row = this.get<[string], { seq: number }>(
       `
-      SELECT msg_id AS msgId FROM ${this.TABLE_NAME}
+      SELECT seq FROM ${this.TABLE_NAME}
       WHERE conversation_id = ?
-        AND msg_id IS NOT NULL
-      ORDER BY msg_id DESC
+        AND seq IS NOT NULL
+      ORDER BY seq DESC
       LIMIT 1
       `,
       [conversationId],
     );
-    return row?.msgId ?? 0;
+    return row?.seq ?? 0;
   }
 
   getExistingServerMsgIds(conversationId: string, msgIds: number[]) {
     if (msgIds.length === 0) return new Set<number>();
 
     const placeholders = msgIds.map(() => '?').join(', ');
-    const rows = this.all<{ msgId: number }>(
+    const rows = this.all<{ seq: number }>(
       `
-      SELECT msg_id AS msgId FROM ${this.TABLE_NAME}
+      SELECT seq FROM ${this.TABLE_NAME}
       WHERE conversation_id = ?
-        AND msg_id IN (${placeholders})
+        AND seq IN (${placeholders})
       `,
       [conversationId, ...msgIds],
     );
 
-    return new Set(rows.map((row) => row.msgId));
+    return new Set(rows.map((row) => row.seq));
   }
 
   getMessagesByServerMsgIdRange(conversationId: string, minMsgId: number, maxMsgId: number) {
@@ -181,8 +181,8 @@ export class MessageTable extends TableConnection {
       `
       SELECT * FROM ${this.TABLE_NAME}
       WHERE conversation_id = ?
-        AND msg_id BETWEEN ? AND ?
-      ORDER BY msg_id DESC
+        AND seq BETWEEN ? AND ?
+      ORDER BY seq DESC
       `,
       [conversationId, minMsgId, maxMsgId],
     );
@@ -224,7 +224,7 @@ export class MessageTable extends TableConnection {
     const placeholders = this.fields.map(() => '?').join(', ');
 
     const updateFields = [
-      'msg_id',
+      'seq',
       'status',
       'content',
       'sender_nickname',
@@ -256,7 +256,7 @@ export class MessageTable extends TableConnection {
       DO UPDATE SET
         ${updateSql}
   
-      ON CONFLICT(conversation_id, msg_id)
+      ON CONFLICT(conversation_id, seq)
       DO UPDATE SET
         ${updateSql}
     `;

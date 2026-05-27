@@ -12,7 +12,7 @@ export type MessageStatus = (typeof MessageStatus)[keyof typeof MessageStatus];
 export interface LocalMessageListItem {
   id: string;
   conversationId: string;
-  msgId: number | null;
+  seq: number | null;
   clientMsgId: string;
   senderId: string;
   senderNickname?: string;

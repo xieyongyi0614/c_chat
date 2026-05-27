@@ -62,12 +62,19 @@ model Group {
 
 // 群成员表 (原 ChatRoomParticipant)
 model GroupMember {
-  id         String   @id @default(cuid())
-  groupId    String   @map("group_id")
-  userId     String   @map("user_id")
-  role       Int      @default(2) // 0:群主, 1:管理员, 2:普通成员
-  alias      String? // 群昵称
-  state      Int      @default(0) // -1:退出/被踢, 0:正常
+  id      String  @id @default(cuid())
+  groupId String  @map("group_id")
+  userId  String  @map("user_id")
+  role    Int     @default(2) // 0:群主, 1:管理员, 2:普通成员
+  alias   String? // 群昵称
+  state   Int     @default(0) // -1:退出/被踢, 0:正常
+
+  // ⭐ 关键：群聊未读游标
+  lastReadSeq BigInt @default(0)
+
+  // ⭐ 增量同步游标
+  lastSyncSeq BigInt @default(0)
+
   updateTime DateTime @updatedAt @map("update_time")
   createTime DateTime @default(now()) @map("create_time")
 
@@ -77,50 +84,42 @@ model GroupMember {
   // 确保一个人在同一个群只有一条记录
   @@unique([groupId, userId])
   @@index([userId]) // 查询“我加入了哪些群”
+  @@index([groupId, state])
 }
 
 // ==========================================
 // 3. 会话模块 (核心改动：统一私聊与群聊入口)
 // ==========================================
 model Conversation {
-  id       String  @id @default(cuid())
-  type     Int // 1: 私聊, 2: 群聊
-  // 私聊存userId 群聊时存储groupId
-  targetId String? @map("target_id")
+  id   String @id @default(cuid())
+  type Int // 1: 私聊, 2: 群聊
 
-  // 冗余字段：用于聊天列表快速展示，避免连表查最新消息
-  lastMsgContent String?   @map("last_msg_content") @db.Text
-  lastMsgTime    DateTime? @map("last_msg_time")
+  groupId String? @unique
+  state   Int     @default(0) // 0  正常 -1 删除 -2 冻结 (禁止发消息) 未来可扩展更多状态，如禁言、仅管理员可发等
+
+  lastSeq BigInt @default(0)
 
   updateTime DateTime @updatedAt @map("update_time")
   createTime DateTime @default(now()) @map("create_time")
 
-  // 关联
   messages     MessageHistory[]
   participants ConversationParticipant[]
-  // 注意：私聊的唯一性建议在代码层控制 (如 A-B 和 B-A 生成同一个 Conversation ID)
-
-  // 索引优化
-  @@index([type, targetId])
 }
 
-model ConversationSequence {
-  conversationId String @id @map("conversation_id")
-  lastMsgId      Int    @default(0) @map("last_msg_id")
-}
-
-// 会话参与者表 (用于存储：置顶、免打扰、删除会话等个性化设置)
+// 会话参与者表 
 model ConversationParticipant {
   id             String @id @default(cuid())
   conversationId String @map("conversation_id")
   userId         String @map("user_id")
 
-  isTop             Boolean @default(false) @map("is_top") // 是否置顶
-  isDisturb         Boolean @default(false) @map("is_disturb") // 是否免打扰
-  remark            String? // 针对该会话的备注（仅对自己生效）
-  isDeleted         Boolean @default(false) @map("is_deleted") // 是否删除了该会话（软删除）
-  lastReadMessageId Int     @default(0) @map("last_read_message_id") // 当前用户在该会话已读到的最新消息 msgId
-  unreadCount       Int     @default(0) @map("unread_count")
+  // ===== 状态 =====
+  lastReadSeq BigInt @default(0)
+  lastSyncSeq BigInt @default(0)
+
+  isTop     Boolean @default(false)
+  isMute    Boolean @default(false)
+  isDeleted Boolean @default(false)
+  remark    String?
 
   updateTime DateTime @updatedAt @map("update_time")
   createTime DateTime @default(now()) @map("create_time")
@@ -129,25 +128,44 @@ model ConversationParticipant {
   user         User         @relation(fields: [userId], references: [id])
 
   @@unique([conversationId, userId])
+  @@index([userId, isDeleted])
+  @@index([userId, isTop])
+}
+
+//UI projection
+model ConversationLastMessage {
+  conversationId String @id @map("conversation_id")
+
+  seq          BigInt   @default(0)
+  content      String?  @db.Text
+  type         Int // 0:文本, 1:图片, 2:视频, 3:文件, 4:音频
+  senderId     String
+  senderName   String?
+  senderAvatar String?
+  time         DateTime
+
+  updateTime DateTime @updatedAt
+
+  @@index([time(sort: Desc)])
 }
 
 model MessageHistory {
   id             String @id @default(cuid())
-  senderId       String @map("sender_id")
   conversationId String @map("conversation_id")
-  msgId          Int    @map("msg_id")
+  seq            BigInt
+  senderId       String @map("sender_id")
 
   clientMsgId String? @map("client_msg_id")
   content     String? @db.Text
 
   type Int // 0:文本, 1:图片, 2:视频, 3:文件, 4:音频
 
-  state Int @default(0) // -2:撤回, -1:删除, 0:正常, 1:编辑
-
   mediaId String? @map("media_id")
   media   Media?  @relation(fields: [mediaId], references: [id])
 
   mediaGroupId String? @map("media_group_id") // 相册分组
+
+  replySeq BigInt?
 
   createTime DateTime @default(now()) @map("create_time")
   updateTime DateTime @updatedAt @map("update_time")
@@ -155,10 +173,38 @@ model MessageHistory {
   user         User         @relation(fields: [senderId], references: [id])
   conversation Conversation @relation(fields: [conversationId], references: [id])
 
-  @@unique([conversationId, msgId])
-  @@unique([conversationId, senderId, clientMsgId])
-  @@index([conversationId, msgId(sort: Desc)])
+  @@unique([conversationId, seq])
+  @@unique([conversationId, clientMsgId, senderId])
+  @@index([conversationId, seq(sort: Desc)])
   @@index([conversationId, mediaGroupId])
+  @@index([conversationId, createTime(sort: Desc)])
+}
+
+model MessageEvent {
+  id String @id @default(cuid())
+
+  conversationId String @map("conversation_id")
+
+  // 关联哪条消息
+  messageSeq BigInt @map("message_seq")
+
+  // event 自己的序列
+  seq BigInt
+
+  type Int
+
+  operatorId String? @map("operator_id")
+
+  payload Json?
+
+  version Int @default(1)
+
+  createTime DateTime @default(now()) @map("create_time")
+
+  @@unique([conversationId, seq])
+  @@index([conversationId, messageSeq])
+  @@index([conversationId, createTime])
+  @@index([conversationId, type])
 }
 
 model Media {
@@ -184,30 +230,30 @@ model Media {
 }
 
 model UploadSession {
-  id            String @id @default(cuid())
-  fileName      String @map("file_name")
-  fileHash      String @map("file_hash")
-  fileSize      BigInt @map("file_size")
+  id            String  @id @default(cuid())
+  fileName      String  @map("file_name")
+  fileHash      String  @map("file_hash")
+  fileSize      BigInt  @map("file_size")
   mimeType      String? @map("mime_type")
-  chunkSize     Int    @map("chunk_size")
-  totalChunks   Int    @map("total_chunks")
-  uploadedCount Int    @default(0) @map("uploader_count")
-  uploadedBytes BigInt @default(0) @map("uploaded_bytes")
+  chunkSize     Int     @map("chunk_size")
+  totalChunks   Int     @map("total_chunks")
+  uploadedCount Int     @default(0) @map("uploader_count")
+  uploadedBytes BigInt  @default(0) @map("uploaded_bytes")
 
   status Int // 0 waiting / 1 uploading / 2 merging / 3 success / -1 fail
 
-  uploaderId String   @map("uploader_id")
-  clientMsgId String?  @map("client_msg_id")
-  conversationId String? @map("conversation_id")
-  messageType Int? @map("message_type")
-  mediaGroupId String? @map("media_group_id")
-  content String? @db.Text
-  duration Int?
-  waveform String?
-  fileId String? @map("file_id")
-  errorMessage String? @map("error_message")
-  createTime DateTime @default(now()) @map("create_time")
-  updateTime DateTime @updatedAt @map("update_time")
+  uploaderId     String   @map("uploader_id")
+  clientMsgId    String?  @map("client_msg_id")
+  conversationId String?  @map("conversation_id")
+  messageType    Int?     @map("message_type")
+  mediaGroupId   String?  @map("media_group_id")
+  content        String?  @db.Text
+  duration       Int?
+  waveform       String?
+  fileId         String?  @map("file_id")
+  errorMessage   String?  @map("error_message")
+  createTime     DateTime @default(now()) @map("create_time")
+  updateTime     DateTime @updatedAt @map("update_time")
 
   @@index([fileHash, fileSize])
   @@index([uploaderId, clientMsgId])

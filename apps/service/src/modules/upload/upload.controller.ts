@@ -16,7 +16,6 @@ import { CurrentUser } from '../../auth/decorators/current-user.decorator';
 import { CheckFileHashDto } from './dto/file.dto';
 import { FileService } from './services/file.service';
 import { JwtAuthGuard } from 'src/auth';
-
 @UseGuards(JwtAuthGuard)
 @Controller('upload')
 export class UploadController {

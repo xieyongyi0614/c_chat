@@ -146,7 +146,7 @@ export class MessageHandler extends MessageHandlerRegistry {
             const {
               id,
               conversationId,
-              msgId,
+              seq,
               clientMsgId,
               senderId,
               senderInfo,
@@ -169,7 +169,7 @@ export class MessageHandler extends MessageHandlerRegistry {
             return {
               id,
               conversationId,
-              msgId,
+              seq,
               clientMsgId,
               senderId,
               senderNickname: senderInfo?.nickname ?? senderInfo?.email ?? '',
@@ -204,10 +204,23 @@ export class MessageHandler extends MessageHandlerRegistry {
             lastMsgContent: convo.lastMsgContent ?? '',
             lastMsgTime: Number(convo.lastMsgTime ?? 0),
             unreadCount: convo.unreadCount ?? 0,
-            lastReadMessageId: convo.lastReadMessageId ?? 0,
+            lastReadMessageId: Number(convo.lastReadSeq ?? 0),
             updateTime: Number(convo.updateTime ?? 0),
             createTime: Number(convo.createTime ?? 0),
           })) ?? [];
+
+        const currentUserId = storeTableClass.getUserInfo(this.windowId)?.id;
+        const incomingCountByConversation = new Map<string, number>();
+        if (currentUserId) {
+          for (const message of newMessages) {
+            if (message.senderId !== currentUserId) {
+              incomingCountByConversation.set(
+                message.conversationId,
+                (incomingCountByConversation.get(message.conversationId) ?? 0) + 1,
+              );
+            }
+          }
+        }
 
         const conversationIds = Array.from(
           new Set([
@@ -216,7 +229,6 @@ export class MessageHandler extends MessageHandlerRegistry {
           ]),
         );
         const localConvos = conversationTableClass.getConversationByIds(conversationIds);
-        const currentUserId = storeTableClass.getUserInfo(this.windowId)?.id;
         const conversationById = new Map<string, LocalConversationListItem>();
 
         for (const convo of localConvos) {
@@ -232,10 +244,16 @@ export class MessageHandler extends MessageHandlerRegistry {
             existing.targetId === currentUserId;
 
           if (shouldReplace) {
+            const incomingCount = incomingCountByConversation.get(convo.id) ?? 0;
+            const unreadCount =
+              incomingCount > 0
+                ? (existing?.unreadCount ?? convo.unreadCount ?? 0) + incomingCount
+                : convo.unreadCount;
             conversationById.set(convo.id, {
               ...existing,
               ...convo,
               ...updateConvos.get(convo.id),
+              unreadCount,
             });
           }
         }

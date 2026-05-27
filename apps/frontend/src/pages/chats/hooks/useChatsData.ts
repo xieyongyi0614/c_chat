@@ -18,13 +18,13 @@ const INITIAL_HISTORY_STATE: HistoryState = {
   hasMoreOlder: false,
 };
 
-const getMsgIdRange = (messages: { msgId?: number | null }[]) => {
+const getMsgIdRange = (messages: { seq?: number | null }[]) => {
   let oldest: number | null = null;
   let newest: number | null = null;
   for (const m of messages) {
-    if (!m.msgId) continue;
-    if (oldest == null || m.msgId < oldest) oldest = m.msgId;
-    if (newest == null || m.msgId > newest) newest = m.msgId;
+    if (!m.seq) continue;
+    if (oldest == null || m.seq < oldest) oldest = m.seq;
+    if (newest == null || m.seq > newest) newest = m.seq;
   }
   return { oldest, newest };
 };
