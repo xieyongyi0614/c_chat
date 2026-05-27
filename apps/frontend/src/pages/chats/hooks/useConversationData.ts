@@ -4,7 +4,7 @@ import type {
   GetLocalConversationListParams,
 } from '@c_chat/shared-types';
 import { ipc, to, transformListParams } from '@c_chat/shared-utils';
-import { useCallback, useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 
 const REMOTE_REFRESH_INTERVAL = 30_000;
@@ -24,41 +24,35 @@ export const useConversationData = () => {
   // 远端是否已为当前 seq 写入过数据；写入后忽略后到的本地缓存。
   const remoteResolvedRef = useRef(false);
 
-  const fetchLocalConversationData = useCallback(
-    async (param?: GetLocalConversationListParams) => {
-      const seq = requestSeqRef.current;
-      const [err, res] = await to(ipc.GetLocalConversationList(param));
-      if (seq !== requestSeqRef.current) return;
-      if (err) {
-        console.error('获取本地缓存会话列表失败:', err);
-        toast.error('获取本地缓存会话列表失败');
-        return;
-      }
-      if (res && !remoteResolvedRef.current) {
-        setConversationData(res);
-      }
-    },
-    [setConversationData],
-  );
+  const fetchLocalConversationData = async (param?: GetLocalConversationListParams) => {
+    const seq = requestSeqRef.current;
+    const [err, res] = await to(ipc.GetLocalConversationList(param));
+    if (seq !== requestSeqRef.current) return;
+    if (err) {
+      console.error('获取本地缓存会话列表失败:', err);
+      toast.error('获取本地缓存会话列表失败');
+      return;
+    }
+    if (res && !remoteResolvedRef.current) {
+      setConversationData(res);
+    }
+  };
 
-  const fetchConversationData = useCallback(
-    async (params?: GetConversationListParams) => {
-      const seq = requestSeqRef.current;
-      const newParams = transformListParams(params);
-      const [err, res] = await to(ipc.GetConversationList(newParams));
-      if (seq !== requestSeqRef.current) return;
-      if (err) {
-        console.error('获取会话列表失败:', err);
-        toast.error('获取会话列表失败');
-        return;
-      }
-      if (res) {
-        remoteResolvedRef.current = true;
-        setConversationData(res);
-      }
-    },
-    [setConversationData],
-  );
+  const fetchConversationData = async (params?: GetConversationListParams) => {
+    const seq = requestSeqRef.current;
+    const newParams = transformListParams(params);
+    const [err, res] = await to(ipc.GetConversationList(newParams));
+    if (seq !== requestSeqRef.current) return;
+    if (err) {
+      console.error('获取会话列表失败:', err);
+      toast.error('获取会话列表失败');
+      return;
+    }
+    if (res) {
+      remoteResolvedRef.current = true;
+      setConversationData(res);
+    }
+  };
 
   // 初次进入或用户切换：并行获取本地 + 远端。
   useEffect(() => {
@@ -67,7 +61,8 @@ export const useConversationData = () => {
     remoteResolvedRef.current = false;
     fetchLocalConversationData();
     fetchConversationData();
-  }, [userId, fetchLocalConversationData, fetchConversationData]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]);
 
   // 周期 + 可见性同步：仅在可见且距上次同步超过阈值时请求远端。
   useEffect(() => {
@@ -89,7 +84,8 @@ export const useConversationData = () => {
       window.clearInterval(timer);
       document.removeEventListener('visibilitychange', onVisibilityChange);
     };
-  }, [userId, fetchConversationData]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]);
 
   return { fetchConversationData, fetchLocalConversationData };
 };
