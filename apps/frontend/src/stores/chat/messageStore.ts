@@ -17,21 +17,26 @@ const getMessageIdentity = (msg: LocalMessageListItem) => {
   return `local:${msg.id}`;
 };
 
-const getMessageSortValue = (msg: LocalMessageListItem) => msg.seq ?? msg.createTime ?? 0;
+const getMessageSortValue = (msg: LocalMessageListItem): bigint =>
+  msg.seq > 0n ? msg.seq : BigInt(msg.createTime ?? 0);
 
 const sortMessagesDesc = (messages: LocalMessageListItem[]) =>
-  [...messages].sort((a, b) => getMessageSortValue(b) - getMessageSortValue(a));
+  [...messages].sort((a, b) => {
+    const av = getMessageSortValue(a);
+    const bv = getMessageSortValue(b);
+    return av === bv ? 0 : bv > av ? 1 : -1;
+  });
 
 type AddMessageMode = 'history' | 'realtime' | 'replaceDisconnectedHistory';
 
 const getServerMsgIdRange = (messages: LocalMessageListItem[]) => {
-  let min: number | null = null;
-  let max: number | null = null;
+  let min: bigint | null = null;
+  let max: bigint | null = null;
 
   for (const msg of messages) {
     if (!msg.seq) continue;
-    min = min == null ? msg.seq : Math.min(min, msg.seq);
-    max = max == null ? msg.seq : Math.max(max, msg.seq);
+    if (min == null || msg.seq < min) min = msg.seq;
+    if (max == null || msg.seq > max) max = msg.seq;
   }
 
   return { min, max };
@@ -49,7 +54,7 @@ const shouldReplaceDisconnectedHistory = (
   return (
     existingRange.max != null &&
     incomingRange.min != null &&
-    existingRange.max < incomingRange.min - 1
+    existingRange.max < incomingRange.min - 1n
   );
 };
 

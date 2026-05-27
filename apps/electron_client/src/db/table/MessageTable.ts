@@ -146,8 +146,8 @@ export class MessageTable extends TableConnection {
     return rows;
   }
 
-  getLatestServerMsgId(conversationId: string) {
-    const row = this.get<[string], { seq: number }>(
+  getLatestServerMsgSeq(conversationId: string): bigint {
+    const row = this.get<[string], { seq: number | bigint }>(
       `
       SELECT seq FROM ${this.TABLE_NAME}
       WHERE conversation_id = ?
@@ -157,14 +157,14 @@ export class MessageTable extends TableConnection {
       `,
       [conversationId],
     );
-    return row?.seq ?? 0;
+    return BigInt(row?.seq ?? 0);
   }
 
-  getExistingServerMsgIds(conversationId: string, msgIds: number[]) {
-    if (msgIds.length === 0) return new Set<number>();
+  getExistingServerMsgSeqs(conversationId: string, msgIds: number[]) {
+    if (msgIds.length === 0) return new Set<bigint>();
 
     const placeholders = msgIds.map(() => '?').join(', ');
-    const rows = this.all<{ seq: number }>(
+    const rows = this.all<{ seq: number | bigint }>(
       `
       SELECT seq FROM ${this.TABLE_NAME}
       WHERE conversation_id = ?
@@ -173,11 +173,11 @@ export class MessageTable extends TableConnection {
       [conversationId, ...msgIds],
     );
 
-    return new Set(rows.map((row) => row.seq));
+    return new Set(rows.map((row) => BigInt(row.seq)));
   }
 
   getMessagesByServerMsgIdRange(conversationId: string, minMsgId: number, maxMsgId: number) {
-    return this.all<LocalMessageListItem>(
+    const rows = this.all<LocalMessageListItem>(
       `
       SELECT * FROM ${this.TABLE_NAME}
       WHERE conversation_id = ?
@@ -186,6 +186,7 @@ export class MessageTable extends TableConnection {
       `,
       [conversationId, minMsgId, maxMsgId],
     );
+    return rows;
   }
 
   /**

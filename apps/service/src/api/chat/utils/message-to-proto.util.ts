@@ -84,7 +84,7 @@ export function buildMessageInfoPayload(m: MessageHistoryWithMedia): IMessageInf
 
   return {
     id: m.id,
-    seq: Number(m.seq),
+    seq: String(m.seq),
     senderId: m.senderId,
     senderInfo: {
       id: m.user.id,

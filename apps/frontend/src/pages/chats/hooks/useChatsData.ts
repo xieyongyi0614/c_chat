@@ -18,9 +18,9 @@ const INITIAL_HISTORY_STATE: HistoryState = {
   hasMoreOlder: false,
 };
 
-const getMsgIdRange = (messages: { seq?: number | null }[]) => {
-  let oldest: number | null = null;
-  let newest: number | null = null;
+const getMsgIdRange = (messages: { seq?: bigint }[]) => {
+  let oldest: bigint | null = null;
+  let newest: bigint | null = null;
   for (const m of messages) {
     if (!m.seq) continue;
     if (oldest == null || m.seq < oldest) oldest = m.seq;
@@ -29,10 +29,10 @@ const getMsgIdRange = (messages: { seq?: number | null }[]) => {
   return { oldest, newest };
 };
 
-const canUseLocalOlderMessages = (messages: LocalMessageListItem[], beforeMsgId: number) => {
+const canUseLocalOlderMessages = (messages: LocalMessageListItem[], beforeMsgId: bigint) => {
   if (messages.length === 0) return false;
   const { oldest, newest } = getMsgIdRange(messages);
-  return oldest != null && oldest < beforeMsgId && newest === beforeMsgId - 1;
+  return oldest != null && oldest < beforeMsgId && newest === beforeMsgId - 1n;
 };
 
 export const useChatsData = () => {
@@ -44,7 +44,7 @@ export const useChatsData = () => {
 
   const [historyState, setHistoryState] = useState<HistoryState>(INITIAL_HISTORY_STATE);
   const historyRequestRef = useRef({ isLoadingOlder: false, hasMoreOlder: false });
-  const remoteBeforeMsgIdRef = useRef<number | null>(null);
+  const remoteBeforeMsgIdRef = useRef<bigint | null>(null);
 
   const patchHistoryState = useCallback((patch: Partial<HistoryState>) => {
     setHistoryState((prev) => ({ ...prev, ...patch }));
@@ -114,7 +114,7 @@ export const useChatsData = () => {
 
     const pageParams = {
       conversationId: selectedConversationId,
-      beforeMsgId,
+      beforeMsgId: Number(beforeMsgId),
       pageSize: DEFAULT_MESSAGE_PAGE_SIZE,
     };
     const [localErr, localRes] = await to(ipc.GetLocalMessageHistory(pageParams));

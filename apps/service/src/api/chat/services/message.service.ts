@@ -292,7 +292,7 @@ export class MessageService {
     return this.getLatestConversationMessages(conversationId, limit);
   }
 
-  async markConversationAsRead(userId: string, conversationId: string, messageId?: string) {
+  async markConversationAsRead(userId: string, conversationId: string, msgSeq?: string) {
     const participant = await this.prisma.conversationParticipant.findUnique({
       where: {
         conversationId_userId: {
@@ -312,8 +312,8 @@ export class MessageService {
 
     let targetSeq = BigInt(0);
 
-    if (messageId) {
-      const parsedSeq = Number(messageId);
+    if (msgSeq) {
+      const parsedSeq = Number(msgSeq);
 
       if (!Number.isNaN(parsedSeq)) {
         const target = await this.prisma.messageHistory.findFirst({
@@ -327,7 +327,7 @@ export class MessageService {
       } else {
         const target = await this.prisma.messageHistory.findFirst({
           where: {
-            id: messageId,
+            id: msgSeq,
             conversationId,
           },
           select: { seq: true },
@@ -380,7 +380,7 @@ export class MessageService {
 
     return {
       conversationId,
-      messageId: String(targetSeq),
+      msgSeq: String(targetSeq),
       unreadCount,
     };
   }

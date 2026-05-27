@@ -144,7 +144,7 @@ message AckSendMessage{
 // 消息信息
 message MessageInfo {
   string id = 1;
-  int32 seq = 2;
+  string seq = 2;
   string sender_id = 3;
   string conversation_id = 4;
   string content = 5;
@@ -187,13 +187,13 @@ message GetMessageHistoryResponse {
 // 读消息请求
 message ReadMessageRequest {
   string conversation_id = 1;
-  optional string message_id = 2; // 不传时默认读到当前会话最新一条消息
+  optional string msg_seq = 2; // 不传时默认读到当前会话最新一条消息
 }
 
 // 读消息响应
 message ReadMessageResponse {
   string conversation_id = 1;
-  optional string message_id = 2;
+  optional string msg_seq = 2;
   int32 unread_count = 3;
 }
 

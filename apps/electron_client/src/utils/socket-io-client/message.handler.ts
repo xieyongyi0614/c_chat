@@ -169,7 +169,7 @@ export class MessageHandler extends MessageHandlerRegistry {
             return {
               id,
               conversationId,
-              seq,
+              seq: BigInt(seq),
               clientMsgId,
               senderId,
               senderNickname: senderInfo?.nickname ?? senderInfo?.email ?? '',
@@ -204,7 +204,7 @@ export class MessageHandler extends MessageHandlerRegistry {
             lastMsgContent: convo.lastMsgContent ?? '',
             lastMsgTime: Number(convo.lastMsgTime ?? 0),
             unreadCount: convo.unreadCount ?? 0,
-            lastReadMessageId: Number(convo.lastReadSeq ?? 0),
+            lastReadSeq: BigInt(convo.lastReadSeq ?? 0),
             updateTime: Number(convo.updateTime ?? 0),
             createTime: Number(convo.createTime ?? 0),
           })) ?? [];

@@ -160,7 +160,7 @@ export const useChatStore = create<ChatStoreType>((set, get) => {
         newList[index] = {
           ...newList[index],
           unreadCount: res.unreadCount,
-          lastReadMessageId: res.messageId ?? newList[index].lastReadMessageId ?? 0,
+          lastReadSeq: res.lastReadSeq ?? newList[index].lastReadSeq ?? 0n,
         };
         return {
           conversationData: { ...state.conversationData, list: newList },

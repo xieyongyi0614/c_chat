@@ -30,7 +30,7 @@ const toLocalConversation = (convo: IConversationInfo): LocalConversationListIte
     lastMsgContent: convo.lastMsgContent ?? '',
     lastMsgTime: Number(convo.lastMsgTime ?? 0),
     unreadCount: Number(convo.unreadCount ?? 0),
-    lastReadMessageId: Number(convo.lastReadMessageId ?? 0),
+    lastReadSeq: BigInt(convo.lastReadSeq ?? 0),
     updateTime: Number(convo.updateTime ?? 0),
     createTime: Number(convo.createTime ?? 0),
   };
