@@ -1,7 +1,8 @@
 import { MESSAGE_TYPE } from '@c_chat/shared-config';
 import type { LocalMessageListItem, MediaPreviewItem } from '@c_chat/shared-types';
 
-const getSortValue = (msg: LocalMessageListItem) => msg.seq ?? msg.createTime ?? msg.localTime ?? 0;
+const getSortValue = (msg: LocalMessageListItem): bigint =>
+  msg.seq > 0n ? msg.seq : BigInt(msg.createTime ?? msg.localTime ?? 0);
 
 export const toMediaPreviewItem = (msg: LocalMessageListItem): MediaPreviewItem | null => {
   if (msg.type !== MESSAGE_TYPE.Image && msg.type !== MESSAGE_TYPE.Video) {
@@ -29,6 +30,10 @@ export const buildConversationPreviewItems = (
   Object.values(msgMap)
     .flat()
     .filter((msg) => !conversationId || msg.conversationId === conversationId)
-    .sort((a, b) => getSortValue(a) - getSortValue(b))
+    .sort((a, b) => {
+      const av = getSortValue(a);
+      const bv = getSortValue(b);
+      return av === bv ? 0 : av > bv ? 1 : -1;
+    })
     .map(toMediaPreviewItem)
     .filter((item): item is MediaPreviewItem => Boolean(item));

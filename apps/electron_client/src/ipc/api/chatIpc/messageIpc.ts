@@ -31,21 +31,26 @@ import { uploadScheduler } from '@c_chat/electron_client/utils/UploadScheduler';
 
 type RemoteMessageInfo = GetMessageHistoryResponse['list'][number];
 
-const getMessageSortValue = (msg: LocalMessageListItem) => msg.seq ?? msg.createTime ?? 0;
+const getMessageSortValue = (msg: LocalMessageListItem): bigint =>
+  msg.seq > 0n ? msg.seq : BigInt(msg.createTime ?? 0);
 
 const sortMessagesDesc = (msgs: LocalMessageListItem[]) =>
-  [...msgs].sort((a, b) => getMessageSortValue(b) - getMessageSortValue(a));
+  [...msgs].sort((a, b) => {
+    const av = getMessageSortValue(a);
+    const bv = getMessageSortValue(b);
+    return av === bv ? 0 : bv > av ? 1 : -1;
+  });
 
 const getNewestLocalMessageTime = (msgs: LocalMessageListItem[]) =>
   msgs.reduce((max, msg) => Math.max(max, msg.createTime ?? msg.localTime ?? 0), 0);
 
-const getNewestServerMsgId = (msgs: LocalMessageListItem[]) =>
-  msgs.reduce((max, msg) => Math.max(max, msg.seq ?? 0), 0);
+const getNewestServerMsgSeq = (msgs: LocalMessageListItem[]): bigint =>
+  msgs.reduce((max, msg) => (msg.seq > max ? msg.seq : max), 0n);
 
 const mapRemoteMessage = (msg: RemoteMessageInfo): LocalMessageListItem => ({
   id: msg.id!,
   conversationId: msg.conversationId!,
-  seq: msg.seq!,
+  seq: BigInt(msg.seq ?? 0),
   clientMsgId: msg.clientMsgId!,
   senderId: msg.senderId!,
   senderNickname: msg.senderInfo?.nickname ?? msg.senderInfo?.email ?? '',
@@ -109,9 +114,9 @@ addActionHandler('GetMessageHistory', async (data) => {
       limit,
       beforeMsgId,
     );
-    const newestLocalMsgId = getNewestServerMsgId(localRecords);
+    const newestLocalMsgSeq = getNewestServerMsgSeq(localRecords);
 
-    if (localRecords.length >= limit && newestLocalMsgId >= beforeMsgId - 1) {
+    if (localRecords.length >= limit && newestLocalMsgSeq >= BigInt(beforeMsgId - 1)) {
       return localRecords;
     }
   }
@@ -144,7 +149,7 @@ const generateLocalMessageData = (data: Partial<LocalMessageListItem>): LocalMes
   return {
     id: uuidv4(),
     conversationId: data.conversationId ?? '',
-    seq: data.seq ?? null,
+    seq: data.seq ?? 0n,
     clientMsgId: uuidv4(),
     senderId: data.senderId ?? '',
     senderNickname: data.senderNickname ?? '',
@@ -496,14 +501,14 @@ addActionHandler('ReadMessage', async (data) => {
       {
         ...convo,
         unreadCount: Number(res.unreadCount ?? 0),
-        lastReadMessageId: Number(res.messageId ?? 0),
+        lastReadSeq: BigInt(res.msgSeq ?? 0),
       },
     ]);
   }
 
   return {
     conversationId: res.conversationId,
-    messageId: Number(res.messageId ?? 0),
+    lastReadSeq: BigInt(res.msgSeq ?? 0),
     unreadCount: Number(res.unreadCount ?? 0),
   };
 });

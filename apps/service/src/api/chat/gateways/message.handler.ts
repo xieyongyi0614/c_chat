@@ -520,13 +520,13 @@ export abstract class MessageHandler extends MessageHandlerRegistry {
     const result = await this.messageService.markConversationAsRead(
       userId,
       payload.conversationId,
-      payload.messageId ?? undefined,
+      payload.msgSeq ?? undefined,
     );
 
     const response = ReadMessageResponse.encode(
       ReadMessageResponse.create({
         conversationId: result.conversationId,
-        messageId: result.messageId,
+        msgSeq: result.msgSeq,
         unreadCount: result.unreadCount,
       }),
     ).finish();
@@ -690,6 +690,7 @@ export abstract class MessageHandler extends MessageHandlerRegistry {
       waveform,
       thumbUrl: thumbUrl ?? undefined,
     });
+
     const updateMessage = MessageInfo.create(buildMessageInfoPayload(message));
 
     const conversationByUserId = await this.buildConversationUpdatesByUserId(

@@ -18,7 +18,7 @@ export class ConversationTable extends TableConnection {
         target_name TEXT,
         target_avatar TEXT,
         unread_count INTEGER DEFAULT 0,
-        last_read_message_id INTEGER DEFAULT 0,
+        last_read_seq INTEGER DEFAULT 0,
         last_msg_content TEXT,
         last_msg_time INTEGER,
         update_time INTEGER,
@@ -104,7 +104,7 @@ export class ConversationTable extends TableConnection {
   update(data: Partial<LocalConversationListItem> & { id: string }): void {
     const { updateFields, updateValues } = Object.entries(data).reduce<{
       updateFields: string[];
-      updateValues: (string | number)[];
+      updateValues: (string | number | bigint)[];
     }>(
       (acc, [key, value]) => {
         if (value !== undefined && key !== 'id') {
@@ -145,7 +145,7 @@ export class ConversationTable extends TableConnection {
     if (convos.length === 0) return;
 
     const sql = `
-      INSERT INTO ${this.TABLE_NAME} (id, type, target_id, target_name, target_avatar, unread_count, last_read_message_id, last_msg_content, last_msg_time, update_time, create_time)
+      INSERT INTO ${this.TABLE_NAME} (id, type, target_id, target_name, target_avatar, unread_count, last_read_seq, last_msg_content, last_msg_time, update_time, create_time)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(id) DO UPDATE SET
         type = excluded.type,
@@ -153,7 +153,7 @@ export class ConversationTable extends TableConnection {
         target_name = excluded.target_name,
         target_avatar = excluded.target_avatar,
         unread_count = excluded.unread_count,
-        last_read_message_id = excluded.last_read_message_id,
+        last_read_seq = excluded.last_read_seq,
         last_msg_content = excluded.last_msg_content,
         last_msg_time = excluded.last_msg_time,
         update_time = excluded.update_time,
@@ -169,7 +169,7 @@ export class ConversationTable extends TableConnection {
           targetName,
           targetAvatar,
           unreadCount = 0,
-          lastReadMessageId = 0,
+          lastReadSeq = 0n,
           lastMsgContent,
           lastMsgTime,
           updateTime,
@@ -182,7 +182,7 @@ export class ConversationTable extends TableConnection {
           targetName,
           targetAvatar,
           unreadCount,
-          lastReadMessageId,
+          lastReadSeq,
           lastMsgContent,
           lastMsgTime,
           updateTime,
@@ -240,7 +240,7 @@ export class ConversationTable extends TableConnection {
       targetName: string;
       targetAvatar: string;
       unreadCount?: number;
-      lastReadMessageId?: number;
+      lastReadSeq?: number | bigint;
       lastMsgContent: string;
       lastMsgTime: number;
       updateTime: number;
@@ -253,7 +253,7 @@ export class ConversationTable extends TableConnection {
       targetName: camelRow.targetName,
       targetAvatar: camelRow.targetAvatar,
       unreadCount: camelRow.unreadCount ?? 0,
-      lastReadMessageId: camelRow.lastReadMessageId ?? 0,
+      lastReadSeq: BigInt(camelRow.lastReadSeq ?? 0),
       lastMsgContent: camelRow.lastMsgContent,
       lastMsgTime: camelRow.lastMsgTime,
       updateTime: camelRow.updateTime,

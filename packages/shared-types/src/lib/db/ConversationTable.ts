@@ -11,7 +11,7 @@ export interface DBConversationListItem {
   target_name: string;
   target_avatar: string;
   unread_count: number;
-  last_read_message_id: number;
+  last_read_seq: bigint;
   last_msg_content: string;
   last_msg_time: number;
   update_time: number;
@@ -29,5 +29,5 @@ export interface LocalConversationListItem {
   updateTime: number;
   createTime: number;
   unreadCount?: number;
-  lastReadMessageId: number;
+  lastReadSeq: bigint;
 }

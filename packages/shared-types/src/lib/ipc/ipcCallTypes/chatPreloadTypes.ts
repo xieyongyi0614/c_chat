@@ -62,7 +62,7 @@ export type ResendMessageParams = {
 
 export type ReadMessageResult = {
   conversationId: string;
-  messageId: number;
+  lastReadSeq: bigint;
   unreadCount: number;
 };
 
