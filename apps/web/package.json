@@ -1,0 +1,35 @@
+{
+  "name": "@c_chat/web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@c_chat/shared-config": "workspace:^",
+    "@c_chat/shared-protobuf": "workspace:^",
+    "@c_chat/shared-types": "workspace:^",
+    "@c_chat/shared-utils": "workspace:^",
+    "axios": "^1.7.9",
+    "dexie": "^4.0.10",
+    "next": "16.2.6",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "socket.io-client": "^4.8.1",
+    "zustand": "^5.0.2"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.6",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}
