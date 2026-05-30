@@ -1,10 +1,11 @@
+import { PORTS } from '@c_chat/shared-config';
 import { bufferToPreviewUrl, ipc } from '@c_chat/shared-utils';
 import type { MediaPreviewItem } from '@c_chat/shared-types';
 
 export const formatMediaUrl = (url?: string) => {
   if (!url) return '';
   if (/^(https?:|data:|blob:)/.test(url)) return url;
-  return `http://localhost:3001${url}`;
+  return `http://localhost:${PORTS.SERVICE}${url}`;
 };
 
 export async function resolveMediaUrl(item: MediaPreviewItem) {

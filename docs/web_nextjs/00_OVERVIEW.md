@@ -4,7 +4,7 @@
 
 ## Web 项目定位
 
-Web 端用 Next.js 一比一复刻现有 Electron 桌面端 IM。浏览器侧通过 browser service 模块直接持有 `socket.io-client` 与 `Axios`，直连现有 NestJS 后端，不引入 BFF，Next.js 只负责页面与路由。Web 端复用 monorepo `packages/` 下的共享包（`shared-protobuf`、`shared-types`、`shared-config`、`shared-utils`），与 Electron 仓库共用同一套 `packages/`，保证协议、类型与常量单一来源。
+Web 端用 Next.js 一比一复刻现有 Electron 桌面端 IM。浏览器侧通过 browser service 模块直接持有 `socket.io-client` 与 `Axios`，直连现有 NestJS 后端，不引入 BFF，Next.js 只负责页面与路由。Web 端复用 monorepo `packages/` 下的共享包，与 Electron 仓库共用同一套 `packages/`，保证协议、类型与常量单一来源。
 
 ## 整体架构
 
@@ -19,17 +19,17 @@ Web 端: React(Next.js) → browser service 模块(直接持有 socket.io-client
 
 下表是全文最重要的映射依据，09 文档会复用同一张表。
 
-| 桌面端能力                    | 实现位置                                                                                | Web 等价方案                                                                                     | 结论       |
-| ----------------------------- | --------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ | ---------- |
-| React → IPC → 主进程 → NestJS | `preload/index.ts`、`ipc/api/*`、`shared-utils` 的 `ipc` Proxy                          | 浏览器侧 browser service 模块直接持有 `socket.io-client` + `Axios`，替换 `window.c_chat.ipcCall` | 等价替代   |
-| Protobuf over Socket.IO       | `utils/socket-io-client/`、`shared-protobuf/protoMap.ts`                                | 浏览器端复用同一套 `shared-protobuf`，几乎零改动                                                 | 复刻       |
-| 本地 SQLite 缓存              | `db/DatabaseManager.ts`、`db/table/*`(Message/Conversation/Store/UploadTask)            | IndexedDB(Dexie 或原生)，保留「离线优先 → 服务端回退」                                           | 等价替代   |
-| 独立媒体预览窗口              | `main/windows/mediaPreviewWindow.ts`、`apps/media_preview`                              | 应用内 Lightbox / 路由弹层，无独立窗口                                                           | 等价替代   |
-| 多窗口多账号(最多 10 窗)      | `main/windows/windowManager.ts`                                                         | 单标签单账号；多账号靠多浏览器标签；一期只做单账号                                               | 一期不复刻 |
-| 系统托盘                      | `main/tray/trayManager.ts`                                                              | 浏览器无等价                                                                                     | 不复刻     |
-| 自定义标题栏 / 窗口控制       | `components/system/TitleBar.tsx`、`CloseAppBtn.tsx`                                     | 浏览器原生窗口                                                                                   | 不复刻     |
-| 文件选择 / 读取本地路径       | `ipc/api/fileOperationIpc.ts`(`SelectFiles`/`ReadLocalFile`/`SaveFile`/`OpenLocalFile`) | File API / `<input type=file>` / 下载；无本地路径，改用 File/Blob/object URL                     | 等价替代   |
-| 语音录制(Electron 音频)       | `services/audioService.ts`、`ipc/api/audioIpc.ts`、`packages/audio-core`                | MediaRecorder + Web Audio API，波形浏览器侧生成                                                  | 等价替代   |
+| 桌面端能力                    | 实现位置                                                                                | Web 等价方案                                                                 | 结论       |
+| ----------------------------- | --------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- | ---------- |
+| React → IPC → 主进程 → NestJS | `preload/index.ts`、`ipc/api/*`、`shared-utils` 的 `ipc` Proxy                          | 浏览器侧 browser service 模块封装`socket`                                    | 等价替代   |
+| Protobuf over Socket.IO       | `utils/socket-io-client/`、`shared-protobuf/protoMap.ts`                                | 浏览器端复用同一套 `shared-protobuf`，几乎零改动                             | 复刻       |
+| 本地 SQLite 缓存              | `db/DatabaseManager.ts`、`db/table/*`(Message/Conversation/Store/UploadTask)            | IndexedDB(Dexie 或原生)，保留「离线优先 → 服务端回退」                       | 等价替代   |
+| 独立媒体预览窗口              | `main/windows/mediaPreviewWindow.ts`、`apps/media_preview`                              | 应用内 Lightbox / 路由弹层，无独立窗口                                       | 等价替代   |
+| 多窗口多账号(最多 10 窗)      | `main/windows/windowManager.ts`                                                         | 单标签单账号；多账号靠多浏览器标签；一期只做单账号                           | 一期不复刻 |
+| 系统托盘                      | `main/tray/trayManager.ts`                                                              | 浏览器无等价                                                                 | 不复刻     |
+| 自定义标题栏 / 窗口控制       | `components/system/TitleBar.tsx`、`CloseAppBtn.tsx`                                     | 浏览器原生窗口                                                               | 不复刻     |
+| 文件选择 / 读取本地路径       | `ipc/api/fileOperationIpc.ts`(`SelectFiles`/`ReadLocalFile`/`SaveFile`/`OpenLocalFile`) | File API / `<input type=file>` / 下载；无本地路径，改用 File/Blob/object URL | 等价替代   |
+| 语音录制(Electron 音频)       | `services/audioService.ts`、`ipc/api/audioIpc.ts`、`packages/audio-core`                | MediaRecorder + Web Audio API，波形浏览器侧生成                              | 等价替代   |
 
 ## 模块索引
 

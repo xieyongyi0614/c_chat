@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { Spinner } from '@c_chat/ui';
 import { authService, initializeRealtimeListeners } from '@/lib/services';
 import { useUserStore } from '@/lib/stores/user.store';
 
@@ -18,7 +19,7 @@ export default function HomePage() {
         setUserInfo(userInfo);
         initializeRealtimeListeners();
         router.push('/chats');
-      } catch (error) {
+      } catch {
         router.push('/auth/signin');
       } finally {
         setChecking(false);
@@ -30,10 +31,10 @@ export default function HomePage() {
 
   if (checking) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">加载中...</p>
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-4 text-center">
+          <Spinner />
+          <p className="text-muted-foreground">加载中...</p>
         </div>
       </div>
     );

@@ -1,10 +1,10 @@
 import { create } from 'zustand';
-import type { GetUserInfoResponse } from '@c_chat/shared-types';
+import type { AuthTypes } from '@c_chat/shared-types';
 
 interface UserState {
-  userInfo: GetUserInfoResponse | null;
+  userInfo: AuthTypes.GetUserInfoResponse | null;
   isAuthenticated: boolean;
-  setUserInfo: (userInfo: GetUserInfoResponse | null) => void;
+  setUserInfo: (userInfo: AuthTypes.GetUserInfoResponse | null) => void;
   clearUser: () => void;
 }
 

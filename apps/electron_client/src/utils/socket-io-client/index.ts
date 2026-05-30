@@ -1,6 +1,6 @@
 import logger from '../logger';
 import { storeTableClass } from '@c_chat/electron_client/db';
-import { ELECTRON_TO_CLIENT_CHANNELS } from '@c_chat/shared-config';
+import { ELECTRON_TO_CLIENT_CHANNELS, PORTS } from '@c_chat/shared-config';
 import { RealtimeClient, type ConnectionObserver } from '@c_chat/shared-api';
 import { electronTokenProvider } from '../axios/adapters/electronTokenProvider';
 import { createElectronIdentityProvider } from './adapters/electronIdentityProvider';
@@ -25,7 +25,7 @@ export class SocketService {
     };
 
     this.client = new RealtimeClient({
-      url: process.env.SOCKET_URL || 'http://localhost:3001/chat',
+      url: process.env.SOCKET_URL || `http://localhost:${PORTS.SERVICE}/chat`,
       tokenProvider: electronTokenProvider,
       identityProvider: createElectronIdentityProvider(windowId),
       context: { windowId },

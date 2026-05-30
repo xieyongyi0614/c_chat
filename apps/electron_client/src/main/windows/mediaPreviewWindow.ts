@@ -1,8 +1,8 @@
 import {
   ELECTRON_TO_CLIENT_CHANNELS,
-  MEDIA_PREVIEW_RENDERER_PORT,
   MEDIA_PREVIEW_WINDOW_KEY,
   MEDIA_PREVIEW_WINDOW_VALUE,
+  PORTS,
   db,
 } from '@c_chat/shared-config';
 import type { MediaPreviewPayload } from '@c_chat/shared-types';
@@ -109,7 +109,7 @@ export class MediaPreviewWindowManager {
     });
 
     if (!app.isPackaged) {
-      const loadUrl = `http://localhost:${MEDIA_PREVIEW_RENDERER_PORT}`;
+      const loadUrl = `http://localhost:${PORTS.MEDIA_PREVIEW}`;
       previewWindow.loadURL(loadUrl).catch((err) => {
         console.log(`Media preview window load failed: ${(err as Error).message}`);
         setTimeout(() => {

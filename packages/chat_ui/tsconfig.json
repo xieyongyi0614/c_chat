@@ -9,7 +9,6 @@
     "jsx": "react-jsx",
     "moduleResolution": "bundler",
     "module": "ESNext",
-    "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"]
     }
