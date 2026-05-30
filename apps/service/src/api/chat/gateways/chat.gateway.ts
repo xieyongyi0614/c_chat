@@ -18,10 +18,10 @@ import { Command, MessageInfo, SendFileUploadComplete, UserInfo } from '@c_chat/
 import { MessageHandler } from './message.handler';
 import { UsersService } from 'src/api/web/users/users.service';
 import { PrismaService } from 'src/core/database';
-import { SOCKET_ERROR_CODE } from 'src/constants/errorCode';
 import { ServiceToClientEvent } from '@c_chat/shared-protobuf/protoMap';
 import { FileTypes } from 'src/types/api/file-types';
 import { buildMessageInfoPayload, MessageHistoryWithMedia } from '../utils/message-to-proto.util';
+import { SOCKET_ERROR_CODE } from '@c_chat/shared-config';
 
 @WebSocketGateway({
   namespace: '/chat',

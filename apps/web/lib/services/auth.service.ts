@@ -1,41 +1,39 @@
-import { httpService } from './http.service';
+import { apiClient } from './http.service';
 import { socketService } from './socket.service';
 import { StoreDB, ConversationDB, MessageDB } from '../db';
 import type {
-  PostSignInParams,
-  PostSignUpParams,
-  GetUserInfoResponse,
-  UpdateUserProfileParams,
   GetUserListParams,
-  GetUserListResponse,
+  AuthTypes,
+  SocketTypes,
+  UserTypes,
 } from '@c_chat/shared-types';
 import { ClientToServiceEvent } from '@c_chat/shared-protobuf/protoMap';
-import { GetUserList, UserInfo } from '@c_chat/shared-protobuf';
+import { GetUserList, GetUserListResponse, UserInfo } from '@c_chat/shared-protobuf';
 
 export class AuthService {
-  async signIn(params: PostSignInParams): Promise<void> {
-    const response = await httpService.post<{ data: { accessToken: string; userInfo: GetUserInfoResponse } }>('/auth/signin', params);
-
-    const { accessToken, userInfo } = response.data;
-
-    await StoreDB.set('accessToken', accessToken);
-    await StoreDB.set('userInfo', JSON.stringify(userInfo));
-
-    await socketService.connect(accessToken, userInfo.id);
-  }
-
-  async signUp(params: PostSignUpParams): Promise<void> {
-    const response = await httpService.post<{ data: { accessToken: string; userInfo: GetUserInfoResponse } }>('/auth/signup', params);
-
-    const { accessToken, userInfo } = response.data;
+  async signIn(params: AuthTypes.PostSignInParams): Promise<void> {
+    const { access_token: accessToken } = await apiClient.auth.signIn(params);
+    const userInfo = await apiClient.auth.getUserInfo();
 
     await StoreDB.set('accessToken', accessToken);
-    await StoreDB.set('userInfo', JSON.stringify(userInfo));
-
-    await socketService.connect(accessToken, userInfo.id);
+    if (userInfo) {
+      await StoreDB.set('userInfo', JSON.stringify(userInfo));
+      await socketService.connect(accessToken, userInfo.id);
+    }
   }
 
-  async getUserInfo(): Promise<GetUserInfoResponse> {
+  async signUp(params: AuthTypes.PostSignUpParams): Promise<void> {
+    const { access_token: accessToken } = await apiClient.auth.signUp(params);
+    const userInfo = await apiClient.auth.getUserInfo();
+
+    await StoreDB.set('accessToken', accessToken);
+    if (userInfo) {
+      await StoreDB.set('userInfo', JSON.stringify(userInfo));
+      await socketService.connect(accessToken, userInfo.id);
+    }
+  }
+
+  async getUserInfo(): Promise<AuthTypes.GetUserInfoResponse> {
     const userInfoStr = await StoreDB.get('userInfo');
     if (userInfoStr) {
       return JSON.parse(userInfoStr);
@@ -46,11 +44,11 @@ export class AuthService {
       null
     );
 
-    const result: GetUserInfoResponse = {
+    const result: AuthTypes.GetUserInfoResponse = {
       id: userInfo.id,
       email: userInfo.email,
-      nickname: userInfo.nickname || '',
-      avatarUrl: userInfo.avatarUrl || '',
+      nickname: userInfo.nickname,
+      avatarUrl: userInfo.avatarUrl,
       state: 0,
     };
 
@@ -58,11 +56,9 @@ export class AuthService {
     return result;
   }
 
-  async updateUserProfile(params: UpdateUserProfileParams): Promise<void> {
-    await httpService.put('/user/profile', params);
-
-    const userInfo = await this.getUserInfo();
-    const updated = { ...userInfo, ...params };
+  async updateUserProfile(params: AuthTypes.UpdateUserProfileParams): Promise<void> {
+    const updated = await apiClient.auth.updateUserProfile(params);
+    if (!updated) return;
     await StoreDB.set('userInfo', JSON.stringify(updated));
   }
 
@@ -87,31 +83,23 @@ export class AuthService {
     await MessageDB.clear();
   }
 
-  async getUserList(params: GetUserListParams): Promise<GetUserListResponse> {
+  async getUserList(
+    params: GetUserListParams,
+  ): Promise<SocketTypes.ResponseList<UserTypes.UserListItem>> {
     const request = GetUserList.create({
-      pageSize: params.pageSize || 20,
-      keyword: params.keyword || '',
+      pagination: params.pagination,
+      word: params.word,
     });
 
     const payload = GetUserList.encode(request).finish();
-    const response = await socketService.request(
+    const response = await socketService.request<GetUserListResponse>(
       ClientToServiceEvent.getUserList,
       payload
     );
 
     return {
-      list: response.list.map((user: any) => ({
-        id: user.id,
-        email: user.email,
-        username: user.username,
-        nickname: user.nickname || '',
-        avatarUrl: user.avatarUrl || '',
-        phone: user.phone || '',
-        gender: user.gender || 0,
-      })),
-      total: response.total,
-      page: response.page,
-      pageSize: response.pageSize,
+      list: response.list,
+      pagination: response.pagination ?? { total: 0, totalPage: 0, page: 1, pageSize: 20 },
     };
   }
 }

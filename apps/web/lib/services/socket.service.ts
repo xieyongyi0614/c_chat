@@ -1,4 +1,5 @@
 import { io, Socket } from 'socket.io-client';
+import { PORTS } from '@c_chat/shared-config';
 import { Command } from '@c_chat/shared-protobuf';
 import {
   ClientToServiceEvent,
@@ -9,7 +10,7 @@ import {
 import { StoreDB } from '../db';
 
 export interface ServerToClientEvents {
-  message: (data: Uint8Array | Buffer) => void;
+  message: (data: Uint8Array) => void;
   auth_error: (data: { message: string; timestamp: string }) => void;
 }
 
@@ -20,7 +21,7 @@ export interface ClientToServerEvents {
 export type CChatSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 
 interface PendingRequest {
-  resolve: (data: any) => void;
+  resolve: (data: unknown) => void;
   reject: (error: Error) => void;
   timeout: NodeJS.Timeout;
 }
@@ -30,7 +31,7 @@ export class SocketService {
   private accessToken: string | null = null;
   private userId: string | null = null;
   private pendingRequests = new Map<string, PendingRequest>();
-  private eventListeners = new Map<string, Set<(data: any) => void>>();
+  private eventListeners = new Map<string, Set<(data: unknown) => void>>();
 
   private pingTimerId?: NodeJS.Timeout;
   private readonly PING_INTERVAL = 10000;
@@ -55,7 +56,7 @@ export class SocketService {
     this.accessToken = token;
     this.userId = userId;
 
-    const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:3001/chat';
+    const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || `http://localhost:${PORTS.SERVICE}/chat`;
 
     return new Promise((resolve, reject) => {
       this.socket = io(socketUrl, {
@@ -84,7 +85,7 @@ export class SocketService {
         reject(new Error(data.message));
       });
 
-      this.socket.on('message', (data: Uint8Array | Buffer) => {
+      this.socket.on('message', (data: Uint8Array) => {
         this.handleMessage(data);
       });
 
@@ -127,15 +128,14 @@ export class SocketService {
     }
   }
 
-  private handleMessage(data: Uint8Array | Buffer): void {
+  private handleMessage(data: Uint8Array): void {
     try {
-      const buffer = data instanceof Buffer ? new Uint8Array(data) : data;
-      const command = Command.decode(buffer);
+      const command = Command.decode(data);
 
       const event = command.event as ClientDecodeProtoMapKey;
       const protoClass = clientDecodeProtoMap[event];
 
-      let payload: any = null;
+      let payload: unknown = null;
       if (protoClass && command.payload && command.payload.length > 0) {
         payload = protoClass.decode(command.payload[0]);
       }
@@ -149,7 +149,7 @@ export class SocketService {
         this.pendingRequests.delete(command.requestId);
 
         if (event === ServiceToClientEvent.error) {
-          pending.reject(new Error(payload?.message || 'Unknown error'));
+          pending.reject(new Error(this.getErrorMessage(payload)));
         } else {
           pending.resolve(payload);
         }
@@ -165,7 +165,7 @@ export class SocketService {
     }
   }
 
-  private sendEvent(event: string, payload: any): string {
+  private sendEvent(event: string, payload: Uint8Array | null): string {
     if (!this.socket || !this.isConnected()) {
       throw new Error('Socket not connected');
     }
@@ -186,7 +186,7 @@ export class SocketService {
     return requestId;
   }
 
-  async request<T = any>(event: string, payload: any): Promise<T> {
+  async request<T>(event: string, payload: Uint8Array | null): Promise<T> {
     return new Promise((resolve, reject) => {
       try {
         const requestId = this.sendEvent(event, payload);
@@ -196,25 +196,37 @@ export class SocketService {
           reject(new Error(`Request timeout: ${event}`));
         }, this.REQUEST_TIMEOUT);
 
-        this.pendingRequests.set(requestId, { resolve, reject, timeout });
+        this.pendingRequests.set(requestId, {
+          resolve: (data) => resolve(data as T),
+          reject,
+          timeout,
+        });
       } catch (error) {
         reject(error);
       }
     });
   }
 
-  on(event: string, listener: (data: any) => void): void {
+  on<T>(event: string, listener: (data: T) => void): void {
     if (!this.eventListeners.has(event)) {
       this.eventListeners.set(event, new Set());
     }
-    this.eventListeners.get(event)!.add(listener);
+    this.eventListeners.get(event)!.add(listener as (data: unknown) => void);
   }
 
-  off(event: string, listener: (data: any) => void): void {
+  off<T>(event: string, listener: (data: T) => void): void {
     const listeners = this.eventListeners.get(event);
     if (listeners) {
-      listeners.delete(listener);
+      listeners.delete(listener as (data: unknown) => void);
     }
+  }
+
+  private getErrorMessage(payload: unknown): string {
+    if (payload && typeof payload === 'object' && 'message' in payload) {
+      const message = payload.message;
+      if (typeof message === 'string') return message;
+    }
+    return 'Unknown error';
   }
 }
 

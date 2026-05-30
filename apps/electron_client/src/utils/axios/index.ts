@@ -1,4 +1,5 @@
 import * as https from 'https';
+import { PORTS } from '@c_chat/shared-config';
 import { createApiClient, type ApiClientBundle, type UploadService } from '@c_chat/shared-api';
 import { electronAdapters } from './adapters';
 import { downloadFile, uploadFileByPath } from './fileOps';
@@ -25,7 +26,7 @@ let _electronUpload: ElectronUploadService | null = null;
  * adapter 在 init 时一次性注入；windowId 透过 ActionCtx (AsyncLocalStorage) 自动解析。
  */
 export class ApiClient {
-  static init(baseURL: string = 'http://localhost:3001/api') {
+  static init(baseURL: string = `http://localhost:${PORTS.SERVICE}/api`) {
     if (_bundle) return;
 
     _bundle = createApiClient({

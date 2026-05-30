@@ -3,6 +3,7 @@
     "module": "CommonJS",
     "target": "ES2021",
     "moduleResolution": "node",
+    "baseUrl": ".",
     "esModuleInterop": true,
     "isolatedModules": true,
     "declaration": true,
@@ -12,7 +13,6 @@
     "allowSyntheticDefaultImports": true,
     "sourceMap": true,
     "outDir": "./dist",
-    "baseUrl": "./",
     "paths": {
       "@c_chat/shared-protobuf": ["../../packages/shared-protobuf/dist/index.d.ts"],
       "@c_chat/shared-protobuf/protoMap": ["../../packages/shared-protobuf/dist/protoMap.d.ts"]

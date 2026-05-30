@@ -8,8 +8,17 @@ export * from './lib/fileType';
 export * from './lib/toast.config';
 export * from './lib/mediaPreview';
 
-/** electron renderer port */
-export const ELECTRON_RENDERER_PORT = 3000;
+/** 统一端口配置 */
+export const PORTS = {
+  /** Electron 客户端 (Vite) */
+  FRONTEND: 3000,
+  /** Next.js Web 端 */
+  WEB: 4000,
+  /** 媒体预览窗口 (Vite) */
+  MEDIA_PREVIEW: 3001,
+  /** NestJS 后端服务 */
+  SERVICE: 2000,
+} as const;
 
 /** IPC config */
 export const IPC_CONFIG = {

@@ -10,11 +10,12 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@c_chat/shared-api": "workspace:^",
     "@c_chat/shared-config": "workspace:^",
     "@c_chat/shared-protobuf": "workspace:^",
     "@c_chat/shared-types": "workspace:^",
     "@c_chat/shared-utils": "workspace:^",
-    "axios": "^1.7.9",
+    "@c_chat/ui": "workspace:^",
     "dexie": "^4.0.10",
     "next": "16.2.6",
     "react": "19.2.4",

@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "@c_chat/ui/styles";
 
 :root {
   --background: #ffffff;

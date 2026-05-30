@@ -6,6 +6,7 @@
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
+import { PORTS } from '@c_chat/shared-config';
 import { join } from 'node:path';
 
 import { AppModule } from './app/app.module';
@@ -20,7 +21,7 @@ async function bootstrap() {
   app.useStaticAssets(join(process.cwd(), 'uploads'), { prefix: '/uploads' });
 
   app.useGlobalPipes(new ValidationPipe({ transform: true }));
-  const port = process.env.PORT || 3001;
+  const port = process.env.PORT || PORTS.SERVICE;
 
   // Swagger 文档配置
   const config = new DocumentBuilder()

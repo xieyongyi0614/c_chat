@@ -4,6 +4,7 @@ import { cn } from '@c_chat/ui';
 import { FileIcon } from 'lucide-react';
 import { formatFileSize } from '@c_chat/shared-utils';
 import MessageDate from '../MessageDate';
+import { formatFileUrl } from '@c_chat/frontend/common/formatFileUrl';
 
 interface FileMessageProps {
   msg: LocalMessageListItem;
@@ -19,7 +20,7 @@ const FileMessage = ({ msg, isMe, onRetry, retrying }: FileMessageProps) => {
   return (
     <div className="w-[200px]">
       <a
-        href={`http://localhost:3001${msg.content}`}
+        href={formatFileUrl(msg.content)}
         target="_blank"
         rel="noreferrer"
         download

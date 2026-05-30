@@ -1,12 +1,12 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
-import { MEDIA_PREVIEW_RENDERER_PORT } from '@c_chat/shared-config';
+import { PORTS } from '@c_chat/shared-config';
 import { resolve } from 'path';
 
 export default defineConfig({
   server: {
-    port: MEDIA_PREVIEW_RENDERER_PORT,
+    port: PORTS.MEDIA_PREVIEW,
   },
   base: './',
   resolve: {

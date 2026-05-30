@@ -8,7 +8,7 @@ import {
 } from '@c_chat/shared-protobuf/protoMap';
 import { ChatSocket } from 'src/types/socket.types';
 import { Server, Socket } from 'socket.io';
-import { SOCKET_ERROR_CODE } from 'src/constants/errorCode';
+import { SOCKET_ERROR_CODE } from '@c_chat/shared-config';
 
 type Handler<K extends keyof ServiceDecodeProtoCallback> = (
   client: ChatSocket,

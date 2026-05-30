@@ -1,9 +1,4 @@
-import {
-  ELECTRON_RENDERER_PORT,
-  ELECTRON_TO_CLIENT_CHANNELS,
-  WINDOW_ID,
-  db,
-} from '@c_chat/shared-config';
+import { ELECTRON_TO_CLIENT_CHANNELS, PORTS, WINDOW_ID, db } from '@c_chat/shared-config';
 import { app, BrowserWindow, shell } from 'electron';
 import EventEmitter from 'events';
 import path, { join } from 'path';
@@ -121,7 +116,7 @@ export class WindowManager {
 
     if (!app.isPackaged) {
       // 加载内容
-      const loadUrl = `http://localhost:${ELECTRON_RENDERER_PORT}/#/auth/sign-in`;
+      const loadUrl = `http://localhost:${PORTS.FRONTEND}/#/auth/sign-in`;
       window.loadURL(loadUrl).catch((err) => {
         console.log(`Window load failed: ${err instanceof Error ? err.message : String(err)}`);
         if (process.env.NODE_ENV === 'development') {

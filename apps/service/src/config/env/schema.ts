@@ -1,4 +1,5 @@
 import * as Joi from 'joi';
+import { PORTS } from '@c_chat/shared-config';
 
 export const envSchema = Joi.object({
   NODE_ENV: Joi.string().valid('development', 'production', 'test').default('development'),
@@ -13,7 +14,7 @@ export const envSchema = Joi.object({
   JWT_EXPIRES_IN: Joi.string().default('7d'),
 
   // Upload
-  UPLOAD_BASE_URL: Joi.string().uri().default('http://localhost:3001'),
+  UPLOAD_BASE_URL: Joi.string().uri().default(`http://localhost:${PORTS.SERVICE}`),
   UPLOAD_PATH: Joi.string().default('./uploads'),
 
   // DB
