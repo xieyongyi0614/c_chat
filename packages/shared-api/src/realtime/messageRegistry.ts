@@ -1,5 +1,3 @@
-import { storeTableClass } from '@c_chat/electron_client/db';
-import initOsData from '../osData';
 import {
   clientDecodeProtoMap,
   ClientDecodeProtoMapKey,
@@ -10,19 +8,24 @@ import {
   ClientPaddingRequestsCallback,
 } from '@c_chat/shared-protobuf/protoMap';
 import { Command } from '@c_chat/shared-protobuf';
-import { Socket } from 'socket.io-client';
-import { ClientToServerEvents, ServerToClientEvents } from '.';
 import { uuidv4 } from '@c_chat/shared-utils';
+import type { CChatSocket } from './types';
+import type { IdentityProvider } from '../adapters/identityProvider';
 
 type Deferred<T = any> = {
-  timer: NodeJS.Timeout;
+  timer: ReturnType<typeof setTimeout>;
   event: ServiceDecodeProtoMapKey;
   resolve: (value: T | PromiseLike<T>) => void;
   reject: (reason?: any) => void;
 };
 
-/** 消息命令处理器注册中心 */
-export abstract class MessageHandlerRegistry {
+interface QueuedEvent {
+  event: ClientDecodeProtoMapKey;
+  data: Command;
+}
+
+/** 消息命令处理器注册中心（传输中立） */
+export abstract class MessageRegistry {
   /**
    * 事件监听器注册表
    *
@@ -41,40 +44,31 @@ export abstract class MessageHandlerRegistry {
   private pendingRequests = new Map<string, Deferred>();
   private static readonly DEFAULT_WAIT_TIMEOUT_MS = 20_000;
 
-  constructor(protected windowId: number) {}
+  /** 发送消息队列 */
+  private sendQueue: QueuedEvent[] = [];
 
-  // protected abstract initializeHandlers(): void;
+  constructor(
+    protected identityProvider: IdentityProvider,
+    protected logName: string,
+  ) {}
 
-  protected abstract _queueMessage(command: Command): void;
-  protected abstract getSocket(): Socket<ServerToClientEvents, ClientToServerEvents> | null;
+  protected abstract getSocket(): CChatSocket | null;
 
   public dispatch(data: Uint8Array | Buffer) {
     const command = Command.decode(data);
     const event = command.event as ClientDecodeProtoMapKey;
 
-    // 处理其他事件
     const listener = this.handlers.get(event);
     if (isIgnoreConsoleEvent(event)) {
       console.log(`收到消息：Event=${event},requestId=${command.requestId}`);
     }
     if (listener) {
       if (listener instanceof Map) {
-        // 多订阅广播
         listener?.forEach((callback) => {
           try {
             const clazz = clientDecodeProtoMap[event];
             const decodedResult = clazz?.decode(command.payload[0]);
 
-            // if (isIgnoreConsoleEvent(event)) {
-            //   console.log(
-            //     '============================处理订阅广播========================================',
-            //   );
-            //   console.log(`反序列化结果`);
-            //   console.log(decodedResult?.toJSON());
-            //   console.log(
-            //     '==========================    end    ========================================',
-            //   );
-            // }
             if (command.requestId) {
               this.resolveOrRejectWaiter(
                 command.requestId,
@@ -85,7 +79,7 @@ export abstract class MessageHandlerRegistry {
 
             callback(decodedResult?.toJSON() || decodedResult);
           } catch (err) {
-            console.error(`[客户端 ${this.windowId}] 处理事件${event}出错:`, err);
+            console.error(`[客户端 ${this.logName}] 处理事件${event}出错:`, err);
             console.log(command);
           }
         });
@@ -99,13 +93,12 @@ export abstract class MessageHandlerRegistry {
     payload?: Uint8Array | Uint8Array[],
     requestId?: string,
   ) {
-    const osData = initOsData();
-    const userInfo = storeTableClass.getUserInfo(this.windowId);
+    const { userId, client } = this.identityProvider.getIdentity();
 
     const command = Command.create({
       event,
-      userId: userInfo?.id,
-      client: osData.machineId,
+      userId,
+      client,
       payload: payload ? (Array.isArray(payload) ? payload : [payload]) : undefined,
       requestId,
     });
@@ -115,13 +108,39 @@ export abstract class MessageHandlerRegistry {
     if (socket && socket.connected) {
       try {
         socket.emit('message', data);
-        console.log(`[客户端 ${this.windowId}] 发送事件: ${event}`);
+        console.log(`[客户端 ${this.logName}] 发送事件: ${event}`);
       } catch (error) {
-        console.error(`[客户端 ${this.windowId}] 发送数据出错:`, error);
+        console.error(`[客户端 ${this.logName}] 发送数据出错:`, error);
         this._queueMessage(command);
       }
     } else {
       this._queueMessage(command);
+    }
+  }
+
+  /** 发送消息队列 */
+  protected _queueMessage(command: Command) {
+    const event = command.event as ClientDecodeProtoMapKey;
+    const existingIndex = this.sendQueue.findIndex((q) => q.event === event);
+    if (existingIndex > -1) {
+      this.sendQueue[existingIndex] = { event, data: command };
+    } else {
+      this.sendQueue.push({ event, data: command });
+    }
+  }
+
+  /** 处理队列中的消息 */
+  protected _processQueue(socket: CChatSocket) {
+    if (this.sendQueue.length === 0) return;
+
+    console.log(`[Socket] Processing ${this.sendQueue.length} queued messages`);
+    while (this.sendQueue.length > 0) {
+      const queued = this.sendQueue.shift();
+      if (queued) {
+        const data = Command.encode(queued.data).finish();
+        socket.emit('message', data);
+        console.log(`[Socket] Sent queued event: ${queued.event}`);
+      }
     }
   }
 
@@ -158,7 +177,6 @@ export abstract class MessageHandlerRegistry {
     type ResponseType = Parameters<ClientPaddingRequestsCallback[T]>[0];
 
     return new Promise<ResponseType>((resolve, reject) => {
-      // 创建超时定时器
       const timer = setTimeout(() => {
         const entry = this.pendingRequests.get(requestId);
         if (entry) {
@@ -166,7 +184,7 @@ export abstract class MessageHandlerRegistry {
           clearTimeout(entry.timer);
           reject(new globalThis.Error(`请求 ${event}: ${requestId} 超时.`));
         }
-      }, MessageHandlerRegistry.DEFAULT_WAIT_TIMEOUT_MS);
+      }, MessageRegistry.DEFAULT_WAIT_TIMEOUT_MS);
 
       const entry: Deferred<ResponseType> = {
         resolve,
@@ -186,21 +204,18 @@ export abstract class MessageHandlerRegistry {
     });
   }
 
-  // 5. 通用的解析/拒绝等待项的方法
   private resolveOrRejectWaiter<TResponse>(
     requestId: string,
     response: TResponse | null,
     error: unknown,
   ): void {
     const entry = this.pendingRequests.get(requestId);
-    console.log(`客户端 ${this.windowId} 收到响应：${requestId}`);
+    console.log(`客户端 ${this.logName} 收到响应：${requestId}`);
     if (!entry) {
-      // console.warn(`No waiter found for requestId: ${requestId}. Response might be stale.`);
       return;
     }
 
     this.pendingRequests.delete(requestId);
-    // 清理定时器
     clearTimeout(entry.timer);
 
     if (error) {

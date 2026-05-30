@@ -1,277 +1,64 @@
-import { io, Socket } from 'socket.io-client';
 import logger from '../logger';
 import { storeTableClass } from '@c_chat/electron_client/db';
-import { ELECTRON_TO_CLIENT_CHANNELS, SOCKET_ERROR_CODE } from '@c_chat/shared-config';
-import { MessageHandler } from './message.handler';
+import { ELECTRON_TO_CLIENT_CHANNELS } from '@c_chat/shared-config';
+import { RealtimeClient, type ConnectionObserver } from '@c_chat/shared-api';
+import { electronTokenProvider } from '../axios/adapters/electronTokenProvider';
+import { createElectronIdentityProvider } from './adapters/electronIdentityProvider';
+import { registerSocketEventHandlers, sendToRenderer } from './message.handler';
 
-import { WebContentEvents } from '@c_chat/shared-types';
-import { ClientToServiceEvent, ServiceToClientEvent } from '@c_chat/shared-protobuf/protoMap';
-
-export interface ServerToClientEvents {
-  message: (data: Uint8Array | Buffer) => void;
-  auth_error: (data: { message: string; timestamp: string }) => void;
-}
-
-export interface ClientToServerEvents {
-  message: (data: Uint8Array<ArrayBufferLike>) => void;
-}
-
-export type CChatSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
+export type { ServerToClientEvents, ClientToServerEvents, CChatSocket } from '@c_chat/shared-api';
 
 /**
- * Socket服务类 - 每个窗口独立的socket连接
+ * Socket服务类 - 每个窗口独立的socket连接。
+ * 组合 shared-api 的 RealtimeClient，注入 electron 平台适配器，并注册业务事件处理器。
  */
-export class SocketService extends MessageHandler {
-  private socket: CChatSocket | null = null;
+export class SocketService {
+  private readonly client: RealtimeClient;
 
-  private reconnectAttempts = 0;
-  private maxReconnectAttempts = 5;
-  private accessToken: string | null = null;
+  constructor(private windowId: number) {
+    const observer: ConnectionObserver = {
+      onDisconnected: (reason) =>
+        sendToRenderer(this.windowId, ELECTRON_TO_CLIENT_CHANNELS.SocketDisconnected, reason),
+      onReconnecting: (info) =>
+        sendToRenderer(this.windowId, ELECTRON_TO_CLIENT_CHANNELS.SocketReconnecting, info),
+      onError: (error) => sendToRenderer(this.windowId, ELECTRON_TO_CLIENT_CHANNELS.ERROR, error),
+    };
 
-  private pingTimerId?: NodeJS.Timeout;
-  private reconnectTimerId?: NodeJS.Timeout;
-  private isReconnecting = false;
+    this.client = new RealtimeClient({
+      url: process.env.SOCKET_URL || 'http://localhost:3001/chat',
+      tokenProvider: electronTokenProvider,
+      identityProvider: createElectronIdentityProvider(windowId),
+      context: { windowId },
+      observer,
+      name: windowId,
+    });
 
-  // 30s连接超时
-  private readonly AUTH_TIMEOUT = 30000;
-  // 10秒ping一次
-  private readonly PING_INTERVAL = 10000;
-  // 5秒ping超时
-  private readonly PING_TIMEOUT = 5000;
-  // 固定重连延迟 5秒
-  private readonly RECONNECT_DELAY = 5000;
-
-  constructor(windowId: number) {
-    super(windowId);
+    registerSocketEventHandlers(this.client, windowId);
   }
 
-  /**
-   * 当前 socket 是否已连接
-   */
+  async init() {
+    logger.info(`[Socket ${this.windowId}] init`);
+    await this.client.connect();
+  }
+
   public isConnected(): boolean {
-    return !!this.socket?.connected;
+    return this.client.isConnected();
   }
 
   public getUserInfo() {
     return storeTableClass.getUserInfo(this.windowId);
   }
 
-  async init() {
-    const socketUrl = process.env.SOCKET_URL || 'http://localhost:3001/chat';
-    this.connect(socketUrl);
-  }
+  public genericRequest: RealtimeClient['genericRequest'] = (...args) =>
+    this.client.genericRequest(...args);
 
-  async connect(url: string) {
-    this.destroy();
-    logger.info(`[Socket ${this.windowId}] Connecting to ${url}`);
-
-    if (!this.accessToken) {
-      const accessToken = storeTableClass.getAccessToken(this.windowId);
-      if (!accessToken) {
-        const error = new Error('No access token found');
-        logger.error(`[Socket ${this.windowId}] ${error.message}`);
-        throw error;
-      }
-      this.accessToken = accessToken;
-    }
-
-    this.socket = io(url, {
-      transports: ['websocket'],
-      auth: { token: this.accessToken },
-      reconnection: false,
-      timeout: 10000,
-    });
-
-    // 连接超时保护
-    const timeout = setTimeout(() => {
-      if (this.socket && !this.socket.connected) {
-        logger.error(`[Socket ${this.windowId}] Initial connection timeout`);
-        const error = new Error('Connection timeout');
-        this.handleConnectError(error);
-        return;
-      }
-    }, this.AUTH_TIMEOUT);
-
-    /** 连接成功 */
-    this.socket.on('connect', () => {
-      if (timeout) clearTimeout(timeout);
-      this.reconnectAttempts = 0;
-      this.isReconnecting = false;
-      logger.success(`[Socket ${this.windowId}] 连接成功. ID: ${this.socket?.id}`);
-      this.setupPingTimer();
-
-      this.subscribeToEvent(ServiceToClientEvent.pong, () => {
-        console.log(`[客户端 ${this.windowId}] 收到 ${ServiceToClientEvent.pong}`);
-        this.cancelPendingReconnect();
-      });
-      if (this.socket) {
-        this._setupSubscribeToEvent(this.socket);
-        this._processQueue(this.socket);
-      }
-    });
-
-    /** 断开连接 */
-    this.socket.on('disconnect', (reason) => {
-      this.rejectAllWaiters(new Error(`Socket 断开: ${reason}`));
-      logger.warn(`[Socket ${this.windowId}] Disconnected: ${reason}`);
-      this.sendToRenderer(ELECTRON_TO_CLIENT_CHANNELS.SocketDisconnected, reason);
-
-      /** 非主动断开时尝试重连 */
-      if (reason !== 'io client disconnect') {
-        this.scheduleReconnect();
-      }
-    });
-
-    /** 连接错误 */
-    this.socket.on('connect_error', (error) => {
-      logger.error(`[Socket ${this.windowId}] Connect error: ${error.message}`);
-      this.isReconnecting = false;
-      this.handleConnectError(error);
-    });
-
-    /** 接收到protobuf消息 */
-    this.socket.on('message', this.dispatch.bind(this));
-  }
-
-  /** 设置ping定时器 */
-  private setupPingTimer() {
-    if (this.pingTimerId) clearInterval(this.pingTimerId);
-
-    this.pingTimerId = setInterval(() => {
-      if (!this.socket?.connected) return;
-
-      this._sendMessageToService(ClientToServiceEvent.ping);
-
-      this.cancelPendingReconnect();
-
-      this.reconnectTimerId = setTimeout(() => {
-        this.handlePingTimeout();
-      }, this.PING_TIMEOUT);
-    }, this.PING_INTERVAL);
-  }
-
-  private handlePingTimeout() {
-    if (this.pingTimerId) {
-      clearInterval(this.pingTimerId);
-      this.pingTimerId = undefined;
-    }
-
-    if (this.isReconnecting) return;
-
-    logger.info(`[客户端 ${this.windowId}] Ping失败重连，延迟${this.RECONNECT_DELAY}ms`);
-
-    this.reconnectTimerId = setTimeout(() => {
-      if (this.isReconnecting) return;
-      logger.info(`[客户端 ${this.windowId}] 开始Ping失败重连`);
-      this.scheduleReconnect();
-    }, this.RECONNECT_DELAY);
-  }
-
-  /** 取消计划中的重连 */
-  private cancelPendingReconnect() {
-    if (this.reconnectTimerId) {
-      clearTimeout(this.reconnectTimerId);
-      this.reconnectTimerId = undefined;
-    }
-  }
-
-  /** 计划重连 */
-  private scheduleReconnect() {
-    if (this.isReconnecting) return;
-
-    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      logger.error(`[Socket ${this.windowId}] Max reconnection attempts reached. Giving up.`);
-      this.sendToRenderer(ELECTRON_TO_CLIENT_CHANNELS.ERROR, {
-        errorCode: SOCKET_ERROR_CODE.UNKNOWN,
-        errorMessage: 'Failed to reconnect after multiple attempts',
-      });
-      return;
-    }
-    this.isReconnecting = true;
-
-    const delay = this.RECONNECT_DELAY * (this.reconnectAttempts + 1);
-    this.reconnectAttempts++;
-
-    logger.info(
-      `[Socket ${this.windowId}] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`,
-    );
-    this.sendToRenderer(ELECTRON_TO_CLIENT_CHANNELS.SocketReconnecting, {
-      attempt: this.reconnectAttempts,
-      maxAttempts: this.maxReconnectAttempts,
-      delay,
-    });
-
-    this.reconnectTimerId = setTimeout(() => {
-      if (this.socket) {
-        this.disconnect();
-        this.socket.connect();
-      }
-    }, delay);
-  }
-
-  private handleConnectError(error: Error): void {
-    this.sendToRenderer(ELECTRON_TO_CLIENT_CHANNELS.ERROR, {
-      errorCode: SOCKET_ERROR_CODE.INTERNAL_ERROR,
-      errorMessage: error.message,
-    });
-
-    if (this.reconnectAttempts < this.maxReconnectAttempts) {
-      this.scheduleReconnect();
-    }
-  }
-
-  // ==================== 生命周期管理 ====================
-  /**
-   * 安全断开（保留实例）
-   */
   public disconnect(): void {
-    if (this.socket) {
-      this.socket.disconnect();
-      logger.info(`[Socket ${this.windowId}] Disconnected manually`);
-    }
+    this.client.disconnect();
   }
 
-  /**
-   * 彻底销毁（窗口关闭时调用）
-   */
   public destroy(): void {
-    this.rejectAllWaiters(new Error('Socket 已销毁'));
-    if (!this.socket) return;
-
-    this.disconnect();
-
-    // 清理资源
-    if (this.socket) {
-      this.socket.offAny(); // 移除所有监听
-      this.socket = null;
-    }
-
-    // 清理定时器
-    if (this.pingTimerId) {
-      clearInterval(this.pingTimerId);
-      this.pingTimerId = undefined;
-    }
-    if (this.reconnectTimerId) {
-      clearTimeout(this.reconnectTimerId);
-      this.reconnectTimerId = undefined;
-    }
-
-    this.accessToken = null;
-    this.isReconnecting = false;
-    this.reconnectAttempts = 0;
+    this.client.destroy();
     logger.info(`[Socket ${this.windowId}] Service destroyed`);
-  }
-
-  protected getSocket() {
-    return this.socket;
-  }
-
-  /** 渲染进程通信中转 */
-  sendToRenderer<T extends keyof WebContentEvents>(
-    channel: T,
-    data?: Parameters<WebContentEvents[T]>[0],
-  ) {
-    this._sendToRenderer(channel, data);
   }
 }
 
@@ -305,7 +92,6 @@ export class SocketManager {
   /**
    * 初始化指定窗口的socket连接
    * @param windowId 窗口ID
-   * @param mainWindow 窗口实例
    */
   public async initSocket(windowId: number): Promise<void> {
     const socketService = this.getSocketService(windowId);
@@ -369,7 +155,7 @@ export class SocketManager {
   public isConnected(windowId: number): boolean {
     const svc = this.sockets.get(windowId);
     if (!svc) return false;
-    return typeof svc.isConnected === 'function' ? (svc as any).isConnected() : false;
+    return svc.isConnected();
   }
 }
 

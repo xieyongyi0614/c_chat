@@ -60,7 +60,7 @@ export function protoMergePlugin(options: ProtoMergePluginOptions): Plugin {
 
         // 4. 执行 pbjs 生成 JS
         await runCommand(
-          `pbjs -t static-module -w commonjs -o ${JSON.stringify(outputPath)} ${protoFiles.map((f) => JSON.stringify(f)).join(' ')}`,
+          `pbjs -t static-module -w es6 -o ${JSON.stringify(outputPath)} ${protoFiles.map((f) => JSON.stringify(f)).join(' ')}`,
         );
         console.log(`[proto] ✅ 生成 JS: ${outputPath}`);
 
