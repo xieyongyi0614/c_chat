@@ -6,7 +6,7 @@
     "outDir": "./dist",
     "rootDir": "./src",
     "noEmit": true,
-    "baseUrl": "."
+    "types": ["node"]
   },
   "include": ["src"],
   "exclude": ["node_modules", "dist"]

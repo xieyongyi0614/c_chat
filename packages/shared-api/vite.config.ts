@@ -22,7 +22,7 @@ export default defineConfig(({ mode }) => ({
       fileName: (format) => `index.${format}.js`,
     },
     rollupOptions: {
-      external: ['axios', 'await-to-js', '@c_chat/shared-config', '@c_chat/shared-types'],
+      external: ['axios', 'await-to-js', 'socket.io-client', /^@c_chat\//],
     },
     sourcemap: true,
     outDir: 'dist',

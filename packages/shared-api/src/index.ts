@@ -4,6 +4,7 @@ export type { CChatAxiosRequestConfig } from './http/types';
 
 export * from './adapters';
 export * from './services';
+export * from './realtime';
 
 export { createApiClient } from './createApiClient';
 export type { CreateApiClientOptions, ApiClientBundle } from './createApiClient';

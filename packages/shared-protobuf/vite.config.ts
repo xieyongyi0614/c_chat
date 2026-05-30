@@ -26,7 +26,9 @@ export default defineConfig(({ mode }) => ({
       },
       name: 'shared-protobuf',
       formats: ['es', 'cjs'],
-      fileName: (format, entryName) => `${entryName}.${format}.js`,
+      fileName: (format, entryName) => {
+        return format === 'es' ? `${entryName}.js` : `${entryName}.cjs`;
+      },
     },
     rollupOptions: {
       external: ['protobufjs'],
