@@ -1,5 +1,7 @@
 import { getRealtimeClient } from '../api/client';
 import { MessageDB, ConversationDB } from '../db';
+import { useConversationStore } from '../stores/conversation.store';
+import { conversationService } from './conversation.service';
 import { ClientToServiceEvent, ServiceToClientEvent } from '@c_chat/shared-protobuf/protoMap';
 import {
   SendMessageRequest,
@@ -174,7 +176,19 @@ export class MessageService {
       });
 
       const payload = ReadMessageRequest.encode(request).finish();
-      await realtimeClient.genericRequest(ClientToServiceEvent.readMessage, payload);
+      const response = await realtimeClient.genericRequest(
+        ClientToServiceEvent.readMessage,
+        payload,
+      );
+
+      // 服务端权威未读数回写
+      const conversation = await ConversationDB.getById(response.conversationId);
+      if (conversation) {
+        conversation.unreadCount = response.unreadCount;
+        conversation.lastReadSeq = BigInt(response.msgSeq ?? conversation.lastReadSeq);
+        await ConversationDB.upsert(conversation);
+        useConversationStore.getState().upsertConversation(conversation);
+      }
     } catch (error) {
       console.error('[MessageService] readMessage error:', error);
     }
@@ -209,23 +223,24 @@ export class MessageService {
     realtimeClient.subscribeToEvent(
       ServiceToClientEvent.newUpdateMessage,
       async (data: NewUpdateMessage) => {
-        if (!data.messages || data.messages.length === 0) return;
+        if (!getRealtimeClient()) return;
 
-        for (const msg of data.messages) {
-          const message = this.toLocalMessage(msg);
+        if (data.messages && data.messages.length > 0) {
+          const messages = data.messages.map((msg) => this.toLocalMessage(msg));
+          await MessageDB.upsertMany(messages);
+        }
 
-          await MessageDB.upsert(message);
+        if (data.conversations && data.conversations.length > 0) {
+          const conversations = data.conversations.map((c) =>
+            conversationService.toLocalConversation(c),
+          );
+          await ConversationDB.upsertMany(conversations);
+          useConversationStore.getState().upsertMany(conversations);
+        }
 
-          const conversation = await ConversationDB.getById(message.conversationId);
-          if (conversation) {
-            conversation.lastMsgContent = message.content;
-            conversation.lastMsgTime = message.createTime;
-            conversation.updateTime = message.updateTime;
-            if (message.senderId !== conversation.targetId) {
-              conversation.unreadCount = (conversation.unreadCount || 0) + 1;
-            }
-            await ConversationDB.upsert(conversation);
-          }
+        if (data.removedConversationIds && data.removedConversationIds.length > 0) {
+          await Promise.all(data.removedConversationIds.map((id) => ConversationDB.delete(id)));
+          useConversationStore.getState().removeConversations(data.removedConversationIds);
         }
       },
     );

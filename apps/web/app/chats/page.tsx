@@ -1,11 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Avatar,
   AvatarFallback,
-  Badge,
   Button,
   Popover,
   PopoverContent,
@@ -14,21 +13,43 @@ import {
   Separator,
   Spinner,
 } from '@c_chat/ui';
+import type { LocalConversationListItem } from '@c_chat/shared-types';
 import { useUserStore } from '@/lib/stores/user.store';
-import { useConversationStore } from '@/lib/stores/conversation.store';
-import { authService, conversationService, initializeRealtimeListeners } from '@/lib/services';
+import { useConversationStore, selectVisibleConversations } from '@/lib/stores/conversation.store';
+import {
+  authService,
+  conversationService,
+  messageService,
+  initializeRealtimeListeners,
+} from '@/lib/services';
+import { ConversationItem } from './_components/ConversationItem';
+import { ConversationFolders } from './_components/ConversationFolders';
 import { UserProfileDialog } from './_components/UserProfileDialog';
+
+const SYNC_INTERVAL_MS = 30_000;
+const READ_DEBOUNCE_MS = 500;
 
 export default function ChatsPage() {
   const router = useRouter();
   const userInfo = useUserStore((state) => state.userInfo);
   const isAuthenticated = useUserStore((state) => state.isAuthenticated);
   const clearUser = useUserStore((state) => state.clearUser);
-  const conversations = useConversationStore((state) => state.conversations);
+
+  const visibleConversations = useConversationStore(selectVisibleConversations);
+  const selectedConversationId = useConversationStore((state) => state.selectedConversationId);
+  const folder = useConversationStore((state) => state.folder);
+  const loading = useConversationStore((state) => state.loading);
+  const error = useConversationStore((state) => state.error);
   const setConversations = useConversationStore((state) => state.setConversations);
-  const [loading, setLoading] = useState(true);
+  const setFolder = useConversationStore((state) => state.setFolder);
+  const setLoading = useConversationStore((state) => state.setLoading);
+  const setError = useConversationStore((state) => state.setError);
+  const selectConversation = useConversationStore((state) => state.selectConversation);
+  const clearUnread = useConversationStore((state) => state.clearUnread);
+
   const [profileOpen, setProfileOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+  const readTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -36,22 +57,62 @@ export default function ChatsPage() {
       return;
     }
 
-    const loadConversations = async () => {
-      try {
-        // 初始化实时监听器
-        initializeRealtimeListeners();
+    initializeRealtimeListeners();
 
-        const list = await conversationService.getConversationList();
-        setConversations(list);
-      } catch (error) {
-        console.error('Failed to load conversations:', error);
+    const sync = () => {
+      conversationService.getConversationList().catch((err) => {
+        console.error('Failed to sync conversations:', err);
+      });
+    };
+
+    const initialLoad = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const local = await conversationService.getLocalConversationList();
+        setConversations(local);
+        await conversationService.getConversationList();
+      } catch (err) {
+        console.error('Failed to load conversations:', err);
+        setError('加载会话失败');
       } finally {
         setLoading(false);
       }
     };
 
-    loadConversations();
-  }, [isAuthenticated, router, setConversations]);
+    initialLoad();
+
+    const intervalId = setInterval(sync, SYNC_INTERVAL_MS);
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') sync();
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+
+    return () => {
+      clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
+  }, [isAuthenticated, router, setConversations, setLoading, setError]);
+
+  useEffect(
+    () => () => {
+      if (readTimer.current) clearTimeout(readTimer.current);
+    },
+    [],
+  );
+
+  const handleSelect = (conversation: LocalConversationListItem) => {
+    selectConversation(conversation.id);
+    if ((conversation.unreadCount ?? 0) === 0) return;
+
+    clearUnread(conversation.id);
+    if (readTimer.current) clearTimeout(readTimer.current);
+    readTimer.current = setTimeout(() => {
+      messageService.readMessage(conversation.id).catch((err) => {
+        console.error('Failed to mark read:', err);
+      });
+    }, READ_DEBOUNCE_MS);
+  };
 
   const handleLogout = async () => {
     setLoggingOut(true);
@@ -59,8 +120,8 @@ export default function ChatsPage() {
       await authService.logout();
       clearUser();
       router.push('/auth/signin');
-    } catch (error) {
-      console.error('Logout failed:', error);
+    } catch (err) {
+      console.error('Logout failed:', err);
       setLoggingOut(false);
     }
   };
@@ -80,7 +141,8 @@ export default function ChatsPage() {
                 <Button variant="ghost" size="sm" className="gap-2">
                   <Avatar className="size-6">
                     <AvatarFallback className="text-xs">
-                      {userInfo?.nickname?.charAt(0).toUpperCase() || userInfo?.email?.charAt(0).toUpperCase()}
+                      {userInfo?.nickname?.charAt(0).toUpperCase() ||
+                        userInfo?.email?.charAt(0).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
                   <span className="truncate text-sm">{userInfo?.nickname || userInfo?.email}</span>
@@ -101,7 +163,9 @@ export default function ChatsPage() {
                     variant="ghost"
                     size="sm"
                     className="justify-start"
-                    onClick={handleLogout}
+                    onClick={() => {
+                      void handleLogout();
+                    }}
                     disabled={loggingOut}
                   >
                     {loggingOut ? '退出中...' : '退出登录'}
@@ -112,49 +176,28 @@ export default function ChatsPage() {
           </div>
         </div>
 
+        <ConversationFolders folder={folder} onChange={setFolder} />
+        <Separator />
+
         <ScrollArea className="flex-1">
-          {loading ? (
+          {loading && visibleConversations.length === 0 ? (
             <div className="flex items-center justify-center gap-2 p-4 text-sm text-muted-foreground">
               <Spinner />
               加载中...
             </div>
-          ) : conversations.length === 0 ? (
+          ) : error ? (
+            <div className="p-4 text-center text-sm text-destructive">{error}</div>
+          ) : visibleConversations.length === 0 ? (
             <div className="p-4 text-center text-sm text-muted-foreground">暂无会话</div>
           ) : (
             <div className="flex flex-col">
-              {conversations.map((conversation) => (
-                <div
+              {visibleConversations.map((conversation) => (
+                <ConversationItem
                   key={conversation.id}
-                  className="cursor-pointer p-4 hover:bg-accent"
-                >
-                  <div className="flex items-start gap-3">
-                    <Avatar className="size-12">
-                      <AvatarFallback>{conversation.targetName.charAt(0).toUpperCase()}</AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between">
-                        <h3 className="truncate text-sm font-medium">
-                          {conversation.targetName}
-                        </h3>
-                        <span className="text-xs text-muted-foreground">
-                          {new Date(conversation.lastMsgTime).toLocaleTimeString('zh-CN', {
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
-                        </span>
-                      </div>
-                      <p className="mt-1 truncate text-sm text-muted-foreground">
-                        {conversation.lastMsgContent || '暂无消息'}
-                      </p>
-                    </div>
-                    {(conversation.unreadCount || 0) > 0 && (
-                      <Badge variant="destructive">
-                        {conversation.unreadCount}
-                      </Badge>
-                    )}
-                  </div>
-                  <Separator className="mt-4" />
-                </div>
+                  conversation={conversation}
+                  selected={conversation.id === selectedConversationId}
+                  onSelect={handleSelect}
+                />
               ))}
             </div>
           )}

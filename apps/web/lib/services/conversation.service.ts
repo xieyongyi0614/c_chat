@@ -1,5 +1,7 @@
 import { getRealtimeClient } from '../api/client';
 import { ConversationDB } from '../db';
+import { useConversationStore } from '../stores/conversation.store';
+import { useUserStore } from '../stores/user.store';
 import { ClientToServiceEvent, ServiceToClientEvent } from '@c_chat/shared-protobuf/protoMap';
 import {
   GetConversationListRequest,
@@ -15,6 +17,8 @@ export class ConversationService {
       return this.getLocalConversationList();
     }
 
+    const requestUserId = useUserStore.getState().userInfo?.id;
+
     try {
       const request = GetConversationListRequest.create({
         pagination: { page, pageSize },
@@ -26,9 +30,15 @@ export class ConversationService {
         payload,
       );
 
+      // 过期回包保护：登录用户已变更则丢弃
+      if (useUserStore.getState().userInfo?.id !== requestUserId) {
+        return this.getLocalConversationList();
+      }
+
       const conversations = response.list.map((item) => this.toLocalConversation(item));
 
       await ConversationDB.upsertMany(conversations);
+      useConversationStore.getState().upsertMany(conversations);
       return conversations;
     } catch (error) {
       console.error('[ConversationService] getConversationList error:', error);
@@ -37,35 +47,8 @@ export class ConversationService {
   }
 
   async getLocalConversationList(): Promise<LocalConversationListItem[]> {
-    return ConversationDB.getAll();
-  }
-
-  async createConversation(): Promise<LocalConversationListItem | null> {
-    const realtimeClient = getRealtimeClient();
-    if (!realtimeClient) {
-      throw new Error('RealtimeClient not initialized');
-    }
-
-    try {
-      const request = GetConversationListRequest.create({});
-      const payload = GetConversationListRequest.encode(request).finish();
-
-      const response = await realtimeClient.genericRequest(
-        ClientToServiceEvent.getConversationList,
-        payload,
-      );
-
-      if (response.list.length === 0) return null;
-      const item = response.list[0];
-
-      const conversation = this.toLocalConversation(item);
-
-      await ConversationDB.upsert(conversation);
-      return conversation;
-    } catch (error) {
-      console.error('[ConversationService] createConversation error:', error);
-      return null;
-    }
+    const conversations = await ConversationDB.getAll();
+    return [...conversations].sort((a, b) => b.updateTime - a.updateTime);
   }
 
   setupRealtimeListeners(): void {
@@ -78,13 +61,15 @@ export class ConversationService {
     realtimeClient.subscribeToEvent(
       ServiceToClientEvent.newConversation,
       async (data: ConversationInfo) => {
+        if (!getRealtimeClient()) return;
         const conversation = this.toLocalConversation(data);
         await ConversationDB.upsert(conversation);
+        useConversationStore.getState().upsertConversation(conversation);
       },
     );
   }
 
-  private toLocalConversation(item: IConversationInfo): LocalConversationListItem {
+  toLocalConversation(item: IConversationInfo): LocalConversationListItem {
     const conversation = ConversationInfo.create(item);
     return {
       id: conversation.id,
