@@ -1,9 +1,8 @@
-import { socketService } from './socket.service';
+import { getRealtimeClient } from '../api/client';
 import { ConversationDB } from '../db';
-import { ClientToServiceEvent } from '@c_chat/shared-protobuf/protoMap';
+import { ClientToServiceEvent, ServiceToClientEvent } from '@c_chat/shared-protobuf/protoMap';
 import {
   GetConversationListRequest,
-  GetConversationListResponse,
   ConversationInfo,
   type IConversationInfo,
 } from '@c_chat/shared-protobuf';
@@ -11,13 +10,18 @@ import { ConversationType, type LocalConversationListItem } from '@c_chat/shared
 
 export class ConversationService {
   async getConversationList(page = 1, pageSize = 50): Promise<LocalConversationListItem[]> {
+    const realtimeClient = getRealtimeClient();
+    if (!realtimeClient) {
+      return this.getLocalConversationList();
+    }
+
     try {
       const request = GetConversationListRequest.create({
         pagination: { page, pageSize },
       });
       const payload = GetConversationListRequest.encode(request).finish();
 
-      const response: GetConversationListResponse = await socketService.request(
+      const response = await realtimeClient.genericRequest(
         ClientToServiceEvent.getConversationList,
         payload,
       );
@@ -37,11 +41,16 @@ export class ConversationService {
   }
 
   async createConversation(): Promise<LocalConversationListItem | null> {
+    const realtimeClient = getRealtimeClient();
+    if (!realtimeClient) {
+      throw new Error('RealtimeClient not initialized');
+    }
+
     try {
       const request = GetConversationListRequest.create({});
       const payload = GetConversationListRequest.encode(request).finish();
 
-      const response: GetConversationListResponse = await socketService.request(
+      const response = await realtimeClient.genericRequest(
         ClientToServiceEvent.getConversationList,
         payload,
       );
@@ -60,11 +69,19 @@ export class ConversationService {
   }
 
   setupRealtimeListeners(): void {
-    socketService.on('newConversation', async (data: ConversationInfo) => {
-      const conversation = this.toLocalConversation(data);
+    const realtimeClient = getRealtimeClient();
+    if (!realtimeClient) {
+      console.warn('[ConversationService] RealtimeClient not initialized');
+      return;
+    }
 
-      await ConversationDB.upsert(conversation);
-    });
+    realtimeClient.subscribeToEvent(
+      ServiceToClientEvent.newConversation,
+      async (data: ConversationInfo) => {
+        const conversation = this.toLocalConversation(data);
+        await ConversationDB.upsert(conversation);
+      },
+    );
   }
 
   private toLocalConversation(item: IConversationInfo): LocalConversationListItem {
