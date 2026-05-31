@@ -1,0 +1,15 @@
+# Web Next.js 任务队列主日志
+
+- 260531 2347 ──── 队列启动 ────
+- 260531 2347 归档已完成任务：01_AUTH_USER.md（git 历史已实现，移入 task-completed）
+- 260531 2347 跳过：00_OVERVIEW.md（总览）、02_TRANSPORT_DATA.md（已在 task-completed）
+- 260531 2347 待执行：03_CONVERSATION_LIST.md、04_MESSAGING.md、05_GROUP_CHAT.md、06_MEDIA_UPLOAD.md、07_MEDIA_PREVIEW.md、08_VOICE_MESSAGE.md、09_DESKTOP_CAPABILITY_MAP.md，共 7 个
+- 260531 2347 ── [1/7] 开始 03_CONVERSATION_LIST.md ──
+- 260531 2349 architect 完成：conversation
+- 260531 2358 ──── 队列重启（上轮 03 被中断，未提交，重新执行）────
+- 260531 2358 待执行：03_CONVERSATION_LIST.md、04_MESSAGING.md、05_GROUP_CHAT.md、06_MEDIA_UPLOAD.md、07_MEDIA_PREVIEW.md、08_VOICE_MESSAGE.md、09_DESKTOP_CAPABILITY_MAP.md，共 7 个
+- 260531 2358 ── [1/7] 开始 03_CONVERSATION_LIST.md ──
+- 260601 0004 architect 完成：conversation（已重新分析，8 原子任务）
+- 260601 0010 coding 完成：6 个文件（store/service x2/page + 2 新组件）
+- 260601 0016 review 完成：BLOCKER 0 / WARNING 1（已修复）/ NIT 1
+- 260601 0020 test：apps/web PASS；提交被 husky 拦截：page.tsx:169 no-misused-promises（in-diff，需修）
