@@ -11,7 +11,10 @@ export const apiClient = createApiClient({
     platform: 'browser',
   },
   tokenProvider: {
-    getToken: () => StoreDB.get('accessToken'),
+    getToken: async () => {
+      const token = await StoreDB.get('accessToken');
+      return token || null;
+    },
   },
   errorReporter: {
     report: ({ error }) => {

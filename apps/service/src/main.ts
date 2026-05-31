@@ -17,7 +17,10 @@ async function bootstrap() {
   const globalPrefix = 'api';
   app.setGlobalPrefix(globalPrefix);
 
-  // app.enableCors();
+  app.enableCors({
+    origin: true,
+    credentials: true,
+  });
   app.useStaticAssets(join(process.cwd(), 'uploads'), { prefix: '/uploads' });
 
   app.useGlobalPipes(new ValidationPipe({ transform: true }));

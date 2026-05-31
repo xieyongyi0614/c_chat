@@ -2,18 +2,33 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Avatar, AvatarFallback, Badge, ScrollArea, Separator, Spinner } from '@c_chat/ui';
+import {
+  Avatar,
+  AvatarFallback,
+  Badge,
+  Button,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+  ScrollArea,
+  Separator,
+  Spinner,
+} from '@c_chat/ui';
 import { useUserStore } from '@/lib/stores/user.store';
 import { useConversationStore } from '@/lib/stores/conversation.store';
-import { conversationService } from '@/lib/services';
+import { authService, conversationService } from '@/lib/services';
+import { UserProfileDialog } from './_components/UserProfileDialog';
 
 export default function ChatsPage() {
   const router = useRouter();
   const userInfo = useUserStore((state) => state.userInfo);
   const isAuthenticated = useUserStore((state) => state.isAuthenticated);
+  const clearUser = useUserStore((state) => state.clearUser);
   const conversations = useConversationStore((state) => state.conversations);
   const setConversations = useConversationStore((state) => state.setConversations);
   const [loading, setLoading] = useState(true);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -35,6 +50,18 @@ export default function ChatsPage() {
     loadConversations();
   }, [isAuthenticated, router, setConversations]);
 
+  const handleLogout = async () => {
+    setLoggingOut(true);
+    try {
+      await authService.logout();
+      clearUser();
+      router.push('/auth/signin');
+    } catch (error) {
+      console.error('Logout failed:', error);
+      setLoggingOut(false);
+    }
+  };
+
   if (!isAuthenticated) {
     return null;
   }
@@ -45,9 +72,40 @@ export default function ChatsPage() {
         <div className="border-b border-border p-4">
           <div className="flex items-center justify-between">
             <h1 className="text-xl font-semibold">消息</h1>
-            <div className="flex items-center gap-2">
-              <span className="truncate text-sm text-muted-foreground">{userInfo?.nickname || userInfo?.email}</span>
-            </div>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="ghost" size="sm" className="gap-2">
+                  <Avatar className="size-6">
+                    <AvatarFallback className="text-xs">
+                      {userInfo?.nickname?.charAt(0).toUpperCase() || userInfo?.email?.charAt(0).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="truncate text-sm">{userInfo?.nickname || userInfo?.email}</span>
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-48 p-2">
+                <div className="flex flex-col gap-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="justify-start"
+                    onClick={() => setProfileOpen(true)}
+                  >
+                    个人资料
+                  </Button>
+                  <Separator className="my-1" />
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="justify-start"
+                    onClick={handleLogout}
+                    disabled={loggingOut}
+                  >
+                    {loggingOut ? '退出中...' : '退出登录'}
+                  </Button>
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
         </div>
 
@@ -105,6 +163,8 @@ export default function ChatsPage() {
           <p className="text-lg">选择一个会话开始聊天</p>
         </div>
       </section>
+
+      <UserProfileDialog open={profileOpen} onOpenChange={setProfileOpen} />
     </main>
   );
 }
