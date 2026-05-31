@@ -9,15 +9,16 @@ import { messageService } from '@/lib/services';
 interface ChatInputProps {
   conversationId: string;
   onSent: () => void;
+  disabled?: boolean;
 }
 
-export function ChatInput({ conversationId, onSent }: ChatInputProps) {
+export function ChatInput({ conversationId, onSent, disabled = false }: ChatInputProps) {
   const [value, setValue] = useState('');
   const [sending, setSending] = useState(false);
 
   const submit = async () => {
     const content = value.trim();
-    if (!content || sending) return;
+    if (!content || sending || disabled) return;
 
     setSending(true);
     try {
@@ -38,7 +39,7 @@ export function ChatInput({ conversationId, onSent }: ChatInputProps) {
     }
   };
 
-  const disabled = !value.trim() || sending;
+  const sendDisabled = !value.trim() || sending || disabled;
 
   return (
     <div className="border-t border-border p-4">
@@ -47,7 +48,8 @@ export function ChatInput({ conversationId, onSent }: ChatInputProps) {
           value={value}
           onChange={(event) => setValue(event.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="输入消息，Enter 发送，Shift+Enter 换行"
+          disabled={disabled}
+          placeholder={disabled ? '会话已不可用' : '输入消息，Enter 发送，Shift+Enter 换行'}
           className="max-h-32 resize-none border-0 bg-transparent p-3 shadow-none focus-visible:ring-0"
         />
         <div className="flex items-center justify-between gap-2 px-3 pb-3">
@@ -63,7 +65,7 @@ export function ChatInput({ conversationId, onSent }: ChatInputProps) {
           <Button
             type="button"
             size="sm"
-            disabled={disabled}
+            disabled={sendDisabled}
             onClick={() => {
               void submit();
             }}

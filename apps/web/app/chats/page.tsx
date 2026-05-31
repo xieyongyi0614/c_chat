@@ -13,6 +13,7 @@ import {
   Separator,
   Spinner,
 } from '@c_chat/ui';
+import { Plus } from 'lucide-react';
 import type { LocalConversationListItem } from '@c_chat/shared-types';
 import { useUserStore } from '@/lib/stores/user.store';
 import { useConversationStore, selectVisibleConversations } from '@/lib/stores/conversation.store';
@@ -20,6 +21,7 @@ import { authService, conversationService, initializeRealtimeListeners } from '@
 import { ConversationItem } from './_components/ConversationItem';
 import { ConversationFolders } from './_components/ConversationFolders';
 import { UserProfileDialog } from './_components/UserProfileDialog';
+import { CreateGroupDialog } from './_components/CreateGroupDialog';
 import { ChatWindow } from './_components/ChatWindow';
 
 const SYNC_INTERVAL_MS = 30_000;
@@ -43,6 +45,7 @@ export default function ChatsPage() {
   const clearUnread = useConversationStore((state) => state.clearUnread);
 
   const [profileOpen, setProfileOpen] = useState(false);
+  const [createGroupOpen, setCreateGroupOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
 
   useEffect(() => {
@@ -114,7 +117,17 @@ export default function ChatsPage() {
       <aside className="flex w-80 flex-col border-r border-border">
         <div className="border-b border-border p-4">
           <div className="flex items-center justify-between">
-            <h1 className="text-xl font-semibold">消息</h1>
+            <div className="flex items-center gap-1">
+              <h1 className="text-xl font-semibold">消息</h1>
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label="创建群聊"
+                onClick={() => setCreateGroupOpen(true)}
+              >
+                <Plus />
+              </Button>
+            </div>
             <Popover>
               <PopoverTrigger asChild>
                 <Button variant="ghost" size="sm" className="gap-2">
@@ -194,6 +207,7 @@ export default function ChatsPage() {
       )}
 
       <UserProfileDialog open={profileOpen} onOpenChange={setProfileOpen} />
+      <CreateGroupDialog open={createGroupOpen} onOpenChange={setCreateGroupOpen} />
     </main>
   );
 }

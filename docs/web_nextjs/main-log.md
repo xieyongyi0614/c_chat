@@ -20,3 +20,10 @@
 - 260601 0050 coding 完成：8 个文件（store/service/page + 5 新组件）
 - 260601 0100 review 完成：BLOCKER 0 / WARNING 2（已修复）/ NIT 3
 - 260601 0104 test：apps/web PASS；提交被 husky 拦截：MessageContent.tsx:31 未知规则 no-img-element 的 disable 注释（in-diff，需修）
+- 260601 0108 第1轮修复后 test：PASS（husky lint-staged 通过）
+- 260601 0108 ✅ [2/7] messaging 完成并提交 fbfc2fe
+- 260601 0108 ── [3/7] 开始 05_GROUP_CHAT.md ──
+- 260601 0112 architect 完成：group（7 任务；群 service 置于 apps/web 同层，头像上传依赖 06）
+- 260601 0142 coding 完成：10 个文件（group.service + 5 群组件 + MemberSelect + ChatWindow/ChatInput/page）；Sheet→Dialog 取舍
+- 260601 0150 review 完成：BLOCKER 0 / WARNING 0 / NIT 1
+- 260601 0152 test：apps/web PASS；提交被 husky 拦截：GroupProfileSheet.tsx:87 未知规则 react-hooks/exhaustive-deps 的内联注释（in-diff，需修）
