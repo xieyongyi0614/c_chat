@@ -13,3 +13,10 @@
 - 260601 0010 coding 完成：6 个文件（store/service x2/page + 2 新组件）
 - 260601 0016 review 完成：BLOCKER 0 / WARNING 1（已修复）/ NIT 1
 - 260601 0020 test：apps/web PASS；提交被 husky 拦截：page.tsx:169 no-misused-promises（in-diff，需修）
+- 260601 0023 第1轮修复后 test：PASS（husky lint-staged 通过）
+- 260601 0023 ✅ [1/7] conversation 完成并提交 e99274d
+- 260601 0023 ── [2/7] 开始 04_MESSAGING.md ──
+- 260601 0028 architect 完成：messaging（8 原子任务）
+- 260601 0050 coding 完成：8 个文件（store/service/page + 5 新组件）
+- 260601 0100 review 完成：BLOCKER 0 / WARNING 2（已修复）/ NIT 3
+- 260601 0104 test：apps/web PASS；提交被 husky 拦截：MessageContent.tsx:31 未知规则 no-img-element 的 disable 注释（in-diff，需修）
