@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Avatar,
@@ -16,18 +16,13 @@ import {
 import type { LocalConversationListItem } from '@c_chat/shared-types';
 import { useUserStore } from '@/lib/stores/user.store';
 import { useConversationStore, selectVisibleConversations } from '@/lib/stores/conversation.store';
-import {
-  authService,
-  conversationService,
-  messageService,
-  initializeRealtimeListeners,
-} from '@/lib/services';
+import { authService, conversationService, initializeRealtimeListeners } from '@/lib/services';
 import { ConversationItem } from './_components/ConversationItem';
 import { ConversationFolders } from './_components/ConversationFolders';
 import { UserProfileDialog } from './_components/UserProfileDialog';
+import { ChatWindow } from './_components/ChatWindow';
 
 const SYNC_INTERVAL_MS = 30_000;
-const READ_DEBOUNCE_MS = 500;
 
 export default function ChatsPage() {
   const router = useRouter();
@@ -49,7 +44,6 @@ export default function ChatsPage() {
 
   const [profileOpen, setProfileOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
-  const readTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -94,24 +88,9 @@ export default function ChatsPage() {
     };
   }, [isAuthenticated, router, setConversations, setLoading, setError]);
 
-  useEffect(
-    () => () => {
-      if (readTimer.current) clearTimeout(readTimer.current);
-    },
-    [],
-  );
-
   const handleSelect = (conversation: LocalConversationListItem) => {
     selectConversation(conversation.id);
-    if ((conversation.unreadCount ?? 0) === 0) return;
-
-    clearUnread(conversation.id);
-    if (readTimer.current) clearTimeout(readTimer.current);
-    readTimer.current = setTimeout(() => {
-      messageService.readMessage(conversation.id).catch((err) => {
-        console.error('Failed to mark read:', err);
-      });
-    }, READ_DEBOUNCE_MS);
+    if ((conversation.unreadCount ?? 0) > 0) clearUnread(conversation.id);
   };
 
   const handleLogout = async () => {
@@ -204,11 +183,15 @@ export default function ChatsPage() {
         </ScrollArea>
       </aside>
 
-      <section className="flex flex-1 items-center justify-center bg-muted/30">
-        <div className="text-center text-muted-foreground">
-          <p className="text-lg">选择一个会话开始聊天</p>
-        </div>
-      </section>
+      {selectedConversationId ? (
+        <ChatWindow key={selectedConversationId} conversationId={selectedConversationId} />
+      ) : (
+        <section className="flex flex-1 items-center justify-center bg-muted/30">
+          <div className="text-center text-muted-foreground">
+            <p className="text-lg">选择一个会话开始聊天</p>
+          </div>
+        </section>
+      )}
 
       <UserProfileDialog open={profileOpen} onOpenChange={setProfileOpen} />
     </main>

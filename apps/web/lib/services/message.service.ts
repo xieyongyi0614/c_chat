@@ -1,6 +1,7 @@
 import { getRealtimeClient } from '../api/client';
 import { MessageDB, ConversationDB } from '../db';
 import { useConversationStore } from '../stores/conversation.store';
+import { useMessageStore } from '../stores/message.store';
 import { conversationService } from './conversation.service';
 import { ClientToServiceEvent, ServiceToClientEvent } from '@c_chat/shared-protobuf/protoMap';
 import {
@@ -63,6 +64,7 @@ export class MessageService {
     };
 
     await MessageDB.upsert(pendingMessage);
+    useMessageStore.getState().upsertMany(pendingMessage.conversationId, [pendingMessage]);
 
     try {
       const request = SendMessageRequest.create({
@@ -149,6 +151,7 @@ export class MessageService {
       const messages = response.list.map((msg) => this.toLocalMessage(msg));
 
       await MessageDB.upsertMany(messages);
+      useMessageStore.getState().upsertMany(conversationId, messages);
       return messages;
     } catch (error) {
       console.error('[MessageService] getMessageHistory error:', error);
@@ -199,6 +202,7 @@ export class MessageService {
     if (message) {
       message.status = status;
       await MessageDB.upsert(message);
+      useMessageStore.getState().upsertMany(message.conversationId, [message]);
     }
   }
 
@@ -216,6 +220,7 @@ export class MessageService {
         if (message) {
           message.status = data.status === 'success' ? MessageStatus.success : MessageStatus.fail;
           await MessageDB.upsert(message);
+          useMessageStore.getState().upsertMany(message.conversationId, [message]);
         }
       },
     );
@@ -228,6 +233,14 @@ export class MessageService {
         if (data.messages && data.messages.length > 0) {
           const messages = data.messages.map((msg) => this.toLocalMessage(msg));
           await MessageDB.upsertMany(messages);
+          const store = useMessageStore.getState();
+          const current = store.currentConversationId;
+          if (current) {
+            store.upsertMany(
+              current,
+              messages.filter((message) => message.conversationId === current),
+            );
+          }
         }
 
         if (data.conversations && data.conversations.length > 0) {
