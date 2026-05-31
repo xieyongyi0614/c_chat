@@ -8,52 +8,42 @@ import type {
   UserTypes,
 } from '@c_chat/shared-types';
 import { ClientToServiceEvent } from '@c_chat/shared-protobuf/protoMap';
-import { GetUserList, GetUserListResponse, UserInfo } from '@c_chat/shared-protobuf';
+import { GetUserList, GetUserListResponse } from '@c_chat/shared-protobuf';
 
 export class AuthService {
   async signIn(params: AuthTypes.PostSignInParams): Promise<void> {
     const { access_token: accessToken } = await apiClient.auth.signIn(params);
     const userInfo = await apiClient.auth.getUserInfo();
 
-    await StoreDB.set('accessToken', accessToken);
-    if (userInfo) {
-      await StoreDB.set('userInfo', JSON.stringify(userInfo));
-      await socketService.connect(accessToken, userInfo.id);
+    if (!userInfo) {
+      throw new Error('Failed to get user info');
     }
+
+    await StoreDB.set('accessToken', accessToken);
+    await StoreDB.set('userInfo', JSON.stringify(userInfo));
+    await socketService.connect(accessToken, userInfo.id);
   }
 
   async signUp(params: AuthTypes.PostSignUpParams): Promise<void> {
     const { access_token: accessToken } = await apiClient.auth.signUp(params);
     const userInfo = await apiClient.auth.getUserInfo();
 
-    await StoreDB.set('accessToken', accessToken);
-    if (userInfo) {
-      await StoreDB.set('userInfo', JSON.stringify(userInfo));
-      await socketService.connect(accessToken, userInfo.id);
+    if (!userInfo) {
+      throw new Error('Failed to get user info');
     }
+
+    await StoreDB.set('accessToken', accessToken);
+    await StoreDB.set('userInfo', JSON.stringify(userInfo));
+    await socketService.connect(accessToken, userInfo.id);
   }
 
   async getUserInfo(): Promise<AuthTypes.GetUserInfoResponse> {
-    const userInfoStr = await StoreDB.get('userInfo');
-    if (userInfoStr) {
-      return JSON.parse(userInfoStr);
+    const userInfo = await apiClient.auth.getUserInfo();
+    if (!userInfo) {
+      throw new Error('Failed to get user info');
     }
-
-    const userInfo = await socketService.request<UserInfo>(
-      ClientToServiceEvent.getUserInfo,
-      null
-    );
-
-    const result: AuthTypes.GetUserInfoResponse = {
-      id: userInfo.id,
-      email: userInfo.email,
-      nickname: userInfo.nickname,
-      avatarUrl: userInfo.avatarUrl,
-      state: 0,
-    };
-
-    await StoreDB.set('userInfo', JSON.stringify(result));
-    return result;
+    await StoreDB.set('userInfo', JSON.stringify(userInfo));
+    return userInfo;
   }
 
   async updateUserProfile(params: AuthTypes.UpdateUserProfileParams): Promise<void> {
@@ -98,8 +88,20 @@ export class AuthService {
     );
 
     return {
-      list: response.list,
-      pagination: response.pagination ?? { total: 0, totalPage: 0, page: 1, pageSize: 20 },
+      list: response.list.map((user) => ({
+        id: user.id || '',
+        email: user.email || '',
+        nickname: user.nickname || '',
+        avatarUrl: user.avatarUrl || '',
+        state: user.state || 0,
+        updateTime: Number(user.updateTime || 0),
+      })),
+      pagination: {
+        total: response.pagination?.total || 0,
+        totalPage: response.pagination?.totalPage || 0,
+        page: response.pagination?.page || 1,
+        pageSize: response.pagination?.pageSize || 20,
+      },
     };
   }
 }

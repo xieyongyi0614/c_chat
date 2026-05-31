@@ -7,7 +7,6 @@ import {
   clientDecodeProtoMap,
   type ClientDecodeProtoMapKey,
 } from '@c_chat/shared-protobuf/protoMap';
-import { StoreDB } from '../db';
 
 export interface ServerToClientEvents {
   message: (data: Uint8Array) => void;

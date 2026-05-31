@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import {
   Alert,
   AlertDescription,
@@ -87,7 +88,7 @@ export default function SignInPage() {
             </div>
           </div>
 
-          <div className="flex flex-col">
+          <div className="flex flex-col gap-3">
             <Button
               type="submit"
               disabled={loading}
@@ -96,6 +97,12 @@ export default function SignInPage() {
               {loading && <Spinner />}
               {loading ? '登录中...' : '登录'}
             </Button>
+            <div className="text-center text-sm text-muted-foreground">
+              还没有账号？{' '}
+              <Link href="/auth/signup" className="text-primary hover:underline">
+                立即注册
+              </Link>
+            </div>
           </div>
         </form>
         </CardContent>
