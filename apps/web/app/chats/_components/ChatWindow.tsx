@@ -1,13 +1,14 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Avatar, AvatarFallback, AvatarImage } from '@c_chat/ui';
+import { Avatar, AvatarFallback, AvatarImage, Button } from '@c_chat/ui';
 import { ConversationType } from '@c_chat/shared-types';
 import { useConversationStore } from '@/lib/stores/conversation.store';
 import { useMessageStore } from '@/lib/stores/message.store';
 import { messageService } from '@/lib/services';
 import { ChatInput } from './ChatInput';
 import { MessageList } from './MessageList';
+import { GroupProfileSheet } from './GroupProfileSheet';
 
 const PAGE_SIZE = 50;
 
@@ -33,6 +34,8 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
     isLoadingOlder: false,
     hasMoreOlder: true,
   });
+
+  const [profileOpen, setProfileOpen] = useState(false);
 
   useEffect(() => {
     let disposed = false;
@@ -102,6 +105,8 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
   }, [conversationId]);
 
   const isGroup = conversation?.type === ConversationType.Group;
+  const groupId = conversation?.targetId ?? conversation?.id ?? conversationId;
+  const removed = !conversation;
 
   return (
     <section className="flex flex-1 flex-col bg-background">
@@ -110,7 +115,14 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
           <AvatarImage src={conversation?.targetAvatar} alt={conversation?.targetName} />
           <AvatarFallback>{conversation?.targetName.charAt(0).toUpperCase()}</AvatarFallback>
         </Avatar>
-        <h2 className="truncate text-base font-semibold">{conversation?.targetName}</h2>
+        <h2 className="min-w-0 flex-1 truncate text-base font-semibold">
+          {conversation?.targetName}
+        </h2>
+        {isGroup ? (
+          <Button variant="ghost" size="sm" onClick={() => setProfileOpen(true)}>
+            群资料
+          </Button>
+        ) : null}
       </header>
 
       <MessageList
@@ -122,7 +134,11 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
         onReachBottom={handleReachBottom}
       />
 
-      <ChatInput conversationId={conversationId} onSent={handleReachBottom} />
+      <ChatInput conversationId={conversationId} onSent={handleReachBottom} disabled={removed} />
+
+      {isGroup ? (
+        <GroupProfileSheet open={profileOpen} onOpenChange={setProfileOpen} groupId={groupId} />
+      ) : null}
     </section>
   );
 }
