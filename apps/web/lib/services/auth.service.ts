@@ -1,6 +1,5 @@
-import { apiClient } from './http.service';
-import { socketService } from './socket.service';
-import { StoreDB, ConversationDB, MessageDB } from '../db';
+import { authService as sharedAuthService, getRealtimeClient, initRealtimeClient, destroyRealtimeClient } from '../api/client';
+import { StoreDB, ConversationDB, MessageDB, UploadTaskDB } from '../db';
 import type {
   GetUserListParams,
   AuthTypes,
@@ -8,12 +7,12 @@ import type {
   UserTypes,
 } from '@c_chat/shared-types';
 import { ClientToServiceEvent } from '@c_chat/shared-protobuf/protoMap';
-import { GetUserList, GetUserListResponse } from '@c_chat/shared-protobuf';
+import { GetUserList } from '@c_chat/shared-protobuf';
 
 export class AuthService {
   async signIn(params: AuthTypes.PostSignInParams): Promise<void> {
-    const { access_token: accessToken } = await apiClient.auth.signIn(params);
-    const userInfo = await apiClient.auth.getUserInfo();
+    const { access_token: accessToken } = await sharedAuthService.signIn(params);
+    const userInfo = await sharedAuthService.getUserInfo();
 
     if (!userInfo) {
       throw new Error('Failed to get user info');
@@ -21,12 +20,12 @@ export class AuthService {
 
     await StoreDB.set('accessToken', accessToken);
     await StoreDB.set('userInfo', JSON.stringify(userInfo));
-    await socketService.connect(accessToken, userInfo.id);
+    await initRealtimeClient();
   }
 
   async signUp(params: AuthTypes.PostSignUpParams): Promise<void> {
-    const { access_token: accessToken } = await apiClient.auth.signUp(params);
-    const userInfo = await apiClient.auth.getUserInfo();
+    const { access_token: accessToken } = await sharedAuthService.signUp(params);
+    const userInfo = await sharedAuthService.getUserInfo();
 
     if (!userInfo) {
       throw new Error('Failed to get user info');
@@ -34,11 +33,11 @@ export class AuthService {
 
     await StoreDB.set('accessToken', accessToken);
     await StoreDB.set('userInfo', JSON.stringify(userInfo));
-    await socketService.connect(accessToken, userInfo.id);
+    await initRealtimeClient();
   }
 
   async getUserInfo(): Promise<AuthTypes.GetUserInfoResponse> {
-    const userInfo = await apiClient.auth.getUserInfo();
+    const userInfo = await sharedAuthService.getUserInfo();
     if (!userInfo) {
       throw new Error('Failed to get user info');
     }
@@ -47,7 +46,7 @@ export class AuthService {
   }
 
   async updateUserProfile(params: AuthTypes.UpdateUserProfileParams): Promise<void> {
-    const updated = await apiClient.auth.updateUserProfile(params);
+    const updated = await sharedAuthService.updateUserProfile(params);
     if (!updated) return;
     await StoreDB.set('userInfo', JSON.stringify(updated));
   }
@@ -60,29 +59,34 @@ export class AuthService {
       throw new Error('No saved credentials');
     }
 
-    const userInfo = JSON.parse(userInfoStr);
-    await socketService.connect(token, userInfo.id);
+    await initRealtimeClient();
   }
 
   async logout(): Promise<void> {
-    socketService.disconnect();
+    destroyRealtimeClient();
 
     await StoreDB.delete('accessToken');
     await StoreDB.delete('userInfo');
     await ConversationDB.clear();
     await MessageDB.clear();
+    await UploadTaskDB.clear();
   }
 
   async getUserList(
     params: GetUserListParams,
   ): Promise<SocketTypes.ResponseList<UserTypes.UserListItem>> {
+    const realtimeClient = getRealtimeClient();
+    if (!realtimeClient) {
+      throw new Error('RealtimeClient not initialized');
+    }
+
     const request = GetUserList.create({
       pagination: params.pagination,
       word: params.word,
     });
 
     const payload = GetUserList.encode(request).finish();
-    const response = await socketService.request<GetUserListResponse>(
+    const response = await realtimeClient.genericRequest(
       ClientToServiceEvent.getUserList,
       payload
     );

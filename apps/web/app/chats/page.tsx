@@ -16,7 +16,7 @@ import {
 } from '@c_chat/ui';
 import { useUserStore } from '@/lib/stores/user.store';
 import { useConversationStore } from '@/lib/stores/conversation.store';
-import { authService, conversationService } from '@/lib/services';
+import { authService, conversationService, initializeRealtimeListeners } from '@/lib/services';
 import { UserProfileDialog } from './_components/UserProfileDialog';
 
 export default function ChatsPage() {
@@ -38,6 +38,9 @@ export default function ChatsPage() {
 
     const loadConversations = async () => {
       try {
+        // 初始化实时监听器
+        initializeRealtimeListeners();
+
         const list = await conversationService.getConversationList();
         setConversations(list);
       } catch (error) {

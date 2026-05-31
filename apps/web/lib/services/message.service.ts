@@ -1,10 +1,9 @@
-import { socketService } from './socket.service';
+import { getRealtimeClient } from '../api/client';
 import { MessageDB, ConversationDB } from '../db';
-import { ClientToServiceEvent } from '@c_chat/shared-protobuf/protoMap';
+import { ClientToServiceEvent, ServiceToClientEvent } from '@c_chat/shared-protobuf/protoMap';
 import {
   SendMessageRequest,
   GetMessageHistoryRequest,
-  GetMessageHistoryResponse,
   ReadMessageRequest,
   NewUpdateMessage,
   AckSendMessage,
@@ -32,6 +31,11 @@ export interface SendMessageParams {
 
 export class MessageService {
   async sendMessage(params: SendMessageParams): Promise<LocalMessageListItem[]> {
+    const realtimeClient = getRealtimeClient();
+    if (!realtimeClient) {
+      throw new Error('RealtimeClient not initialized');
+    }
+
     const clientMsgId = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
     const pendingMessage: LocalMessageListItem = {
@@ -70,7 +74,7 @@ export class MessageService {
       });
 
       const payload = SendMessageRequest.encode(request).finish();
-      socketService.request(ClientToServiceEvent.sendMessage, payload).catch((error) => {
+      realtimeClient.genericRequest(ClientToServiceEvent.sendMessage, payload).catch((error) => {
         console.error('[MessageService] sendMessage error:', error);
         this.updateMessageStatus(clientMsgId, MessageStatus.fail);
       });
@@ -84,6 +88,11 @@ export class MessageService {
   }
 
   async resendMessage(clientMsgId: string): Promise<void> {
+    const realtimeClient = getRealtimeClient();
+    if (!realtimeClient) {
+      throw new Error('RealtimeClient not initialized');
+    }
+
     const message = await MessageDB.getByClientMsgId(clientMsgId);
     if (!message) {
       throw new Error('Message not found');
@@ -102,7 +111,7 @@ export class MessageService {
       });
 
       const payload = SendMessageRequest.encode(request).finish();
-      await socketService.request(ClientToServiceEvent.sendMessage, payload);
+      await realtimeClient.genericRequest(ClientToServiceEvent.sendMessage, payload);
     } catch (error) {
       console.error('[MessageService] resendMessage error:', error);
       await this.updateMessageStatus(clientMsgId, MessageStatus.fail);
@@ -116,6 +125,11 @@ export class MessageService {
     afterMsgId?: string,
     beforeMsgId?: string,
   ): Promise<LocalMessageListItem[]> {
+    const realtimeClient = getRealtimeClient();
+    if (!realtimeClient) {
+      return this.getLocalMessageHistory(conversationId, pageSize);
+    }
+
     try {
       const request = GetMessageHistoryRequest.create({
         conversationId,
@@ -125,7 +139,7 @@ export class MessageService {
       });
 
       const payload = GetMessageHistoryRequest.encode(request).finish();
-      const response: GetMessageHistoryResponse = await socketService.request(
+      const response = await realtimeClient.genericRequest(
         ClientToServiceEvent.getMessageHistory,
         payload,
       );
@@ -148,6 +162,11 @@ export class MessageService {
   }
 
   async readMessage(conversationId: string, msgSeq?: string): Promise<void> {
+    const realtimeClient = getRealtimeClient();
+    if (!realtimeClient) {
+      return;
+    }
+
     try {
       const request = ReadMessageRequest.create({
         conversationId,
@@ -155,7 +174,7 @@ export class MessageService {
       });
 
       const payload = ReadMessageRequest.encode(request).finish();
-      await socketService.request(ClientToServiceEvent.readMessage, payload);
+      await realtimeClient.genericRequest(ClientToServiceEvent.readMessage, payload);
     } catch (error) {
       console.error('[MessageService] readMessage error:', error);
     }
@@ -170,34 +189,46 @@ export class MessageService {
   }
 
   setupRealtimeListeners(): void {
-    socketService.on('ackSendMessage', async (data: AckSendMessage) => {
-      const message = await MessageDB.getByClientMsgId(data.clientMsgId);
-      if (message) {
-        message.status = data.status === 'success' ? MessageStatus.success : MessageStatus.fail;
-        await MessageDB.upsert(message);
-      }
-    });
+    const realtimeClient = getRealtimeClient();
+    if (!realtimeClient) {
+      console.warn('[MessageService] RealtimeClient not initialized');
+      return;
+    }
 
-    socketService.on('newUpdateMessage', async (data: NewUpdateMessage) => {
-      if (!data.messages || data.messages.length === 0) return;
-
-      for (const msg of data.messages) {
-        const message = this.toLocalMessage(msg);
-
-        await MessageDB.upsert(message);
-
-        const conversation = await ConversationDB.getById(message.conversationId);
-        if (conversation) {
-          conversation.lastMsgContent = message.content;
-          conversation.lastMsgTime = message.createTime;
-          conversation.updateTime = message.updateTime;
-          if (message.senderId !== conversation.targetId) {
-            conversation.unreadCount = (conversation.unreadCount || 0) + 1;
-          }
-          await ConversationDB.upsert(conversation);
+    realtimeClient.subscribeToEvent(
+      ServiceToClientEvent.ackSendMessage,
+      async (data: AckSendMessage) => {
+        const message = await MessageDB.getByClientMsgId(data.clientMsgId);
+        if (message) {
+          message.status = data.status === 'success' ? MessageStatus.success : MessageStatus.fail;
+          await MessageDB.upsert(message);
         }
-      }
-    });
+      },
+    );
+
+    realtimeClient.subscribeToEvent(
+      ServiceToClientEvent.newUpdateMessage,
+      async (data: NewUpdateMessage) => {
+        if (!data.messages || data.messages.length === 0) return;
+
+        for (const msg of data.messages) {
+          const message = this.toLocalMessage(msg);
+
+          await MessageDB.upsert(message);
+
+          const conversation = await ConversationDB.getById(message.conversationId);
+          if (conversation) {
+            conversation.lastMsgContent = message.content;
+            conversation.lastMsgTime = message.createTime;
+            conversation.updateTime = message.updateTime;
+            if (message.senderId !== conversation.targetId) {
+              conversation.unreadCount = (conversation.unreadCount || 0) + 1;
+            }
+            await ConversationDB.upsert(conversation);
+          }
+        }
+      },
+    );
   }
 
   private toLocalMessage(item: IMessageInfo): LocalMessageListItem {
