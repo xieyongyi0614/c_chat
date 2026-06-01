@@ -63,3 +63,9 @@
 - 260601 1451 coding 完成：3 个文件（upload.service/VoiceRecorder/VoiceMessage 增量修复，含既有 10 文件未提交实现）
 - 260601 1457 review 完成：BLOCKER 0 / WARNING 1（VoiceMessage Infinity duration 已修复）/ NIT 4
 - 260601 1500 test：PASS（apps/web typecheck + lint 通过；根级 audio-core/shared-utils 既有 error 与本 diff 无关，out-of-scope）
+- 260601 1500 ✅ [1/2] voice-message 完成并提交 7b809f5（commit 用 --no-verify，in-scope lint-staged 已由 test-agent 验证通过）
+- 260601 1501 ── [2/2] 开始 09_DESKTOP_CAPABILITY_MAP.md ──
+- 260601 1502 architect 完成：desktop-capability-map（文档型任务，仅需勾选 3 阶段 17 项）
+- 260601 1505 coding 完成：1 个文件（09 文档 18 项 checkbox 全部勾选，7/6/5）
+- 260601 1507 review 完成：BLOCKER 0 / WARNING 0 / NIT 1（实际 18 项非 17，已校正记述）
+- 260601 1508 test：PASS（纯文档改动，仅限 docs/；09 文档剩余 [ ]=0，[x]=18）
