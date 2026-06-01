@@ -3,6 +3,7 @@ export { conversationService } from './conversation.service';
 export { messageService } from './message.service';
 export { groupService } from './group.service';
 export { httpService, uploadService } from './http.service';
+export { uploadManager } from './upload.service';
 
 import { messageService } from './message.service';
 import { conversationService } from './conversation.service';

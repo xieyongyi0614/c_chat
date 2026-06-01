@@ -27,3 +27,16 @@
 - 260601 0142 coding 完成：10 个文件（group.service + 5 群组件 + MemberSelect + ChatWindow/ChatInput/page）；Sheet→Dialog 取舍
 - 260601 0150 review 完成：BLOCKER 0 / WARNING 0 / NIT 1
 - 260601 0152 test：apps/web PASS；提交被 husky 拦截：GroupProfileSheet.tsx:87 未知规则 react-hooks/exhaustive-deps 的内联注释（in-diff，需修）
+- 260601 0155 第1轮修复后 test：PASS（husky lint-staged 通过）
+- 260601 0155 ✅ [3/7] group 完成并提交 26fa273
+- 260601 0155 ── [4/7] 开始 06_MEDIA_UPLOAD.md ──
+- 260601 1340 ──── 队列启动 ────
+- 260601 1340 待执行：06_MEDIA_UPLOAD.md、07_MEDIA_PREVIEW.md、08_VOICE_MESSAGE.md、09_DESKTOP_CAPABILITY_MAP.md，共 4 个
+- 260601 1340 ── [1/4] 开始 06_MEDIA_UPLOAD.md ──
+- 260601 1341 architect 开始：media（06_MEDIA_UPLOAD）
+- 260601 1346 architect 完成：media
+- 260601 1350 coding 完成：4 个文件
+- 260601 1353 review 完成：BLOCKER 0 / WARNING 1
+- 260601 1354 test：PASS
+- 260601 1355 ✅ media 完成并提交
+- 260601 1357 第1轮修复后 test：PASS

@@ -1,10 +1,10 @@
 'use client';
 
-import { useState } from 'react';
-import type { KeyboardEvent } from 'react';
+import { useRef, useState } from 'react';
+import type { ChangeEvent, DragEvent, KeyboardEvent } from 'react';
 import { Mic, Paperclip, Send } from 'lucide-react';
 import { Button, Spinner, Textarea } from '@c_chat/ui';
-import { messageService } from '@/lib/services';
+import { messageService, uploadManager } from '@/lib/services';
 
 interface ChatInputProps {
   conversationId: string;
@@ -15,6 +15,8 @@ interface ChatInputProps {
 export function ChatInput({ conversationId, onSent, disabled = false }: ChatInputProps) {
   const [value, setValue] = useState('');
   const [sending, setSending] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const submit = async () => {
     const content = value.trim();
@@ -32,6 +34,20 @@ export function ChatInput({ conversationId, onSent, disabled = false }: ChatInpu
     }
   };
 
+  const uploadFiles = async (files: File[]) => {
+    if (disabled || files.length === 0) return;
+    for (const file of files) {
+      await uploadManager.upload({ file, conversationId });
+    }
+    onSent();
+  };
+
+  const handleFilePick = (event: ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files ? Array.from(event.target.files) : [];
+    event.target.value = '';
+    void uploadFiles(files);
+  };
+
   const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault();
@@ -39,25 +55,59 @@ export function ChatInput({ conversationId, onSent, disabled = false }: ChatInpu
     }
   };
 
+  const handleDrop = (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    setDragOver(false);
+    const files = Array.from(event.dataTransfer.files);
+    void uploadFiles(files);
+  };
+
+  const handleDragOver = (event: DragEvent<HTMLDivElement>) => {
+    if (disabled) return;
+    event.preventDefault();
+    setDragOver(true);
+  };
+
   const sendDisabled = !value.trim() || sending || disabled;
 
   return (
     <div className="border-t border-border p-4">
-      <div className="overflow-hidden rounded-xl border border-border bg-background">
+      <div
+        onDrop={handleDrop}
+        onDragOver={handleDragOver}
+        onDragLeave={() => setDragOver(false)}
+        className={`overflow-hidden rounded-xl border bg-background ${
+          dragOver ? 'border-primary ring-2 ring-primary/40' : 'border-border'
+        }`}
+      >
         <Textarea
           value={value}
           onChange={(event) => setValue(event.target.value)}
           onKeyDown={handleKeyDown}
           disabled={disabled}
-          placeholder={disabled ? '会话已不可用' : '输入消息，Enter 发送，Shift+Enter 换行'}
+          placeholder={
+            disabled
+              ? '会话已不可用'
+              : dragOver
+                ? '释放以上传文件'
+                : '输入消息，Enter 发送，Shift+Enter 换行'
+          }
           className="max-h-32 resize-none border-0 bg-transparent p-3 shadow-none focus-visible:ring-0"
         />
         <div className="flex items-center justify-between gap-2 px-3 pb-3">
           <div className="flex items-center gap-1">
-            {/* 附件上传归属 06，录音归属 07，此处占位 */}
-            <Button type="button" variant="ghost" size="icon" disabled aria-label="发送附件">
+            <input ref={fileInputRef} type="file" multiple hidden onChange={handleFilePick} />
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              disabled={disabled}
+              aria-label="发送附件"
+              onClick={() => fileInputRef.current?.click()}
+            >
               <Paperclip />
             </Button>
+            {/* 录音归属 07，此处占位 */}
             <Button type="button" variant="ghost" size="icon" disabled aria-label="语音消息">
               <Mic />
             </Button>
