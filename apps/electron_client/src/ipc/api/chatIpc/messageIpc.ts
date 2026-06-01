@@ -45,7 +45,7 @@ const getNewestLocalMessageTime = (msgs: LocalMessageListItem[]) =>
   msgs.reduce((max, msg) => Math.max(max, msg.createTime ?? msg.localTime ?? 0), 0);
 
 const getNewestServerMsgSeq = (msgs: LocalMessageListItem[]): bigint =>
-  msgs.reduce((max, msg) => (msg.seq > max ? msg.seq : max), 0n);
+  msgs.reduce((max, msg) => (msg.seq > max && msg.seq > 0n ? msg.seq : max), 0n);
 
 const mapRemoteMessage = (msg: RemoteMessageInfo): LocalMessageListItem => ({
   id: msg.id!,
@@ -149,7 +149,7 @@ const generateLocalMessageData = (data: Partial<LocalMessageListItem>): LocalMes
   return {
     id: uuidv4(),
     conversationId: data.conversationId ?? '',
-    seq: data.seq ?? 0n,
+    seq: data.seq ?? messageTableClass.getNextLocalSeq(data.conversationId ?? ''),
     clientMsgId: uuidv4(),
     senderId: data.senderId ?? '',
     senderNickname: data.senderNickname ?? '',

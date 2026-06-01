@@ -93,7 +93,7 @@ export class RealtimeListenersService {
       useConversationStore.getState().upsertMany(conversations);
     }
 
-    if (data.removedConversationIds.length > 0) {
+    if (data.removedConversationIds && data.removedConversationIds.length > 0) {
       await Promise.all(data.removedConversationIds.map((id) => ConversationDB.delete(id)));
       useConversationStore.getState().removeConversations(data.removedConversationIds);
     }
