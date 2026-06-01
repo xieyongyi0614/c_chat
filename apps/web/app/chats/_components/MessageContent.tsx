@@ -3,10 +3,26 @@
 import { FileText, Play } from 'lucide-react';
 import { MESSAGE_TYPE } from '@c_chat/shared-config';
 import type { LocalMessageListItem } from '@c_chat/shared-types';
+import { useMessageStore } from '@/lib/stores/message.store';
+import { useLightboxStore } from '@/lib/stores/lightbox.store';
+import { formatFileUrl } from '@/lib/media/formatFileUrl';
+import { buildConversationPreviewItems } from '@/lib/media/previewItems';
 
 interface MessageContentProps {
   message: LocalMessageListItem;
 }
+
+const openPreview = (message: LocalMessageListItem) => {
+  const items = buildConversationPreviewItems(
+    useMessageStore.getState().messages,
+    message.conversationId,
+  );
+  const initialIndex = Math.max(
+    0,
+    items.findIndex((item) => item.id === message.id),
+  );
+  useLightboxStore.getState().openPreview({ items, initialIndex });
+};
 
 const formatFileSize = (bytes: number): string => {
   if (bytes <= 0) return '';
@@ -28,18 +44,29 @@ export function MessageContent({ message }: MessageContentProps) {
   switch (message.type) {
     case MESSAGE_TYPE.Image:
       return (
-        <img
-          src={message.fileUrl}
-          alt={message.fileName || '图片'}
-          className="max-h-60 max-w-full rounded-md object-cover"
-        />
+        <button
+          type="button"
+          className="block cursor-zoom-in overflow-hidden rounded-md"
+          onClick={() => openPreview(message)}
+        >
+          <img
+            src={formatFileUrl(message.fileUrl)}
+            alt={message.fileName || '图片'}
+            className="max-h-60 max-w-full object-cover"
+          />
+        </button>
       );
 
     case MESSAGE_TYPE.Video:
       return (
-        <div className="flex aspect-video w-56 items-center justify-center rounded-md bg-muted text-muted-foreground">
+        <button
+          type="button"
+          aria-label="播放视频"
+          className="flex aspect-video w-56 cursor-pointer items-center justify-center rounded-md bg-muted text-muted-foreground"
+          onClick={() => openPreview(message)}
+        >
           <Play className="size-8" />
-        </div>
+        </button>
       );
 
     case MESSAGE_TYPE.Audio:

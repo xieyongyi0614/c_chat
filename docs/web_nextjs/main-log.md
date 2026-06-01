@@ -41,3 +41,13 @@
 - 260601 1355 ✅ media 完成并提交
 - 260601 1357 第1轮修复后 test：PASS
 - 260601 1358 ✅ media 完成并提交 9547d2b
+- 260601 1358 ✅ [1/4] media 完成，提交 9547d2b
+- 260601 1358 ── [2/4] 开始 07_MEDIA_PREVIEW.md ──
+- 260601 1406 ──── 队列启动 ────
+- 260601 1406 跳过：00_OVERVIEW.md（总览）、02_TRANSPORT_DATA.md（已在 task-completed）
+- 260601 1406 待执行：07_MEDIA_PREVIEW.md、08_VOICE_MESSAGE.md、09_DESKTOP_CAPABILITY_MAP.md，共 3 个
+- 260601 1406 ── [1/3] 开始 07_MEDIA_PREVIEW.md ──
+- 260601 1410 architect 完成：media-preview
+- 260601 1418 coding 完成：8 个文件（6 新增 + 2 修改）
+- 260601 1422 review 完成：BLOCKER 0 / WARNING 1（已修复）
+- 260601 1425 test：PASS（apps/web typecheck + lint 通过；根级失败均为 electron/shared-utils 既有问题，与本 diff 无关）
