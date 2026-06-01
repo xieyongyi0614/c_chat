@@ -22,7 +22,7 @@ const getMsgIdRange = (messages: { seq?: bigint }[]) => {
   let oldest: bigint | null = null;
   let newest: bigint | null = null;
   for (const m of messages) {
-    if (!m.seq) continue;
+    if (!m.seq || m.seq <= 0n) continue;
     if (oldest == null || m.seq < oldest) oldest = m.seq;
     if (newest == null || m.seq > newest) newest = m.seq;
   }

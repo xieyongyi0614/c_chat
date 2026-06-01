@@ -13,7 +13,7 @@ interface MessageStoreData {
 
 const getMessageIdentity = (msg: LocalMessageListItem) => {
   if (msg.clientMsgId) return `client:${msg.clientMsgId}`;
-  if (msg.seq) return `server:${msg.conversationId}:${msg.seq}`;
+  if (msg.seq > 0n) return `server:${msg.conversationId}:${msg.seq}`;
   return `local:${msg.id}`;
 };
 
@@ -34,7 +34,7 @@ const getServerMsgIdRange = (messages: LocalMessageListItem[]) => {
   let max: bigint | null = null;
 
   for (const msg of messages) {
-    if (!msg.seq) continue;
+    if (msg.seq <= 0n) continue;
     if (min == null || msg.seq < min) min = msg.seq;
     if (max == null || msg.seq > max) max = msg.seq;
   }

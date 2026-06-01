@@ -111,6 +111,21 @@ export class MessageTable extends TableConnection {
       msg.waveform,
     ];
   }
+
+  getNextLocalSeq(conversationId: string): bigint {
+    const row = this.get<[string], { seq: number | bigint }>(
+      `
+      SELECT seq FROM ${this.TABLE_NAME}
+      WHERE conversation_id = ?
+        AND seq < 0
+      ORDER BY seq ASC
+      LIMIT 1
+      `,
+      [conversationId],
+    );
+    return BigInt(row?.seq ?? 0) - 1n;
+  }
+
   getMessagesByConversationId(
     conversationId: string,
     limit = DEFAULT_MESSAGE_PAGE_SIZE,
@@ -125,6 +140,7 @@ export class MessageTable extends TableConnection {
         SELECT * FROM ${this.TABLE_NAME}
         WHERE conversation_id = ?
           AND seq < ?
+          AND seq > 0
         ORDER BY seq DESC
         LIMIT ?
         `,
@@ -152,6 +168,7 @@ export class MessageTable extends TableConnection {
       SELECT seq FROM ${this.TABLE_NAME}
       WHERE conversation_id = ?
         AND seq IS NOT NULL
+        AND seq > 0
       ORDER BY seq DESC
       LIMIT 1
       `,
@@ -169,6 +186,7 @@ export class MessageTable extends TableConnection {
       SELECT seq FROM ${this.TABLE_NAME}
       WHERE conversation_id = ?
         AND seq IN (${placeholders})
+        AND seq > 0
       `,
       [conversationId, ...msgIds],
     );
