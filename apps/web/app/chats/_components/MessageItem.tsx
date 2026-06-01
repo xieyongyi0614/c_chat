@@ -82,7 +82,7 @@ export function MessageItem({ message, isGroup, showSender }: MessageItemProps) 
             isMe ? 'rounded-br-sm bg-primary text-primary-foreground' : 'rounded-bl-sm bg-muted',
           )}
         >
-          <MessageContent message={message} />
+          <MessageContent message={message} isMe={isMe} />
         </div>
         <div className="flex items-center gap-1 px-1 text-[11px] text-muted-foreground">
           <span>{formatChatTime(message.createTime)}</span>

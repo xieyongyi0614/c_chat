@@ -20,6 +20,8 @@ export interface UploadTask {
   conversationId?: string;
   clientMsgId?: string;
   messageType?: number;
+  duration?: number;
+  waveform?: string;
   createdAt: number;
   updatedAt: number;
 }

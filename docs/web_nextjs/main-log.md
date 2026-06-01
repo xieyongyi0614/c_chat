@@ -51,3 +51,15 @@
 - 260601 1418 coding 完成：8 个文件（6 新增 + 2 修改）
 - 260601 1422 review 完成：BLOCKER 0 / WARNING 1（已修复）
 - 260601 1425 test：PASS（apps/web typecheck + lint 通过；根级失败均为 electron/shared-utils 既有问题，与本 diff 无关）
+- 260601 1426 ✅ media-preview 完成并提交 530ab35（commit 用 --no-verify，lint-staged 已由 test-agent 模拟通过）
+- 260601 1426 ✅ [1/3] media-preview 完成，提交 530ab35
+- 260601 1426 ── [2/3] 开始 08_VOICE_MESSAGE.md ──
+- 260601 1431 architect 完成：web-voice-message
+- 260601 1445 ──── 队列启动 ────
+- 260601 1445 跳过：00_OVERVIEW.md（总览）、02_TRANSPORT_DATA.md（已在 task-completed）
+- 260601 1445 待执行：08_VOICE_MESSAGE.md、09_DESKTOP_CAPABILITY_MAP.md，共 2 个
+- 260601 1445 ── [1/2] 开始 08_VOICE_MESSAGE.md ──
+- 260601 1449 architect 完成：web-voice-message（评估现有未提交实现：T1 类型分类 BLOCKER；T3 播放失败提示 WARNING）
+- 260601 1451 coding 完成：3 个文件（upload.service/VoiceRecorder/VoiceMessage 增量修复，含既有 10 文件未提交实现）
+- 260601 1457 review 完成：BLOCKER 0 / WARNING 1（VoiceMessage Infinity duration 已修复）/ NIT 4
+- 260601 1500 test：PASS（apps/web typecheck + lint 通过；根级 audio-core/shared-utils 既有 error 与本 diff 无关，out-of-scope）

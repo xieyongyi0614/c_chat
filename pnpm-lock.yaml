@@ -516,6 +516,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@c_chat/audio-core':
+        specifier: workspace:^
+        version: link:../../packages/audio-core
       '@c_chat/shared-api':
         specifier: workspace:^
         version: link:../../packages/shared-api

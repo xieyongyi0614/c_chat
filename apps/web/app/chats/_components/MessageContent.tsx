@@ -7,9 +7,11 @@ import { useMessageStore } from '@/lib/stores/message.store';
 import { useLightboxStore } from '@/lib/stores/lightbox.store';
 import { formatFileUrl } from '@/lib/media/formatFileUrl';
 import { buildConversationPreviewItems } from '@/lib/media/previewItems';
+import { VoiceMessage } from './VoiceMessage';
 
 interface MessageContentProps {
   message: LocalMessageListItem;
+  isMe: boolean;
 }
 
 const openPreview = (message: LocalMessageListItem) => {
@@ -32,15 +34,7 @@ const formatFileSize = (bytes: number): string => {
   return `${size.toFixed(exponent === 0 ? 0 : 1)} ${units[exponent]}`;
 };
 
-const formatDuration = (seconds: number): string => {
-  const total = Math.round(seconds);
-  const minutes = Math.floor(total / 60);
-  const rest = total % 60;
-  return `${minutes}:${rest.toString().padStart(2, '0')}`;
-};
-
-export function MessageContent({ message }: MessageContentProps) {
-  // 图片上传归属 06，文件上传归属 06，视频预览归属 08，语音录制/播放归属 07；此处仅只读展示
+export function MessageContent({ message, isMe }: MessageContentProps) {
   switch (message.type) {
     case MESSAGE_TYPE.Image:
       return (
@@ -70,12 +64,7 @@ export function MessageContent({ message }: MessageContentProps) {
       );
 
     case MESSAGE_TYPE.Audio:
-      return (
-        <div className="flex items-center gap-2 text-sm">
-          <Play className="size-4" />
-          <span>{formatDuration(message.duration ?? 0)}</span>
-        </div>
-      );
+      return <VoiceMessage message={message} isMe={isMe} />;
 
     case MESSAGE_TYPE.File:
       return (
