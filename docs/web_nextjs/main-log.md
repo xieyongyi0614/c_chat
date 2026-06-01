@@ -69,3 +69,6 @@
 - 260601 1505 coding 完成：1 个文件（09 文档 18 项 checkbox 全部勾选，7/6/5）
 - 260601 1507 review 完成：BLOCKER 0 / WARNING 0 / NIT 1（实际 18 项非 17，已校正记述）
 - 260601 1508 test：PASS（纯文档改动，仅限 docs/；09 文档剩余 [ ]=0，[x]=18）
+- 260601 1508 ✅ [2/2] desktop-capability-map 完成并提交 b8bce5f
+- 260601 1508 ──── 队列完成 ────
+- 260601 1508 共完成 2 个任务：voice-message → 7b809f5、desktop-capability-map → b8bce5f
