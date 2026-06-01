@@ -1,7 +1,7 @@
 import type { AudioPlayerState } from '../types/audio';
 
 export class AudioPlayerManager {
-  private audio = new Audio();
+  private audio?: HTMLAudioElement;
 
   private state: AudioPlayerState = {
     currentId: undefined,
@@ -20,13 +20,18 @@ export class AudioPlayerManager {
 
   private listeners = new Set<(state: AudioPlayerState) => void>();
 
-  constructor() {
-    this.bindEvents();
+  private getAudio() {
+    if (!this.audio) {
+      this.audio = new Audio();
+      this.bindEvents(this.audio);
+    }
+
+    return this.audio;
   }
 
-  private bindEvents() {
-    this.audio.ontimeupdate = () => {
-      const currentTime = this.audio.currentTime;
+  private bindEvents(audio: HTMLAudioElement) {
+    audio.ontimeupdate = () => {
+      const currentTime = audio.currentTime;
 
       this.updateState({
         currentTime,
@@ -39,25 +44,25 @@ export class AudioPlayerManager {
       });
     };
 
-    this.audio.onloadedmetadata = () => {
+    audio.onloadedmetadata = () => {
       this.updateState({
-        duration: this.audio.duration,
+        duration: audio.duration,
       });
     };
 
-    this.audio.onplay = () => {
+    audio.onplay = () => {
       this.updateState({
         playing: true,
       });
     };
 
-    this.audio.onpause = () => {
+    audio.onpause = () => {
       this.updateState({
         playing: false,
       });
     };
 
-    this.audio.onended = () => {
+    audio.onended = () => {
       const currentId = this.state.currentId;
 
       this.updateState({
@@ -72,16 +77,18 @@ export class AudioPlayerManager {
         },
       });
 
-      this.audio.currentTime = 0;
+      audio.currentTime = 0;
     };
   }
 
   async play(id: string, src: string) {
+    const audio = this.getAudio();
+
     if (this.state.currentId !== id) {
-      this.audio.src = src;
+      audio.src = src;
 
       const savedTime = this.state.progressMap[id] || 0;
-      this.audio.currentTime = savedTime;
+      audio.currentTime = savedTime;
 
       this.updateState({
         currentId: id,
@@ -89,17 +96,20 @@ export class AudioPlayerManager {
       });
     }
 
-    await this.audio.play();
+    await audio.play();
   }
 
   pause() {
-    this.audio.pause();
+    this.audio?.pause();
   }
 
   stop() {
-    this.audio.pause();
+    const audio = this.audio;
+    if (!audio) return;
 
-    this.audio.currentTime = 0;
+    audio.pause();
+
+    audio.currentTime = 0;
 
     if (this.state.currentId) {
       this.updateState({
@@ -115,7 +125,8 @@ export class AudioPlayerManager {
   }
 
   seek(time: number) {
-    this.audio.currentTime = time;
+    const audio = this.getAudio();
+    audio.currentTime = time;
 
     if (this.state.currentId) {
       this.updateState({
@@ -131,7 +142,8 @@ export class AudioPlayerManager {
   }
 
   setPlaybackRate(rate: number) {
-    this.audio.playbackRate = rate;
+    const audio = this.getAudio();
+    audio.playbackRate = rate;
 
     this.updateState({
       playbackRate: rate,
@@ -140,7 +152,6 @@ export class AudioPlayerManager {
 
   subscribe = (listener: (state: AudioPlayerState) => void) => {
     this.listeners.add(listener);
-    console.log('this.listeners.size', this.listeners?.size);
 
     return () => {
       this.listeners.delete(listener);

@@ -24,6 +24,20 @@ interface QueuedEvent {
   data: Command;
 }
 
+type ProtobufMessage = ArrayBuffer | ArrayBufferView;
+
+const toUint8Array = (data: ProtobufMessage): Uint8Array => {
+  if (data instanceof Uint8Array) {
+    return data;
+  }
+
+  if (data instanceof ArrayBuffer) {
+    return new Uint8Array(data);
+  }
+
+  return new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
+};
+
 /** 消息命令处理器注册中心（传输中立） */
 export abstract class MessageRegistry {
   /**
@@ -54,13 +68,14 @@ export abstract class MessageRegistry {
 
   protected abstract getSocket(): CChatSocket | null;
 
-  public dispatch(data: Uint8Array | Buffer) {
-    const command = Command.decode(data);
+  public dispatch(data: ProtobufMessage) {
+    const command = Command.decode(toUint8Array(data));
     const event = command.event as ClientDecodeProtoMapKey;
 
     const listener = this.handlers.get(event);
     if (isIgnoreConsoleEvent(event)) {
       console.log(`收到消息：Event=${event},requestId=${command.requestId}`);
+      console.log(this.handlers);
     }
     if (listener) {
       if (listener instanceof Map) {

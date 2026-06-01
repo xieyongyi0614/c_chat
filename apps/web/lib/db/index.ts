@@ -4,7 +4,7 @@ import type { LocalMessageListItem } from '@c_chat/shared-types';
 
 export interface StoreItem {
   key: string;
-  value: string;
+  value: unknown;
 }
 
 export interface UploadTask {
@@ -49,12 +49,12 @@ db.version(2).stores({
 export { db };
 
 export class StoreDB {
-  static async get(key: string): Promise<string | undefined> {
+  static async get<T = unknown>(key: string): Promise<T | undefined> {
     const item = await db.store.get(key);
-    return item?.value;
+    return item?.value as T | undefined;
   }
 
-  static async set(key: string, value: string): Promise<void> {
+  static async set(key: string, value: unknown): Promise<void> {
     await db.store.put({ key, value });
   }
 
@@ -96,7 +96,7 @@ export class ConversationDB {
 export class MessageDB {
   static async getByConversation(
     conversationId: string,
-    limit = 50
+    limit = 50,
   ): Promise<LocalMessageListItem[]> {
     return db.messages
       .where('conversationId')
@@ -159,7 +159,7 @@ export class UploadTaskDB {
   static async updateStatus(
     id: string,
     status: UploadTask['status'],
-    uploadedChunks?: number[]
+    uploadedChunks?: number[],
   ): Promise<void> {
     const task = await db.uploadTasks.get(id);
     if (task) {

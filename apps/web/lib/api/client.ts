@@ -2,7 +2,17 @@ import { createApiClient, RealtimeClient } from '@c_chat/shared-api';
 import type { ConnectionObserver, IdentityProvider } from '@c_chat/shared-api';
 import { PORTS } from '@c_chat/shared-config';
 import { StoreDB } from '../db';
+import { AuthSessionStorage } from '../services/authSession.storage';
 import { useUserStore } from '../stores/user.store';
+
+async function getAccessToken(): Promise<string | null> {
+  const session = AuthSessionStorage.get();
+  if (session) {
+    return session.accessToken;
+  }
+
+  return (await StoreDB.get<string>('accessToken')) || null;
+}
 
 /**
  * Web 端 IdentityProvider 实现
@@ -41,7 +51,7 @@ const connectionObserver: ConnectionObserver = {
  * 创建 HTTP 客户端
  */
 export const apiClient = createApiClient({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || `http://localhost:${PORTS.SERVICE}`,
+  baseURL: process.env.NEXT_PUBLIC_API_URL || `http://localhost:${PORTS.SERVICE}/api`,
   timeout: 30000,
   clientInfo: {
     name: '@c_chat/web',
@@ -50,14 +60,15 @@ export const apiClient = createApiClient({
   },
   tokenProvider: {
     getToken: async () => {
-      const token = await StoreDB.get('accessToken');
-      return token || null;
+      return getAccessToken();
     },
   },
   errorReporter: {
     report: ({ error }) => {
       if (error.response?.status === 401) {
+        AuthSessionStorage.clear();
         StoreDB.delete('accessToken');
+        StoreDB.delete('userInfo');
         if (typeof window !== 'undefined') {
           window.location.href = '/auth/signin';
         }
@@ -80,15 +91,13 @@ export async function initRealtimeClient(): Promise<RealtimeClient> {
     return realtimeClient;
   }
 
-  const socketUrl =
-    process.env.NEXT_PUBLIC_SOCKET_URL || `http://localhost:${PORTS.SERVICE}/chat`;
+  const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || `http://localhost:${PORTS.SERVICE}/chat`;
 
   realtimeClient = new RealtimeClient({
     url: socketUrl,
     tokenProvider: {
       getToken: async () => {
-        const token = await StoreDB.get('accessToken');
-        return token || null;
+        return getAccessToken();
       },
     },
     identityProvider,

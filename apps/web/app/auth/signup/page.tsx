@@ -41,14 +41,13 @@ export default function SignUpPage() {
     setLoading(true);
 
     try {
-      await authService.signUp({
+      const userInfo = await authService.signUp({
         email,
         username,
         password,
         phone: phone || undefined,
         gender: gender ? Number(gender) : undefined,
       });
-      const userInfo = await authService.getUserInfo();
       setUserInfo(userInfo);
       initializeRealtimeListeners();
       router.push('/chats');

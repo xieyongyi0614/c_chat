@@ -5,7 +5,8 @@
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev",
-    "dev:apps": "turbo run dev --filter=./apps/*",
+    "dev:apps": "turbo run dev --filter=@c_chat/service --filter=@c_chat/electron --filter=@c_chat/frontend --filter=@c_chat/media_preview",
+    "dev:web": "turbo run dev --filter=@c_chat/service --filter=@c_chat/web",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "check-types": "turbo run typecheck",

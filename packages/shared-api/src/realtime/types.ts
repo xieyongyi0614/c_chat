@@ -1,7 +1,7 @@
 import type { Socket } from 'socket.io-client';
 
 export interface ServerToClientEvents {
-  message: (data: Uint8Array | Buffer) => void;
+  message: (data: ArrayBuffer | ArrayBufferView) => void;
   auth_error: (data: { message: string; timestamp: string }) => void;
 }
 
