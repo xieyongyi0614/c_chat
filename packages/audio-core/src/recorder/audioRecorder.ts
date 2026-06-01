@@ -74,18 +74,20 @@ export class AudioRecorder {
       this.startTime = Date.now();
 
       this.startWaveformCollect();
-    } catch (error: any) {
+    } catch (error: unknown) {
       this.cleanup();
 
-      if (error.name === 'NotAllowedError') {
+      const errorName = error instanceof Error ? error.name : undefined;
+
+      if (errorName === 'NotAllowedError') {
         throw new AudioRecordError(AudioRecordErrorCode.PERMISSION_DENIED, '未启动麦克风权限');
       }
 
-      if (error.name === 'NotFoundError') {
+      if (errorName === 'NotFoundError') {
         throw new AudioRecordError(AudioRecordErrorCode.DEVICE_NOT_FOUND, '未找到麦克风');
       }
 
-      if (error.name === 'NotReadableError') {
+      if (errorName === 'NotReadableError') {
         throw new AudioRecordError(AudioRecordErrorCode.DEVICE_IN_USE, '麦克风正在使用中');
       }
 
@@ -93,7 +95,10 @@ export class AudioRecorder {
         throw error;
       }
 
-      throw new AudioRecordError(AudioRecordErrorCode.UNKNOWN, error?.message || '音频录制失败');
+      throw new AudioRecordError(
+        AudioRecordErrorCode.UNKNOWN,
+        error instanceof Error ? error.message : '音频录制失败',
+      );
     }
   }
 

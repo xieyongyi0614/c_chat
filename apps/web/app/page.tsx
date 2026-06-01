@@ -14,8 +14,7 @@ export default function HomePage() {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        await authService.autoSignIn();
-        const userInfo = await authService.getUserInfo();
+        const userInfo = await authService.autoSignIn();
         setUserInfo(userInfo);
         initializeRealtimeListeners();
         router.push('/chats');

@@ -47,14 +47,22 @@ export class HttpClient {
     this.contextResolver = options.contextResolver;
     this.clientInfo = options.clientInfo;
 
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    };
+
+    if (this.clientInfo.platform === 'browser') {
+      delete headers['User-Agent'];
+    } else if (!headers['User-Agent']) {
+      headers['User-Agent'] =
+        `${this.clientInfo.name}/${this.clientInfo.version} (${this.clientInfo.platform})`;
+    }
+
     this.axiosInstance = axios.create({
       baseURL: options.baseURL,
       timeout: options.timeout ?? 10000,
-      headers: {
-        'User-Agent': `${this.clientInfo.name}/${this.clientInfo.version} (${this.clientInfo.platform})`,
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
+      headers,
       ...options.axiosOverrides,
     });
 

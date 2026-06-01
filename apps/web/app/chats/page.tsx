@@ -49,12 +49,42 @@ export default function ChatsPage() {
   const [profileOpen, setProfileOpen] = useState(false);
   const [createGroupOpen, setCreateGroupOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [checkingAuth, setCheckingAuth] = useState(!isAuthenticated);
 
   useEffect(() => {
-    if (!isAuthenticated) {
-      router.push('/auth/signin');
+    if (isAuthenticated) {
+      setCheckingAuth(false);
       return;
     }
+
+    let disposed = false;
+
+    const restoreSession = async () => {
+      try {
+        const restoredUserInfo = await authService.autoSignIn();
+        if (disposed) return;
+        useUserStore.getState().setUserInfo(restoredUserInfo);
+        initializeRealtimeListeners();
+      } catch {
+        if (!disposed) {
+          router.push('/auth/signin');
+        }
+      } finally {
+        if (!disposed) {
+          setCheckingAuth(false);
+        }
+      }
+    };
+
+    void restoreSession();
+
+    return () => {
+      disposed = true;
+    };
+  }, [isAuthenticated, router]);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
 
     initializeRealtimeListeners();
 
@@ -110,7 +140,7 @@ export default function ChatsPage() {
     }
   };
 
-  if (!isAuthenticated) {
+  if (checkingAuth || !isAuthenticated) {
     return null;
   }
 

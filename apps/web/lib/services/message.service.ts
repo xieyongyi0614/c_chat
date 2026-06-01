@@ -259,7 +259,7 @@ export class MessageService {
     );
   }
 
-  private toLocalMessage(item: IMessageInfo): LocalMessageListItem {
+  toLocalMessage(item: IMessageInfo): LocalMessageListItem {
     const message = MessageInfo.create(item);
     return {
       id: message.id,

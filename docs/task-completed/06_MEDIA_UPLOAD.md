@@ -132,12 +132,12 @@ File 按固定 chunkSize 切片并调用上传端点。
 
 目标：确认上传、消息、媒体三层职责。
 
-- [ ] 确认 Web 端沿用方案 B。
-- [ ] 确认 `UploadService` 的四个上传方法满足 Web。
-- [ ] 确认 `/upload/init` 入参包含消息上下文。
-- [ ] 确认 complete 后服务端直接创建消息。
-- [ ] 确认客户端不二次 `sendMessage`。
-- [ ] 确认推送事件如何覆盖 pending 消息。
+- [x] 确认 Web 端沿用方案 B。
+- [x] 确认 `UploadService` 的四个上传方法满足 Web。
+- [x] 确认 `/upload/init` 入参包含消息上下文。
+- [x] 确认 complete 后服务端直接创建消息。
+- [x] 确认客户端不二次 `sendMessage`。
+- [x] 确认推送事件如何覆盖 pending 消息。
 
 产出：
 
@@ -147,12 +147,12 @@ File 按固定 chunkSize 切片并调用上传端点。
 
 目标：用户可选择文件并创建上传任务。
 
-- [ ] 实现文件选择。
-- [ ] 实现拖拽选择。
-- [ ] 提取文件基础信息。
-- [ ] 生成 `clientMsgId` 和本地 pending 消息。
-- [ ] 建立 IndexedDB `upload_tasks`。
-- [ ] 写入上传任务元信息。
+- [x] 实现文件选择。
+- [x] 实现拖拽选择。
+- [x] 提取文件基础信息。
+- [x] 生成 `clientMsgId` 和本地 pending 消息。
+- [x] 建立 IndexedDB `upload_tasks`。
+- [x] 写入上传任务元信息。
 
 产出：
 
@@ -162,12 +162,12 @@ File 按固定 chunkSize 切片并调用上传端点。
 
 目标：完成基本上传能力。
 
-- [ ] 计算或获取上传所需 hash。
-- [ ] 调用 `uploadInit`。
-- [ ] 使用 `File.slice` 切片。
-- [ ] 并发调用 `uploadChunk`。
-- [ ] 更新上传进度。
-- [ ] 处理分片失败重试。
+- [x] 计算或获取上传所需 hash。
+- [x] 调用 `uploadInit`。
+- [x] 使用 `File.slice` 切片。
+- [x] 并发调用 `uploadChunk`。
+- [x] 更新上传进度。
+- [x] 处理分片失败重试。
 
 产出：
 
@@ -177,12 +177,12 @@ File 按固定 chunkSize 切片并调用上传端点。
 
 目标：上传完成后由服务端生成最终消息。
 
-- [ ] 调用 `getUploadStatus` 查询已完成分片。
-- [ ] 只补传缺失分片。
-- [ ] 全部分片完成后调用 `uploadComplete`。
-- [ ] 接收 `newUpdateMessage`。
-- [ ] 用正式消息覆盖本地 pending。
-- [ ] 更新上传任务为成功。
+- [x] 调用 `getUploadStatus` 查询已完成分片。
+- [x] 只补传缺失分片。
+- [x] 全部分片完成后调用 `uploadComplete`。
+- [x] 接收 `newUpdateMessage`。
+- [x] 用正式消息覆盖本地 pending。
+- [x] 更新上传任务为成功。
 
 产出：
 
@@ -192,11 +192,11 @@ File 按固定 chunkSize 切片并调用上传端点。
 
 目标：补齐边界体验。
 
-- [ ] 实现秒传分支。
+- [x] 实现秒传分支。
 - [ ] 刷新后读取未完成任务。
-- [ ] File 丢失时提示重新选择。
-- [ ] 支持用户重试失败任务。
-- [ ] 处理 session 过期。
+- [x] File 丢失时提示重新选择。
+- [x] 支持用户重试失败任务。
+- [x] 处理 session 过期。
 - [ ] 补齐 loading、empty、error 状态。
 
 产出：

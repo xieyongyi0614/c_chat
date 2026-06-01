@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -27,14 +27,35 @@ export default function SignInPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    let disposed = false;
+
+    const restoreSession = async () => {
+      try {
+        const userInfo = await authService.autoSignIn();
+        if (disposed) return;
+        setUserInfo(userInfo);
+        initializeRealtimeListeners();
+        router.push('/chats');
+      } catch {
+        // Stay on the sign-in page when no saved session exists.
+      }
+    };
+
+    void restoreSession();
+
+    return () => {
+      disposed = true;
+    };
+  }, [router, setUserInfo]);
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError('');
     setLoading(true);
 
     try {
-      await authService.signIn({ email, password });
-      const userInfo = await authService.getUserInfo();
+      const userInfo = await authService.signIn({ email, password });
       setUserInfo(userInfo);
       initializeRealtimeListeners();
       router.push('/chats');

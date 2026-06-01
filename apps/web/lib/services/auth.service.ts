@@ -1,39 +1,41 @@
-import { authService as sharedAuthService, getRealtimeClient, initRealtimeClient, destroyRealtimeClient } from '../api/client';
+import {
+  authService as sharedAuthService,
+  getRealtimeClient,
+  initRealtimeClient,
+  destroyRealtimeClient,
+} from '../api/client';
 import { StoreDB, ConversationDB, MessageDB, UploadTaskDB } from '../db';
-import type {
-  GetUserListParams,
-  AuthTypes,
-  SocketTypes,
-  UserTypes,
-} from '@c_chat/shared-types';
+import { AuthSessionStorage, type AuthSession } from './authSession.storage';
+import type { GetUserListParams, AuthTypes, SocketTypes, UserTypes } from '@c_chat/shared-types';
 import { ClientToServiceEvent } from '@c_chat/shared-protobuf/protoMap';
 import { GetUserList } from '@c_chat/shared-protobuf';
 
 export class AuthService {
-  async signIn(params: AuthTypes.PostSignInParams): Promise<void> {
+  async signIn(params: AuthTypes.PostSignInParams): Promise<AuthTypes.GetUserInfoResponse> {
     const { access_token: accessToken } = await sharedAuthService.signIn(params);
-    const userInfo = await sharedAuthService.getUserInfo();
+    await this.saveSession({ accessToken, userInfo: null });
 
-    if (!userInfo) {
-      throw new Error('Failed to get user info');
-    }
+    const userInfo = await this.getUserInfo();
 
-    await StoreDB.set('accessToken', accessToken);
-    await StoreDB.set('userInfo', JSON.stringify(userInfo));
     await initRealtimeClient();
+
+    return userInfo;
   }
 
-  async signUp(params: AuthTypes.PostSignUpParams): Promise<void> {
+  async signUp(params: AuthTypes.PostSignUpParams): Promise<AuthTypes.GetUserInfoResponse> {
     const { access_token: accessToken } = await sharedAuthService.signUp(params);
+    await this.saveSession({ accessToken, userInfo: null });
+
     const userInfo = await sharedAuthService.getUserInfo();
 
     if (!userInfo) {
       throw new Error('Failed to get user info');
     }
 
-    await StoreDB.set('accessToken', accessToken);
-    await StoreDB.set('userInfo', JSON.stringify(userInfo));
+    await this.saveSession({ accessToken, userInfo });
     await initRealtimeClient();
+
+    return userInfo;
   }
 
   async getUserInfo(): Promise<AuthTypes.GetUserInfoResponse> {
@@ -41,32 +43,39 @@ export class AuthService {
     if (!userInfo) {
       throw new Error('Failed to get user info');
     }
-    await StoreDB.set('userInfo', JSON.stringify(userInfo));
+    const session = await this.getSession();
+    if (session) {
+      await this.saveSession({ ...session, userInfo });
+    }
     return userInfo;
   }
 
   async updateUserProfile(params: AuthTypes.UpdateUserProfileParams): Promise<void> {
     const updated = await sharedAuthService.updateUserProfile(params);
     if (!updated) return;
-    await StoreDB.set('userInfo', JSON.stringify(updated));
+    const session = await this.getSession();
+    if (session) {
+      await this.saveSession({ ...session, userInfo: updated });
+    }
   }
 
-  async autoSignIn(): Promise<void> {
-    const token = await StoreDB.get('accessToken');
-    const userInfoStr = await StoreDB.get('userInfo');
+  async autoSignIn(): Promise<AuthTypes.GetUserInfoResponse> {
+    const session = await this.getSession();
 
-    if (!token || !userInfoStr) {
+    if (!session) {
       throw new Error('No saved credentials');
     }
 
+    const userInfo = session.userInfo ?? (await this.getUserInfo());
     await initRealtimeClient();
+
+    return userInfo;
   }
 
   async logout(): Promise<void> {
     destroyRealtimeClient();
 
-    await StoreDB.delete('accessToken');
-    await StoreDB.delete('userInfo');
+    await this.clearSession();
     await ConversationDB.clear();
     await MessageDB.clear();
     await UploadTaskDB.clear();
@@ -86,10 +95,7 @@ export class AuthService {
     });
 
     const payload = GetUserList.encode(request).finish();
-    const response = await realtimeClient.genericRequest(
-      ClientToServiceEvent.getUserList,
-      payload
-    );
+    const response = await realtimeClient.genericRequest(ClientToServiceEvent.getUserList, payload);
 
     return {
       list: response.list.map((user) => ({
@@ -107,6 +113,41 @@ export class AuthService {
         pageSize: response.pagination?.pageSize || 20,
       },
     };
+  }
+
+  private async getSession(): Promise<AuthSession | null> {
+    const session = AuthSessionStorage.get();
+
+    if (session) {
+      return session;
+    }
+
+    const legacyToken = await StoreDB.get<string>('accessToken');
+    if (!legacyToken) {
+      return null;
+    }
+
+    const legacyUserInfo = await StoreDB.get<string>('userInfo');
+    const migratedSession: AuthSession = {
+      accessToken: legacyToken,
+      userInfo: legacyUserInfo ? (JSON.parse(legacyUserInfo) as AuthTypes.GetUserInfoResponse) : null,
+    };
+
+    await this.saveSession(migratedSession);
+    await StoreDB.delete('accessToken');
+    await StoreDB.delete('userInfo');
+
+    return migratedSession;
+  }
+
+  private async saveSession(session: AuthSession): Promise<void> {
+    AuthSessionStorage.set(session);
+  }
+
+  private async clearSession(): Promise<void> {
+    AuthSessionStorage.clear();
+    await StoreDB.delete('accessToken');
+    await StoreDB.delete('userInfo');
   }
 }
 
