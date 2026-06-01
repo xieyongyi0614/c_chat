@@ -2,9 +2,10 @@
 
 import { useRef, useState } from 'react';
 import type { ChangeEvent, DragEvent, KeyboardEvent } from 'react';
-import { Mic, Paperclip, Send } from 'lucide-react';
+import { Paperclip, Send } from 'lucide-react';
 import { Button, Spinner, Textarea } from '@c_chat/ui';
 import { messageService, uploadManager } from '@/lib/services';
+import { VoiceRecorder } from './VoiceRecorder';
 
 interface ChatInputProps {
   conversationId: string;
@@ -107,10 +108,7 @@ export function ChatInput({ conversationId, onSent, disabled = false }: ChatInpu
             >
               <Paperclip />
             </Button>
-            {/* 录音归属 07，此处占位 */}
-            <Button type="button" variant="ghost" size="icon" disabled aria-label="语音消息">
-              <Mic />
-            </Button>
+            <VoiceRecorder conversationId={conversationId} onSent={onSent} disabled={disabled} />
           </div>
           <Button
             type="button"

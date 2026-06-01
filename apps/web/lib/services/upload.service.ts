@@ -69,13 +69,22 @@ async function runChunkPool(
 export interface StartUploadParams {
   file: File;
   conversationId: string;
+  duration?: number;
+  waveform?: string;
+  messageType?: MessageType;
 }
 
 export class UploadManager {
   /** 选择文件后创建 pending 消息 + 上传任务，并异步执行上传 */
-  async upload({ file, conversationId }: StartUploadParams): Promise<void> {
+  async upload({
+    file,
+    conversationId,
+    duration,
+    waveform,
+    messageType: explicitType,
+  }: StartUploadParams): Promise<void> {
     const clientMsgId = `${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
-    const messageType = resolveMessageType(file);
+    const messageType = explicitType ?? resolveMessageType(file);
     const objectUrl = URL.createObjectURL(file);
 
     const pendingMessage: LocalMessageListItem = {
@@ -95,6 +104,8 @@ export class UploadManager {
       mimeType: file.type,
       fileSize: file.size,
       progress: 0,
+      duration,
+      waveform,
     };
 
     await MessageDB.upsert(pendingMessage);
@@ -117,6 +128,8 @@ export class UploadManager {
       conversationId,
       clientMsgId,
       messageType,
+      duration,
+      waveform,
       createdAt: Date.now(),
       updatedAt: Date.now(),
     };
@@ -148,6 +161,8 @@ export class UploadManager {
         clientMsgId: task.clientMsgId,
         conversationId: task.conversationId,
         messageType: task.messageType,
+        duration: task.duration,
+        waveform: task.waveform,
       });
 
       if (!initRes) {

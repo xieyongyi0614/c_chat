@@ -3,6 +3,7 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   transpilePackages: [
+    '@c_chat/audio-core',
     '@c_chat/ui',
     '@c_chat/shared-api',
     '@c_chat/shared-config',

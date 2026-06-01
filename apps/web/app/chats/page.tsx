@@ -24,6 +24,7 @@ import { UserProfileDialog } from './_components/UserProfileDialog';
 import { CreateGroupDialog } from './_components/CreateGroupDialog';
 import { ChatWindow } from './_components/ChatWindow';
 import { MediaLightbox } from './_components/MediaLightbox';
+import { AudioPlayerBridge } from './_components/AudioPlayerBridge';
 
 const SYNC_INTERVAL_MS = 30_000;
 
@@ -210,6 +211,7 @@ export default function ChatsPage() {
       <UserProfileDialog open={profileOpen} onOpenChange={setProfileOpen} />
       <CreateGroupDialog open={createGroupOpen} onOpenChange={setCreateGroupOpen} />
       <MediaLightbox />
+      <AudioPlayerBridge />
     </main>
   );
 }
