@@ -1,22 +1,21 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { ComponentProps, ReactNode } from 'react';
 import { ArrowDown, Loader2 } from 'lucide-react';
-import { cn } from '../../../lib/utils';
+import { cn, DEFAULT_SCROLL_TO_BOTTOM_EVENT } from '../../../lib/utils';
 import { Button } from '../../../components/button';
 
 const DEFAULT_BOTTOM_THRESHOLD = 120;
 const DEFAULT_TOP_LOAD_THRESHOLD = 80;
 const DEFAULT_KEEP_BOTTOM_MS = 1200;
-const DEFAULT_SCROLL_TO_BOTTOM_EVENT = 'chat:scroll-to-bottom';
 
-interface ChatMessageScrollAreaLabels {
+export interface ChatMessageScrollAreaLabels {
   loadingOlder?: ReactNode;
   loadingLatest?: ReactNode;
   noMoreOlder?: ReactNode;
   scrollToBottom?: string;
 }
 
-interface ChatMessageScrollAreaProps extends Omit<ComponentProps<'div'>, 'onScroll'> {
+export interface ChatMessageScrollAreaProps extends Omit<ComponentProps<'div'>, 'onScroll'> {
   conversationKey: string | null | undefined;
   messageCount: number;
   hasMoreOlder: boolean;
@@ -30,7 +29,7 @@ interface ChatMessageScrollAreaProps extends Omit<ComponentProps<'div'>, 'onScro
   labels?: ChatMessageScrollAreaLabels;
 }
 
-function ChatMessageScrollArea({
+function ChatMessageScrollAreaWrapper({
   conversationKey,
   messageCount,
   hasMoreOlder,
@@ -137,6 +136,7 @@ function ChatMessageScrollArea({
   useLayoutEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
+    console.log('useLayoutEffect');
 
     const conversationChanged = previousConversationKeyRef.current !== conversationKey;
     if (conversationChanged) {
@@ -147,12 +147,22 @@ function ChatMessageScrollArea({
       keepBottomUntilRef.current = Date.now() + keepBottomMs;
     }
 
-    const previousHeight = pendingPrependHeightRef.current;
-    if (previousHeight != null) {
-      el.scrollTop += el.scrollHeight - previousHeight;
-      pendingPrependHeightRef.current = null;
+    // const previousHeight = pendingPrependHeightRef.current;
+    // if (previousHeight != null) {
+
+    //   if (el.scrollHeight && el.scrollHeight !== previousHeight) {
+    //     console.log(el.scrollHeight, previousHeight, 'el.scrollHeight');
+    //     el.scrollTop += el.scrollHeight - previousHeight;
+    //     pendingPrependHeightRef.current = null;
+    //     lastScrollHeightRef.current = el.scrollHeight;
+    //     updateNearBottom();
+    //     shouldStickToBottomRef.current = false;
+    //   }
+    //   return;
+    // }
+
+    if (isLoadingOlderRef.current) {
       lastScrollHeightRef.current = el.scrollHeight;
-      updateNearBottom();
       return;
     }
 
@@ -164,7 +174,7 @@ function ChatMessageScrollArea({
     }
 
     lastScrollHeightRef.current = el.scrollHeight;
-  }, [conversationKey, keepBottomMs, messageCount, scheduleScrollToBottom, updateNearBottom]);
+  }, [conversationKey, keepBottomMs, scheduleScrollToBottom, updateNearBottom]);
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -250,5 +260,4 @@ function ChatMessageScrollArea({
   );
 }
 
-export { ChatMessageScrollArea };
-export type { ChatMessageScrollAreaLabels, ChatMessageScrollAreaProps };
+export const ChatMessageScrollArea = memo(ChatMessageScrollAreaWrapper);

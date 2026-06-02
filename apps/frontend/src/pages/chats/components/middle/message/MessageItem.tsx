@@ -22,12 +22,13 @@ import { formatFileUrl } from '@c_chat/frontend/common/formatFileUrl';
 import { bufferToPreviewUrl, ipc, to } from '@c_chat/shared-utils';
 import { toast } from 'sonner';
 import { MESSAGE_TYPE } from '@c_chat/shared-config';
-import { MessageStatus } from '@c_chat/shared-types';
+import { MessageStatus, type LocalMessageListItem } from '@c_chat/shared-types';
 import type { SenderProfile } from './senderProfile';
 import { audioPlayerManager } from '@c_chat/audio-core';
 import { useAudioMessage } from '@c_chat/frontend/hooks/useAudioMessage';
 import useWaveformCanvas from '@c_chat/frontend/hooks/useWaveformCanvas';
 import { buildConversationPreviewItems, toMediaPreviewItem } from './mediaPreviewItems';
+import { useShallow } from 'zustand/react/shallow';
 
 interface MessageItemProps {
   isRead: boolean;
@@ -51,15 +52,18 @@ const fileResolver: ChatMessageFileResolver = {
   },
 };
 
+const EMPTY_MESSAGES: LocalMessageListItem[] = [];
+
 const MessageItem = ({
   isRead,
   groupId,
   isGroupConversation,
   senderProfiles,
 }: MessageItemProps) => {
+  console.log('message item render');
   const userInfo = useUserStore((s) => s.userInfo);
   const userId = userInfo?.id;
-  const messages = useMessageStore((s) => s.msgMap[groupId]) ?? [];
+  const messages = useMessageStore(useShallow((s) => s.msgMap[groupId] ?? EMPTY_MESSAGES));
   const updateMsgs = useMessageStore((s) => s.updateMsgs);
   const [profileOpen, setProfileOpen] = useState(false);
   const [resending, setResending] = useState(false);
@@ -206,7 +210,6 @@ const MessageItem = ({
           isMe={isMe}
           isMedia={msg.type === MESSAGE_TYPE.Image}
           isVideo={isVideoMessage}
-          variant="desktop"
         >
           <ChatMessageContent
             messages={messages}
