@@ -159,7 +159,7 @@ export class MessageTable extends TableConnection {
       );
     }
 
-    return rows;
+    return rows.map((row) => ({ ...row, seq: BigInt(row.seq) }));
   }
 
   getLatestServerMsgSeq(conversationId: string): bigint {

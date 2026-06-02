@@ -1,6 +1,7 @@
 import { uploadService } from '../api/client';
 import { UploadTaskDB, MessageDB, type UploadTask } from '../db';
 import { useMessageStore } from '../stores/message.store';
+import { useUserStore } from '../stores/user.store';
 import { MessageStatus } from '@c_chat/shared-types';
 import type { LocalMessageListItem } from '@c_chat/shared-types';
 import {
@@ -86,13 +87,17 @@ export class UploadManager {
     const clientMsgId = `${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
     const messageType = explicitType ?? resolveMessageType(file);
     const objectUrl = URL.createObjectURL(file);
+    const userInfo = useUserStore.getState().userInfo;
 
     const pendingMessage: LocalMessageListItem = {
       id: clientMsgId,
       conversationId,
       seq: BigInt(0),
       clientMsgId,
-      senderId: '',
+      senderId: userInfo?.id ?? '',
+      senderNickname: userInfo?.nickname ?? userInfo?.email ?? '',
+      senderAvatar: userInfo?.avatarUrl ?? '',
+      senderEmail: userInfo?.email ?? '',
       content: '',
       type: messageType,
       status: MessageStatus.uploading,

@@ -3,7 +3,18 @@
 import { useRef, useState } from 'react';
 import type { ChangeEvent } from 'react';
 import { AlertCircle, Check } from 'lucide-react';
-import { Avatar, AvatarFallback, AvatarImage, Spinner, cn } from '@c_chat/ui';
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+  ChatMessageBubble,
+  ChatMessageMeta,
+  ChatMessageRow,
+  ChatMessageSenderName,
+  ChatMessageStack,
+  Spinner,
+  cn,
+} from '@c_chat/ui';
 import { formatChatTime } from '@c_chat/shared-utils';
 import { MESSAGE_TYPE } from '@c_chat/shared-config';
 import { MessageStatus, type LocalMessageListItem } from '@c_chat/shared-types';
@@ -60,9 +71,10 @@ export function MessageItem({ message, isGroup, showSender }: MessageItemProps) 
   };
 
   const showAvatar = isGroup && !isMe;
+  const isMedia = message.type === MESSAGE_TYPE.Image || message.type === MESSAGE_TYPE.Video;
 
   return (
-    <div className={cn('flex w-full items-end gap-2', isMe ? 'justify-end' : 'justify-start')}>
+    <ChatMessageRow isMe={isMe}>
       {showAvatar && (
         <Avatar className="size-8 shrink-0">
           {showSender ? <AvatarImage src={message.senderAvatar} alt={senderName} /> : null}
@@ -72,19 +84,12 @@ export function MessageItem({ message, isGroup, showSender }: MessageItemProps) 
         </Avatar>
       )}
 
-      <div className={cn('flex max-w-[70%] flex-col gap-1', isMe ? 'items-end' : 'items-start')}>
-        {showAvatar && showSender && (
-          <span className="px-1 text-xs text-muted-foreground">{senderName}</span>
-        )}
-        <div
-          className={cn(
-            'rounded-2xl px-3 py-2',
-            isMe ? 'rounded-br-sm bg-primary text-primary-foreground' : 'rounded-bl-sm bg-muted',
-          )}
-        >
+      <ChatMessageStack isMe={isMe}>
+        {showAvatar && showSender && <ChatMessageSenderName>{senderName}</ChatMessageSenderName>}
+        <ChatMessageBubble isMe={isMe} isMedia={isMedia}>
           <MessageContent message={message} isMe={isMe} />
-        </div>
-        <div className="flex items-center gap-1 px-1 text-[11px] text-muted-foreground">
+        </ChatMessageBubble>
+        <ChatMessageMeta>
           <span>{formatChatTime(message.createTime)}</span>
           {isMe && (resending || message.status === MessageStatus.sending) && (
             <Spinner className="size-3" />
@@ -118,8 +123,8 @@ export function MessageItem({ message, isGroup, showSender }: MessageItemProps) 
               }}
             />
           )}
-        </div>
-      </div>
-    </div>
+        </ChatMessageMeta>
+      </ChatMessageStack>
+    </ChatMessageRow>
   );
 }

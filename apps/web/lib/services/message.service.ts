@@ -2,6 +2,7 @@ import { getRealtimeClient } from '../api/client';
 import { MessageDB, ConversationDB } from '../db';
 import { useConversationStore } from '../stores/conversation.store';
 import { useMessageStore } from '../stores/message.store';
+import { useUserStore } from '../stores/user.store';
 import { conversationService } from './conversation.service';
 import { ClientToServiceEvent, ServiceToClientEvent } from '@c_chat/shared-protobuf/protoMap';
 import {
@@ -40,13 +41,17 @@ export class MessageService {
     }
 
     const clientMsgId = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const userInfo = useUserStore.getState().userInfo;
 
     const pendingMessage: LocalMessageListItem = {
       id: clientMsgId,
       conversationId: params.conversationId || '',
       seq: BigInt(0),
       clientMsgId,
-      senderId: '',
+      senderId: userInfo?.id ?? '',
+      senderNickname: userInfo?.nickname ?? userInfo?.email ?? '',
+      senderAvatar: userInfo?.avatarUrl ?? '',
+      senderEmail: userInfo?.email ?? '',
       content: params.content,
       type: params.type ?? MESSAGE_TYPE.Text,
       status: MessageStatus.sending,
