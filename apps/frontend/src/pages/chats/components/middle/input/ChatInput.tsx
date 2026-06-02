@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { ClipboardEvent, DragEvent } from 'react';
 import { Send, Paperclip } from 'lucide-react';
-import { Button, Textarea } from '@c_chat/ui';
+import { Button, DEFAULT_SCROLL_TO_BOTTOM_EVENT, Textarea } from '@c_chat/ui';
 
 import { AttachmentList } from './attachments/AttachmentList';
 import { EmojiPicker } from './EmojiPicker';
@@ -117,7 +117,7 @@ export function ChatInput() {
         lastMsgTime: latestMessage.createTime ?? Date.now(),
       });
     }
-    window.dispatchEvent(new Event('chat:scroll-to-bottom'));
+    window.dispatchEvent(new Event(DEFAULT_SCROLL_TO_BOTTOM_EVENT));
     return true;
   };
 

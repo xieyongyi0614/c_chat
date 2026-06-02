@@ -1,7 +1,7 @@
 import { memo } from 'react';
 import { formatDuration, type VoiceRecordResult } from '@c_chat/audio-core';
 import { useAudioRecorder } from '@c_chat/frontend/hooks/useAudioRecorder';
-import { Button } from '@c_chat/ui';
+import { Button, DEFAULT_SCROLL_TO_BOTTOM_EVENT } from '@c_chat/ui';
 import { Mic, StopCircle, X } from 'lucide-react';
 import { generateLastMsgContent, ipc, to } from '@c_chat/shared-utils';
 import { useChatStore, useMessageStore } from '@c_chat/frontend/stores';
@@ -54,7 +54,7 @@ const RecordingButton = () => {
         lastMsgTime: latestMessage.createTime ?? Date.now(),
       });
     }
-    window.dispatchEvent(new Event('chat:scroll-to-bottom'));
+    window.dispatchEvent(new Event(DEFAULT_SCROLL_TO_BOTTOM_EVENT));
   };
 
   return (

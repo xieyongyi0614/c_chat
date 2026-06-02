@@ -56,25 +56,16 @@ function ChatMessageBubble({
   isMe,
   isMedia,
   isVideo,
-  variant = 'default',
   className,
   ...props
 }: ChatMessageBubbleProps) {
-  const isDesktop = variant === 'desktop';
-
   return (
     <div
       className={cn(
         'rounded-2xl py-2 text-sm shadow-sm',
-        isMe
-          ? cn(
-              'rounded-br-sm',
-              isDesktop ? 'pl-3 pr-2' : 'bg-[var(--message-green)] px-3 text-white',
-            )
-          : 'rounded-bl-sm bg-muted pl-2 pr-3 text-foreground',
-        isDesktop && isMedia && 'relative group shadow-none',
-        !isDesktop && isMedia && 'overflow-hidden p-0',
-        isDesktop && isVideo && 'bg-transparent p-0 shadow-none',
+        isMe ? 'rounded-br-sm pl-3 pr-2' : 'rounded-bl-sm bg-muted pl-2 pr-3 text-foreground',
+        isMedia && 'relative group shadow-none',
+        isVideo && 'bg-transparent p-0 shadow-none',
         className,
       )}
       {...props}
@@ -129,10 +120,7 @@ export {
   ChatMessageStack,
 };
 export { ChatMessageScrollArea } from './_components/ChatMessageScrollArea';
-export type {
-  ChatMessageScrollAreaLabels,
-  ChatMessageScrollAreaProps,
-} from './_components/ChatMessageScrollArea';
+
 export {
   AudioMessage,
   ChatMessageContent,
