@@ -21,7 +21,6 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true,
-    "baseUrl": ".",
     "paths": {
       "@c_chat/frontend/*": ["./src/*"],
       "@c_chat/ui": ["../../packages/chat_ui/src/index.ts"],

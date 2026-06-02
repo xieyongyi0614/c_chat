@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import { Spinner } from '@c_chat/ui';
-import { useMessageStore, selectGroupedMessages } from '@/lib/stores/message.store';
+import { useMessageStore } from '@/lib/stores/message.store';
 import { MessageItem } from './MessageItem';
 
 interface MessageListProps {
@@ -25,7 +25,7 @@ export function MessageList({
   onLoadOlder,
   onReachBottom,
 }: MessageListProps) {
-  const groups = useMessageStore(selectGroupedMessages);
+  const groups = useMessageStore((state) => state.groupedMessages);
   const messageCount = useMessageStore((state) => state.messages.length);
   const conversationId = useMessageStore((state) => state.currentConversationId);
 

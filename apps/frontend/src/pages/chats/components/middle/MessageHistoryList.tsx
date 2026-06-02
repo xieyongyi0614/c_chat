@@ -1,6 +1,5 @@
-import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { ArrowDown, Loader2 } from 'lucide-react';
-import { Button } from '@c_chat/ui';
+import { memo, useEffect, useMemo, useState } from 'react';
+import { ChatMessageScrollArea } from '@c_chat/ui';
 import { useChatStore, useMessageStore } from '@c_chat/frontend/stores';
 import { ConversationType } from '@c_chat/shared-types';
 import { ipc, to } from '@c_chat/shared-utils';
@@ -16,27 +15,15 @@ interface MessageHistoryListProps {
   };
 }
 
-const BOTTOM_THRESHOLD = 120;
-const TOP_LOAD_THRESHOLD = 80;
-const SCROLL_TO_BOTTOM_EVENT = 'chat:scroll-to-bottom';
-
 const MessageHistoryList = ({ historyState, loadOlderMessages }: MessageHistoryListProps) => {
   const msgGroups = useMessageStore((s) => s.groups);
   const dataConversationId = useMessageStore((s) => s.dataConversationId);
   const selectedConversation = useChatStore((s) => s.selectedConversation);
   const [senderProfiles, setSenderProfiles] = useState<Record<string, SenderProfile>>({});
-  const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const msgCount = useMessageStore((s) =>
     Object.values(s.msgMap).reduce((count, messages) => count + messages.length, 0),
   );
   const orderedGroups = useMemo(() => Array.from(msgGroups.entries()).reverse(), [msgGroups]);
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const nearBottomRef = useRef(true);
-  const previousConversationIdRef = useRef(dataConversationId);
-  const pendingPrependHeightRef = useRef<number | null>(null);
-  const isLoadingOlderRef = useRef(false);
-  const keepBottomUntilRef = useRef(0);
-  const lastScrollHeightRef = useRef(0);
   const isGroupConversation = selectedConversation?.type === ConversationType.Group;
 
   useEffect(() => {
@@ -70,190 +57,26 @@ const MessageHistoryList = ({ historyState, loadOlderMessages }: MessageHistoryL
     };
   }, [isGroupConversation, selectedConversation?.targetId]);
 
-  const scrollToBottom = useCallback(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    el.scrollTop = el.scrollHeight;
-  }, []);
-
-  const scheduleScrollToBottom = useCallback(() => {
-    scrollToBottom();
-    requestAnimationFrame(() => {
-      scrollToBottom();
-      requestAnimationFrame(scrollToBottom);
-    });
-  }, [scrollToBottom]);
-
-  const updateNearBottom = useCallback(() => {
-    const el = scrollRef.current;
-    if (!el) return true;
-
-    const distanceToBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
-    const nearBottom = distanceToBottom <= BOTTOM_THRESHOLD;
-    nearBottomRef.current = nearBottom;
-    setShowScrollToBottom(!nearBottom && msgCount > 0);
-    return nearBottom;
-  }, [msgCount]);
-
-  const handleScrollToBottom = useCallback(() => {
-    nearBottomRef.current = true;
-    keepBottomUntilRef.current = Date.now() + 1200;
-    scheduleScrollToBottom();
-    const el = scrollRef.current;
-    if (el) {
-      lastScrollHeightRef.current = el.scrollHeight;
-    }
-    requestAnimationFrame(() => {
-      scheduleScrollToBottom();
-      updateNearBottom();
-    });
-  }, [scheduleScrollToBottom, updateNearBottom]);
-
-  useEffect(() => {
-    window.addEventListener(SCROLL_TO_BOTTOM_EVENT, handleScrollToBottom);
-    return () => {
-      window.removeEventListener(SCROLL_TO_BOTTOM_EVENT, handleScrollToBottom);
-    };
-  }, [handleScrollToBottom]);
-
-  const handleScroll = useCallback(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-
-    updateNearBottom();
-
-    if (
-      el.scrollTop > TOP_LOAD_THRESHOLD ||
-      !historyState.hasMoreOlder ||
-      historyState.isLoadingOlder ||
-      isLoadingOlderRef.current
-    ) {
-      return;
-    }
-
-    isLoadingOlderRef.current = true;
-    pendingPrependHeightRef.current = el.scrollHeight;
-    void loadOlderMessages().then((loaded) => {
-      isLoadingOlderRef.current = false;
-      if (!loaded) {
-        pendingPrependHeightRef.current = null;
-      }
-    });
-  }, [historyState.hasMoreOlder, historyState.isLoadingOlder, loadOlderMessages, updateNearBottom]);
-
-  useLayoutEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-
-    const conversationChanged = previousConversationIdRef.current !== dataConversationId;
-    if (conversationChanged) {
-      previousConversationIdRef.current = dataConversationId;
-      nearBottomRef.current = true;
-      pendingPrependHeightRef.current = null;
-      isLoadingOlderRef.current = false;
-      keepBottomUntilRef.current = Date.now() + 1200;
-    }
-
-    const previousHeight = pendingPrependHeightRef.current;
-    if (previousHeight != null) {
-      el.scrollTop += el.scrollHeight - previousHeight;
-      pendingPrependHeightRef.current = null;
-      lastScrollHeightRef.current = el.scrollHeight;
-      updateNearBottom();
-      return;
-    }
-
-    if (conversationChanged || nearBottomRef.current) {
-      scheduleScrollToBottom();
-      lastScrollHeightRef.current = el.scrollHeight;
-      updateNearBottom();
-      return;
-    }
-
-    lastScrollHeightRef.current = el.scrollHeight;
-  }, [dataConversationId, msgCount, scheduleScrollToBottom, updateNearBottom]);
-
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-
-    const resizeObserver = new ResizeObserver(() => {
-      const currentHeight = el.scrollHeight;
-      const previousHeight = lastScrollHeightRef.current || currentHeight;
-      const heightDelta = currentHeight - previousHeight;
-      lastScrollHeightRef.current = currentHeight;
-
-      if (pendingPrependHeightRef.current != null) return;
-
-      if (nearBottomRef.current || Date.now() <= keepBottomUntilRef.current) {
-        scheduleScrollToBottom();
-      } else if (heightDelta !== 0) {
-        el.scrollTop += heightDelta;
-      }
-
-      updateNearBottom();
-    });
-
-    resizeObserver.observe(el);
-    Array.from(el.children).forEach((child) => resizeObserver.observe(child));
-
-    return () => {
-      resizeObserver.disconnect();
-    };
-  }, [orderedGroups, scheduleScrollToBottom, updateNearBottom]);
-
   return (
     <div className="flex size-full flex-1">
-      <div className="chat-text-container relative -me-4 flex flex-1 flex-col overflow-y-hidden">
-        <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex justify-center">
-          {historyState.isLoadingOlder && (
-            <div className="bg-background/95 text-muted-foreground flex items-center gap-2 rounded-b-md border px-3 py-1 text-xs shadow-sm">
-              <Loader2 className="size-3.5 animate-spin" />
-              <span>加载更早消息...</span>
-            </div>
-          )}
-        </div>
-
-        <div
-          ref={scrollRef}
-          onScroll={handleScroll}
-          className="chat-flex flex h-40 w-full grow flex-col justify-start gap-4 overflow-y-auto py-2 pe-4 pb-4"
-        >
-          {historyState.isLoadingLatest && (
-            <div className="text-muted-foreground flex items-center justify-center gap-2 py-2 text-xs">
-              <Loader2 className="size-3.5 animate-spin" />
-              <span>加载消息...</span>
-            </div>
-          )}
-
-          {!historyState.isLoadingLatest && !historyState.hasMoreOlder && msgCount > 0 && (
-            <div className="text-muted-foreground py-1 text-center text-xs">没有更早消息了</div>
-          )}
-
-          {orderedGroups.map(([key, value]) => (
-            <MessageGroup
-              key={key}
-              groupIds={[...value].reverse()}
-              dateKey={key}
-              isGroupConversation={isGroupConversation}
-              senderProfiles={senderProfiles}
-            />
-          ))}
-        </div>
-
-        {showScrollToBottom && (
-          <Button
-            type="button"
-            size="icon"
-            variant="secondary"
-            onClick={handleScrollToBottom}
-            title="滚动到底部"
-            className="absolute bottom-5 right-8 z-20 size-9 rounded-full border bg-background/95 shadow-md"
-          >
-            <ArrowDown className="size-4" />
-          </Button>
-        )}
-      </div>
+      <ChatMessageScrollArea
+        conversationKey={dataConversationId}
+        messageCount={msgCount}
+        hasMoreOlder={historyState.hasMoreOlder}
+        isLoadingOlder={historyState.isLoadingOlder}
+        isLoadingLatest={historyState.isLoadingLatest}
+        loadOlderMessages={loadOlderMessages}
+      >
+        {orderedGroups.map(([key, value]) => (
+          <MessageGroup
+            key={key}
+            groupIds={[...value].reverse()}
+            dateKey={key}
+            isGroupConversation={isGroupConversation}
+            senderProfiles={senderProfiles}
+          />
+        ))}
+      </ChatMessageScrollArea>
     </div>
   );
 };

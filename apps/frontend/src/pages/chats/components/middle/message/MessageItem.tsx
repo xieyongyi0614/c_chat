@@ -4,26 +4,30 @@ import {
   AvatarFallback,
   AvatarImage,
   Badge,
-  Button,
+  ChatMessageAvatar,
+  ChatMessageBubble,
+  ChatMessageContent,
+  type ChatMessageFileResolver,
+  ChatMessageRow,
+  ChatMessageSenderName,
+  ChatMessageStack,
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  cn,
+  MessageDate,
 } from '@c_chat/ui';
 import { useMessageStore, useUserStore } from '@c_chat/frontend/stores';
 import { formatFileUrl } from '@c_chat/frontend/common/formatFileUrl';
-import { ipc, to } from '@c_chat/shared-utils';
+import { bufferToPreviewUrl, ipc, to } from '@c_chat/shared-utils';
 import { toast } from 'sonner';
-import TextMessage from './types/TextMessage';
-import ImageGroup from './types/ImageGroup';
-import FileMessage from './types/FileMessage';
-import VideoMessage from './types/VideoMessage';
-import AudioMessage from './types/AudioMessage';
-import MessageDate from './MessageDate';
 import { MESSAGE_TYPE } from '@c_chat/shared-config';
 import { MessageStatus } from '@c_chat/shared-types';
 import type { SenderProfile } from './senderProfile';
+import { audioPlayerManager } from '@c_chat/audio-core';
+import { useAudioMessage } from '@c_chat/frontend/hooks/useAudioMessage';
+import useWaveformCanvas from '@c_chat/frontend/hooks/useWaveformCanvas';
+import { buildConversationPreviewItems, toMediaPreviewItem } from './mediaPreviewItems';
 
 interface MessageItemProps {
   isRead: boolean;
@@ -36,6 +40,15 @@ const getInitials = (value?: string | null) => {
   const text = value?.trim();
   if (!text) return '?';
   return text.slice(0, 2).toUpperCase();
+};
+
+const fileResolver: ChatMessageFileResolver = {
+  formatFileUrl,
+  loadLocalPreview: async (message) => {
+    if (!message.filePath) return '';
+    const buffer = await ipc.ReadLocalFile({ path: message.filePath });
+    return bufferToPreviewUrl({ buffer, type: message.mimeType || 'image/*' });
+  },
 };
 
 const MessageItem = ({
@@ -52,7 +65,16 @@ const MessageItem = ({
   const [resending, setResending] = useState(false);
 
   const msg = messages[0];
+  const audioPlayback = useAudioMessage(msg.clientMsgId);
   const isMe = msg.senderId === userId;
+  const waveformCanvasRef = useWaveformCanvas(
+    {
+      waveform: msg.waveform ?? '',
+      duration: msg.duration ?? 0,
+    },
+    audioPlayback.currentTime / audioPlayback.duration,
+    isMe,
+  );
   const sender = useMemo<SenderProfile>(() => {
     if (isMe) {
       return {
@@ -85,6 +107,37 @@ const MessageItem = ({
   const failedOwnMessages = isMe
     ? messages.filter((item) => item.status === MessageStatus.fail && item.clientMsgId)
     : [];
+
+  const openMediaPreview = (initialIndex: number) => {
+    const clickedMessage = messages[initialIndex];
+    const previewItems = buildConversationPreviewItems(
+      useMessageStore.getState().msgMap,
+      clickedMessage?.conversationId,
+    );
+    const fallbackItem = clickedMessage ? toMediaPreviewItem(clickedMessage) : null;
+    const items = previewItems.length ? previewItems : fallbackItem ? [fallbackItem] : [];
+    const resolvedInitialIndex = Math.max(
+      0,
+      items.findIndex((item) => item.id === clickedMessage?.id),
+    );
+
+    void ipc.OpenMediaPreview({
+      items,
+      initialIndex: resolvedInitialIndex,
+      conversationId: clickedMessage?.conversationId ?? messages[0]?.conversationId,
+      messageId: clickedMessage?.id,
+    });
+  };
+
+  const toggleAudioPlay = async () => {
+    const audioUrl = formatFileUrl(msg.fileUrl ?? '');
+    if (!audioUrl) return;
+    if (audioPlayback.playing) {
+      audioPlayerManager.pause();
+    } else {
+      await audioPlayerManager.play(msg.clientMsgId, audioUrl);
+    }
+  };
 
   const handleResend = async () => {
     if (failedOwnMessages.length === 0 || resending) return;
@@ -122,101 +175,53 @@ const MessageItem = ({
     setResending(false);
   };
 
-  const renderContent = () => {
-    if (msg.type === MESSAGE_TYPE.Image) {
-      return (
-        <ImageGroup
-          messages={messages}
-          isMe={isMe}
-          isRead={isRead}
-          onRetry={handleResend}
-          retrying={resending}
-        />
-      );
-    }
-
-    if (messages.length !== 1) {
-      return <TextMessage content="消息错误" />;
-    }
-
-    if (msg.type === MESSAGE_TYPE.File) {
-      return (
-        <FileMessage
-          msg={msg}
-          isMe={isMe}
-          isRead={isRead}
-          onRetry={handleResend}
-          retrying={resending}
-        />
-      );
-    }
-
-    if (msg.type === MESSAGE_TYPE.Video) {
-      return (
-        <VideoMessage
-          msg={msg}
-          isMe={isMe}
-          isRead={isRead}
-          onRetry={handleResend}
-          retrying={resending}
-        />
-      );
-    }
-
-    if (msg.type === MESSAGE_TYPE.Audio) {
-      return (
-        <AudioMessage
-          audioUrl={msg.fileUrl ?? ''}
-          isMe={isMe}
-          voice={{
-            waveform: msg.waveform ?? '',
-            duration: msg.duration ?? 0,
-          }}
-          msg={msg}
-          onRetry={handleResend}
-          retrying={resending}
-        />
-      );
-    }
-
-    return <TextMessage content={msg.content || '未知消息'} />;
-  };
-
   return (
-    <div className={cn('flex w-full items-end gap-2', isMe ? 'justify-end' : 'justify-start')}>
+    <ChatMessageRow isMe={isMe}>
       {showSender && !isMe && (
-        <Button
-          variant="ghost"
-          size="icon"
-          className="size-9 shrink-0 rounded-full p-0"
+        <ChatMessageAvatar
+          avatarUrl={formatFileUrl(sender.avatarUrl ?? '')}
+          senderName={senderName}
+          fallback={getInitials(senderName)}
           onClick={() => setProfileOpen(true)}
-        >
-          <Avatar className="size-9">
-            <AvatarImage src={formatFileUrl(sender.avatarUrl ?? '')} alt={senderName} />
-            <AvatarFallback>{getInitials(senderName)}</AvatarFallback>
-          </Avatar>
-        </Button>
+        />
       )}
 
-      <div className={cn('relative flex max-w-[70%] flex-col', isMe ? 'items-end' : 'items-start')}>
+      <ChatMessageStack isMe={isMe}>
         {showSender && !isMe && (
-          <button
-            type="button"
-            className="mb-1 max-w-full truncate px-1 text-xs text-muted-foreground"
+          <ChatMessageSenderName
+            className="mb-1 cursor-pointer"
+            role="button"
+            tabIndex={0}
             onClick={() => setProfileOpen(true)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                setProfileOpen(true);
+              }
+            }}
           >
             {senderName}
-          </button>
+          </ChatMessageSenderName>
         )}
-        <div
-          className={cn(
-            'rounded-2xl py-2 text-sm',
-            isMe ? 'rounded-br-sm pl-3 pr-2' : 'rounded-bl-sm bg-muted pl-2 pr-3',
-            msg.type === MESSAGE_TYPE.Image ? 'relative group' : 'shadow-sm',
-            isVideoMessage && 'bg-transparent p-0 shadow-none',
-          )}
+        <ChatMessageBubble
+          isMe={isMe}
+          isMedia={msg.type === MESSAGE_TYPE.Image}
+          isVideo={isVideoMessage}
+          variant="desktop"
         >
-          {renderContent()}
+          <ChatMessageContent
+            messages={messages}
+            isMe={isMe}
+            isRead={isRead}
+            onRetry={handleResend}
+            retrying={resending}
+            fileResolver={fileResolver}
+            audioControls={{
+              playback: audioPlayback,
+              waveformCanvasRef,
+              onTogglePlay: toggleAudioPlay,
+            }}
+            onOpenPreview={openMediaPreview}
+          />
           {msg.type === MESSAGE_TYPE.Text && (
             <MessageDate
               time={msg.createTime}
@@ -228,21 +233,16 @@ const MessageItem = ({
               className="relative top-1.5"
             />
           )}
-        </div>
-      </div>
+        </ChatMessageBubble>
+      </ChatMessageStack>
 
       {showSender && isMe && (
-        <Button
-          variant="ghost"
-          size="icon"
-          className="size-9 shrink-0 rounded-full p-0"
+        <ChatMessageAvatar
+          avatarUrl={formatFileUrl(sender.avatarUrl ?? '')}
+          senderName={senderName}
+          fallback={getInitials(senderName)}
           onClick={() => setProfileOpen(true)}
-        >
-          <Avatar className="size-9">
-            <AvatarImage src={formatFileUrl(sender.avatarUrl ?? '')} alt={senderName} />
-            <AvatarFallback>{getInitials(senderName)}</AvatarFallback>
-          </Avatar>
-        </Button>
+        />
       )}
 
       <Dialog open={profileOpen} onOpenChange={setProfileOpen}>
@@ -265,7 +265,7 @@ const MessageItem = ({
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+    </ChatMessageRow>
   );
 };
 

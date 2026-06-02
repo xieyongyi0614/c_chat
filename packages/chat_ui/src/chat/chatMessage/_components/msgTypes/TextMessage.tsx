@@ -1,11 +1,8 @@
 import { memo } from 'react';
+import type { TextMessageProps } from './types';
 
-interface TextMessageProps {
-  content: string;
-}
-
-const TextMessage = ({ content }: TextMessageProps) => {
+function TextMessage({ content }: TextMessageProps) {
   return <span className="whitespace-pre-wrap break-words">{content}</span>;
-};
+}
 
 export default memo(TextMessage);

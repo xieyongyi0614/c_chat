@@ -4,6 +4,7 @@ import type { LocalMessageListItem } from '@c_chat/shared-types';
 interface MessageState {
   currentConversationId: string | null;
   messages: LocalMessageListItem[];
+  groupedMessages: MessageDateGroup[];
   setConversationMessages: (conversationId: string, messages: LocalMessageListItem[]) => void;
   upsertMany: (conversationId: string, messages: LocalMessageListItem[]) => void;
   prependOlder: (conversationId: string, messages: LocalMessageListItem[]) => void;
@@ -44,28 +45,6 @@ const mergeMessages = (
   return sortMessages([...deduped.values()]);
 };
 
-export const useMessageStore = create<MessageState>((set) => ({
-  currentConversationId: null,
-  messages: [],
-
-  setConversationMessages: (conversationId, messages) =>
-    set({ currentConversationId: conversationId, messages: sortMessages(messages) }),
-
-  upsertMany: (conversationId, messages) =>
-    set((state) => {
-      if (state.currentConversationId !== conversationId) return state;
-      return { messages: mergeMessages(state.messages, messages) };
-    }),
-
-  prependOlder: (conversationId, messages) =>
-    set((state) => {
-      if (state.currentConversationId !== conversationId) return state;
-      return { messages: mergeMessages(messages, state.messages) };
-    }),
-
-  clear: () => set({ currentConversationId: null, messages: [] }),
-}));
-
 export interface GroupedMessageItem {
   message: LocalMessageListItem;
   showSender: boolean;
@@ -91,10 +70,10 @@ const dateLabelOf = (timestamp: number): string => {
   return `${target.getFullYear()}年${target.getMonth() + 1}月${target.getDate()}日`;
 };
 
-export const selectGroupedMessages = (state: MessageState): MessageDateGroup[] => {
+const buildGroupedMessages = (messages: LocalMessageListItem[]): MessageDateGroup[] => {
   const groups: MessageDateGroup[] = [];
 
-  state.messages.forEach((message, index) => {
+  messages.forEach((message, index) => {
     const timestamp = message.createTime || message.localTime;
     const dateKey = dateKeyOf(timestamp);
     let group = groups.at(-1);
@@ -104,7 +83,7 @@ export const selectGroupedMessages = (state: MessageState): MessageDateGroup[] =
       groups.push(group);
     }
 
-    const previous = state.messages[index - 1];
+    const previous = messages[index - 1];
     const sameSenderAsPrevious =
       Boolean(previous) &&
       previous.senderId === message.senderId &&
@@ -115,3 +94,34 @@ export const selectGroupedMessages = (state: MessageState): MessageDateGroup[] =
 
   return groups;
 };
+
+const buildMessageState = (messages: LocalMessageListItem[]) => {
+  const sortedMessages = sortMessages(messages);
+  return {
+    messages: sortedMessages,
+    groupedMessages: buildGroupedMessages(sortedMessages),
+  };
+};
+
+export const useMessageStore = create<MessageState>((set) => ({
+  currentConversationId: null,
+  messages: [],
+  groupedMessages: [],
+
+  setConversationMessages: (conversationId, messages) =>
+    set({ currentConversationId: conversationId, ...buildMessageState(messages) }),
+
+  upsertMany: (conversationId, messages) =>
+    set((state) => {
+      if (state.currentConversationId !== conversationId) return state;
+      return buildMessageState(mergeMessages(state.messages, messages));
+    }),
+
+  prependOlder: (conversationId, messages) =>
+    set((state) => {
+      if (state.currentConversationId !== conversationId) return state;
+      return buildMessageState(mergeMessages(messages, state.messages));
+    }),
+
+  clear: () => set({ currentConversationId: null, messages: [], groupedMessages: [] }),
+}));
