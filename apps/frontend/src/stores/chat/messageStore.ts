@@ -27,6 +27,12 @@ const sortMessagesDesc = (messages: LocalMessageListItem[]) =>
     return av === bv ? 0 : bv > av ? 1 : -1;
   });
 
+const areSameItems = <T>(current: T[] | undefined, next: T[]) => {
+  if (!current || current.length !== next.length) return false;
+
+  return current.every((item, index) => item === next[index]);
+};
+
 type AddMessageMode = 'history' | 'realtime' | 'replaceDisconnectedHistory';
 
 const getServerMsgIdRange = (messages: LocalMessageListItem[]) => {
@@ -60,6 +66,7 @@ const shouldReplaceDisconnectedHistory = (
 
 const rebuildMessageState = (
   msgMap: MessageStoreData['msgMap'],
+  groups: MessageStoreData['groups'],
   incoming: LocalMessageListItem[],
   mode: AddMessageMode = 'history',
 ) => {
@@ -81,21 +88,37 @@ const rebuildMessageState = (
     messageByIdentity.set(identity, oldMsg ? { ...oldMsg, ...msg } : msg);
   }
 
-  const nextMsgMap: MessageStoreData['msgMap'] = {};
-  const nextGroups = new Map<string, string[]>();
+  const draftMsgMap: MessageStoreData['msgMap'] = {};
+  const draftGroups = new Map<string, string[]>();
   const sortedMessages = sortMessagesDesc(Array.from(messageByIdentity.values()));
 
   for (const msg of sortedMessages) {
     const groupKey = msg.mediaGroupId || msg.clientMsgId || msg.id;
-    const groupMessages = nextMsgMap[groupKey] ?? [];
-    nextMsgMap[groupKey] = sortMessagesDesc([...groupMessages, msg]);
+    const groupMessages = draftMsgMap[groupKey] ?? [];
+    draftMsgMap[groupKey] = sortMessagesDesc([...groupMessages, msg]);
 
     const dateKey = getDateKey(msg.createTime);
-    const dateGroup = nextGroups.get(dateKey) ?? [];
+    const dateGroup = draftGroups.get(dateKey) ?? [];
     if (!dateGroup.includes(groupKey)) {
-      nextGroups.set(dateKey, [...dateGroup, groupKey]);
+      draftGroups.set(dateKey, [...dateGroup, groupKey]);
     }
   }
+
+  const nextMsgMap = Object.fromEntries(
+    Object.entries(draftMsgMap).map(([groupKey, messages]) => [
+      groupKey,
+      areSameItems(msgMap[groupKey], messages) ? msgMap[groupKey] : messages,
+    ]),
+  );
+  const nextGroups = new Map(
+    Array.from(draftGroups.entries()).map(([dateKey, groupIds]) => {
+      const currentGroupIds = groups.get(dateKey);
+      return [
+        dateKey,
+        currentGroupIds && areSameItems(currentGroupIds, groupIds) ? currentGroupIds : groupIds,
+      ] as const;
+    }),
+  );
 
   return {
     msgMap: nextMsgMap,
@@ -127,19 +150,19 @@ export const useMessageStore = create<MessageStoreType>((set) => ({
     if (!msgs.length) return;
 
     set((state) => {
-      return rebuildMessageState(state.msgMap, msgs, mode);
+      return rebuildMessageState(state.msgMap, state.groups, msgs, mode);
     });
   },
 
   updateMsg(newMsg) {
     set((state) => {
-      return rebuildMessageState(state.msgMap, [newMsg]);
+      return rebuildMessageState(state.msgMap, state.groups, [newMsg]);
     });
   },
 
   updateMsgs(msgs) {
     set((state) => {
-      return rebuildMessageState(state.msgMap, msgs);
+      return rebuildMessageState(state.msgMap, state.groups, msgs);
     });
   },
 }));
