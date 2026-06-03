@@ -364,8 +364,14 @@ export function GroupDetailDialog({ open, conversation, onOpenChange }: GroupDet
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
-                            <AlertDialogCancel>取消</AlertDialogCancel>
-                            <AlertDialogAction variant="destructive" onClick={handleDismiss}>
+                            <AlertDialogCancel size="default" variant="outline">
+                              取消
+                            </AlertDialogCancel>
+                            <AlertDialogAction
+                              size="default"
+                              variant="destructive"
+                              onClick={handleDismiss}
+                            >
                               解散
                             </AlertDialogAction>
                           </AlertDialogFooter>

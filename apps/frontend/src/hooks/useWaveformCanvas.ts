@@ -25,7 +25,7 @@ const useWaveformCanvas = (
       const { waveform, duration } = voice;
       if (!waveform) {
         return {
-          data: new Array(Math.min(duration, MAX_EMPTY_WAVEFORM_POINTS)).fill(0),
+          data: Array<number>(Math.min(duration, MAX_EMPTY_WAVEFORM_POINTS)).fill(0),
           peak: 0,
         };
       }

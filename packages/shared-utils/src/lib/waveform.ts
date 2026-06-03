@@ -38,9 +38,12 @@ export function decodeWaveform(bytes: Uint8Array): number[] {
   return result;
 }
 
-export function interpolateArray(data: number[], fitCount: number) {
+export function interpolateArray(
+  data: number[],
+  fitCount: number,
+): { data: number[]; peak: number } {
   let peak = 0;
-  const newData = new Array(fitCount);
+  const newData = Array<number>(fitCount);
   const springFactor = data.length / fitCount;
   const leftFiller = data[0];
   const rightFiller = data[data.length - 1];

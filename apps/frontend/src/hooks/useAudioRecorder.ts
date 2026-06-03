@@ -4,6 +4,9 @@ import { AudioRecorder, AudioRecordError } from '@c_chat/audio-core';
 import { toast } from 'sonner';
 import { TOAST_ID } from '@c_chat/shared-config';
 
+const getAudioRecordError = (err: unknown) =>
+  err instanceof AudioRecordError ? err : new AudioRecordError('UNKNOWN', 'Unknown error');
+
 export function useAudioRecorder() {
   const recorderRef = useRef<AudioRecorder>(undefined);
 
@@ -50,9 +53,10 @@ export function useAudioRecorder() {
       timerRef.current = window.setInterval(() => {
         setDuration(Date.now() - startTime);
       }, 100);
-    } catch (err: any) {
-      setError(err);
-      toast.error(err?.message || '未知错误', { id: err.code || TOAST_ID.UNKNOWN });
+    } catch (err: unknown) {
+      const recordError = getAudioRecordError(err);
+      setError(recordError);
+      toast.error(recordError.message, { id: recordError.code || TOAST_ID.UNKNOWN });
       throw err;
     }
   };
@@ -69,8 +73,9 @@ export function useAudioRecorder() {
       const result = await recorderRef.current.stop();
       const durationSec = Math.max(1, Math.round(duration / 1000));
       return { ...result, duration: durationSec };
-    } catch (err: any) {
-      toast.error(err?.message || '未知错误', { id: err.code || TOAST_ID.UNKNOWN });
+    } catch (err: unknown) {
+      const recordError = getAudioRecordError(err);
+      toast.error(recordError.message, { id: recordError.code || TOAST_ID.UNKNOWN });
       throw err;
     }
   };

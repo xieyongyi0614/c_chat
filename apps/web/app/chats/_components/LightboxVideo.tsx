@@ -13,6 +13,7 @@ export interface LightboxVideoHandle {
 
 interface LightboxVideoProps {
   item: MediaPreviewItem;
+  onBackdropClick: () => void;
 }
 
 const VIDEO_RATES = [0.5, 1, 1.25, 1.5, 2] as const;
@@ -28,7 +29,7 @@ const formatDuration = (seconds: number): string => {
 };
 
 export const LightboxVideo = forwardRef<LightboxVideoHandle, LightboxVideoProps>(
-  function LightboxVideo({ item }, ref) {
+  function LightboxVideo({ item, onBackdropClick }, ref) {
     const src = formatFileUrl(item.fileUrl);
     const [error, setError] = useState(false);
     const [reloadKey, setReloadKey] = useState(0);
@@ -80,7 +81,9 @@ export const LightboxVideo = forwardRef<LightboxVideoHandle, LightboxVideoProps>
 
     if (!src) {
       return (
-        <div className="flex h-full items-center justify-center text-sm text-white/60">视频地址为空</div>
+        <div className="flex h-full items-center justify-center text-sm text-white/60">
+          视频地址为空
+        </div>
       );
     }
 
@@ -96,7 +99,12 @@ export const LightboxVideo = forwardRef<LightboxVideoHandle, LightboxVideoProps>
     }
 
     return (
-      <div className="relative flex h-full w-full flex-col items-center justify-center">
+      <div
+        className="relative flex h-full w-full flex-col items-center justify-center"
+        onPointerDown={(event) => {
+          if (event.target === event.currentTarget) onBackdropClick();
+        }}
+      >
         <video
           key={reloadKey}
           ref={videoRef}
@@ -128,7 +136,12 @@ export const LightboxVideo = forwardRef<LightboxVideoHandle, LightboxVideoProps>
             }}
           />
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" aria-label={playing ? '暂停' : '播放'} onClick={togglePlay}>
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label={playing ? '暂停' : '播放'}
+              onClick={togglePlay}
+            >
               {playing ? <Pause /> : <Play />}
             </Button>
             <div className="w-28 text-xs tabular-nums text-black/55">
@@ -141,13 +154,7 @@ export const LightboxVideo = forwardRef<LightboxVideoHandle, LightboxVideoProps>
               className={cn(muted && 'text-primary')}
               onClick={() => setMuted((value) => !value)}
             >
-              {muted || volume === 0 ? (
-                <VolumeX />
-              ) : volume > 0.5 ? (
-                <Volume2 />
-              ) : (
-                <Volume1 />
-              )}
+              {muted || volume === 0 ? <VolumeX /> : volume > 0.5 ? <Volume2 /> : <Volume1 />}
             </Button>
             <input
               aria-label="音量"

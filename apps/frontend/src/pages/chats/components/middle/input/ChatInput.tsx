@@ -1,10 +1,7 @@
 import { useState } from 'react';
 import type { ClipboardEvent, DragEvent } from 'react';
-import { Send, Paperclip } from 'lucide-react';
-import { Button, DEFAULT_SCROLL_TO_BOTTOM_EVENT, Textarea } from '@c_chat/ui';
+import { ChatComposer, DEFAULT_SCROLL_TO_BOTTOM_EVENT } from '@c_chat/ui';
 
-import { AttachmentList } from './attachments/AttachmentList';
-import { EmojiPicker } from './EmojiPicker';
 import {
   bufferToPreviewUrl,
   generateLastMsgContent,
@@ -53,7 +50,6 @@ export function ChatInput() {
         };
       }),
     );
-    console.log('handleFileSelect', newFiles);
 
     setAttachments((state) => [...state, ...newFiles]);
   };
@@ -84,10 +80,6 @@ export function ChatInput() {
     }
   };
 
-  const handleEmojiSelect = (emoji: string) => {
-    setInputValue((prev) => `${prev}${emoji}`);
-  };
-
   const sendMessageContent = async (content: string, files?: FileInfoListItem[]) => {
     if (!selectedConversation && !selectedUserForDraft) return;
     const isDraft = selectedUserForDraft && !selectedConversation;
@@ -103,7 +95,7 @@ export function ChatInput() {
     const [err, messages] = await to(ipc.SendMessage(sendMessageParams));
     if (err) {
       console.error('Failed to send message:', err);
-      toast.error('发送消息失败');
+      toast.error('Failed to send message');
       return;
     }
     addMsgList(messages);
@@ -124,7 +116,7 @@ export function ChatInput() {
   const handleSubmit = async () => {
     const textContent = inputValue.trim();
     if (!textContent && attachments.length === 0) {
-      toast.warning('请输入消息或添加附件');
+      toast.warning('Please enter a message or add an attachment');
       return;
     }
 
@@ -140,57 +132,33 @@ export function ChatInput() {
   };
 
   return (
-    <div
-      className="w-full mx-auto border rounded-xl bg-background shadow-lg overflow-hidden"
+    <ChatComposer
+      value={inputValue}
+      attachments={attachments}
+      sending={sending}
+      onValueChange={setInputValue}
+      onSubmit={() => {
+        void handleSubmit();
+      }}
+      onSelectFiles={() => {
+        void handleFileSelect();
+      }}
+      onRemoveAttachment={(id) => {
+        const removed = attachments.find((item) => item.id === id);
+        if (removed?.url) URL.revokeObjectURL(removed.url);
+        setAttachments((prev) => prev.filter((item) => item.id !== id));
+      }}
+      onPaste={handlePaste}
       onDrop={handleDrop}
       onDragOver={(e) => e.preventDefault()}
-    >
-      {attachments.length > 0 && (
-        <AttachmentList
-          attachments={attachments}
-          onRemove={(id) => {
-            setAttachments((prev) => prev.filter((item) => item.id !== id));
-          }}
-        />
-      )}
-
-      <div className="p-4">
-        <Textarea
-          value={inputValue}
-          onChange={(e) => setInputValue(e.target.value)}
-          onKeyDown={async (e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-              e.preventDefault();
-              await handleSubmit();
-            }
-          }}
-          onPaste={handlePaste}
-          placeholder="输入消息，或粘贴/拖拽图片..."
-          className="max-h-[100px] resize-none border-0 focus-visible:ring-0 p-0 text-base bg-transparent shadow-none"
-        />
-
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <Button type="button" variant="ghost" size="icon" onClick={handleFileSelect}>
-              <Paperclip className="w-4 h-4" />
-            </Button>
-
-            <RecordingButton />
-
-            <EmojiPicker onSelect={handleEmojiSelect} />
-          </div>
-
-          <Button
-            type="button"
-            onClick={handleSubmit}
-            disabled={sending || (!inputValue.trim() && attachments.length === 0)}
-            size="sm"
-          >
-            <Send className="w-4 h-4 mr-2" />
-            {sending ? '发送中...' : '发送'}
-          </Button>
-        </div>
-      </div>
-    </div>
+      actionsSlot={<RecordingButton />}
+      labels={{
+        placeholder: '输入消息，或粘贴/拖拽图片...',
+        send: '发送',
+        sending: '发送中...',
+        attach: '添加文件',
+        previewTitle: '附件预览',
+      }}
+    />
   );
 }

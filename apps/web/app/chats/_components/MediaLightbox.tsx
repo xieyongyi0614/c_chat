@@ -1,12 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import {
-  Button,
-  Dialog,
-  DialogContent,
-  DialogTitle,
-} from '@c_chat/ui';
+import { Button, Dialog, DialogContent, DialogTitle } from '@c_chat/ui';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useLightboxStore } from '@/lib/stores/lightbox.store';
 import { LightboxImage, type LightboxImageHandle } from './LightboxImage';
@@ -68,16 +63,31 @@ export function MediaLightbox() {
     <Dialog open={open} onOpenChange={(value) => !value && close()}>
       <DialogContent
         showCloseButton
-        className="h-screen w-screen max-w-none translate-x-[-50%] translate-y-[-50%] gap-0 rounded-none border-0 bg-black/95 p-0 text-white sm:max-w-none [&_[data-slot=dialog-close]]:text-white"
+        className="h-screen w-screen max-w-none translate-x-[-50%] translate-y-[-50%] gap-0 rounded-none border-0 bg-black/70 p-0 text-white sm:max-w-none [&_[data-slot=dialog-close]]:text-white"
       >
         <DialogTitle className="sr-only">媒体预览</DialogTitle>
 
         {current ? (
-          <div className="relative flex h-full w-full items-center justify-center">
+          <div
+            className="relative flex h-full w-full items-center justify-center"
+            onPointerDown={(event) => {
+              if (event.target === event.currentTarget) close();
+            }}
+          >
             {current.type === 'image' ? (
-              <LightboxImage key={current.id} ref={imageRef} item={current} />
+              <LightboxImage
+                key={current.id}
+                ref={imageRef}
+                item={current}
+                onBackdropClick={close}
+              />
             ) : (
-              <LightboxVideo key={current.id} ref={videoRef} item={current} />
+              <LightboxVideo
+                key={current.id}
+                ref={videoRef}
+                item={current}
+                onBackdropClick={close}
+              />
             )}
 
             {items.length > 1 && (

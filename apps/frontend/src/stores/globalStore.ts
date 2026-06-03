@@ -11,13 +11,13 @@ type GlobalState = {
 export const useGlobalStore = create<GlobalState>((set) => ({
   backdropLoading: true,
   backdropLoadingText: undefined,
-  setBackdropLoading: async (backdropLoading) => {
+  setBackdropLoading: (backdropLoading) => {
     set({ backdropLoading });
     if (!backdropLoading) {
       set({ backdropLoadingText: undefined });
     }
   },
-  setBackdropLoadingText: async (backdropLoadingText) => {
+  setBackdropLoadingText: (backdropLoadingText) => {
     set({ backdropLoadingText });
   },
 }));
