@@ -86,7 +86,7 @@ export function ChatInput({ conversationId, onSent, disabled = false }: ChatInpu
   };
 
   return (
-    <div className="border-t border-border p-4">
+    <div>
       <input ref={fileInputRef} type="file" multiple hidden onChange={handleFilePick} />
       <ChatComposer
         value={value}

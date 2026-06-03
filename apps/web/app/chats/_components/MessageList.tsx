@@ -220,7 +220,7 @@ export function MessageList({
         }}
         loadOlderMessages={onLoadOlder}
         fileResolver={fileResolver}
-        className="px-6 py-3"
+        className="px-0 py-2"
         labels={messageListLabels}
         AudioControlsSlot={AudioControlsSlot}
         onRetryMessages={handleRetryMessages}

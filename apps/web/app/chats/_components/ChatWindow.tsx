@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Avatar, AvatarFallback, AvatarImage, Button } from '@c_chat/ui';
+import { ConversationHeader } from '@c_chat/ui';
 import { ConversationType } from '@c_chat/shared-types';
 import { useConversationStore } from '@/lib/stores/conversation.store';
 import { useMessageStore } from '@/lib/stores/message.store';
@@ -109,32 +109,31 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
   const removed = !conversation;
 
   return (
-    <section className="flex flex-1 flex-col bg-background">
-      <header className="flex items-center gap-3 border-b border-border p-4">
-        <Avatar className="size-9">
-          <AvatarImage src={conversation?.targetAvatar} alt={conversation?.targetName} />
-          <AvatarFallback>{conversation?.targetName.charAt(0).toUpperCase()}</AvatarFallback>
-        </Avatar>
-        <h2 className="min-w-0 flex-1 truncate text-base font-semibold">
-          {conversation?.targetName}
-        </h2>
-        {isGroup ? (
-          <Button variant="ghost" size="sm" onClick={() => setProfileOpen(true)}>
-            群资料
-          </Button>
-        ) : null}
-      </header>
-
-      <MessageList
-        isGroup={isGroup}
-        isLoadingLatest={historyState.isLoadingLatest}
-        isLoadingOlder={historyState.isLoadingOlder}
-        hasMoreOlder={historyState.hasMoreOlder}
-        onLoadOlder={loadOlderMessages}
-        onReachBottom={handleReachBottom}
+    <section className="m-4 flex min-w-0 flex-1 flex-col overflow-hidden rounded-md border bg-background shadow-xs">
+      <ConversationHeader
+        title={conversation?.targetName}
+        avatarUrl={conversation?.targetAvatar}
+        fallback={conversation?.targetName.charAt(0).toUpperCase()}
+        description="会话信息"
+        onMoreClick={() => {
+          if (isGroup) {
+            setProfileOpen(true);
+          }
+        }}
       />
 
-      <ChatInput conversationId={conversationId} onSent={handleReachBottom} disabled={removed} />
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2 rounded-md px-4 pt-0 pb-4">
+        <MessageList
+          isGroup={isGroup}
+          isLoadingLatest={historyState.isLoadingLatest}
+          isLoadingOlder={historyState.isLoadingOlder}
+          hasMoreOlder={historyState.hasMoreOlder}
+          onLoadOlder={loadOlderMessages}
+          onReachBottom={handleReachBottom}
+        />
+
+        <ChatInput conversationId={conversationId} onSent={handleReachBottom} disabled={removed} />
+      </div>
 
       {isGroup ? (
         <GroupProfileSheet open={profileOpen} onOpenChange={setProfileOpen} groupId={groupId} />
