@@ -35,7 +35,7 @@ export class ConversationService {
         return this.getLocalConversationList();
       }
 
-      const conversations = response.list.map((item) => this.toLocalConversation(item));
+      const conversations = response.list?.map((item) => this.toLocalConversation(item)) ?? [];
 
       await ConversationDB.upsertMany(conversations);
       useConversationStore.getState().upsertMany(conversations);
