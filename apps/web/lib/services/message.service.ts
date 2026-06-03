@@ -22,6 +22,7 @@ export interface SendMessageParams {
   conversationId?: string;
   targetId?: string;
   content: string;
+  clientMsgId?: string;
   type?: MessageType;
   fileId?: string;
   fileUrl?: string;
@@ -40,7 +41,8 @@ export class MessageService {
       throw new Error('RealtimeClient not initialized');
     }
 
-    const clientMsgId = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const clientMsgId =
+      params.clientMsgId ?? `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     const userInfo = useUserStore.getState().userInfo;
 
     const pendingMessage: LocalMessageListItem = {
@@ -80,6 +82,8 @@ export class MessageService {
         clientMsgId,
         fileId: params.fileId,
         mediaGroupId: params.mediaGroupId,
+        durationSec: params.duration,
+        waveform: params.waveform,
       });
 
       const payload = SendMessageRequest.encode(request).finish();

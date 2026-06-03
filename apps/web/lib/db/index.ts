@@ -1,4 +1,5 @@
 import Dexie, { type EntityTable } from 'dexie';
+import type { MessageType } from '@c_chat/shared-config';
 import type { LocalConversationListItem } from '@c_chat/shared-types';
 import type { LocalMessageListItem } from '@c_chat/shared-types';
 
@@ -19,7 +20,7 @@ export interface UploadTask {
   status: 'pending' | 'uploading' | 'completed' | 'failed';
   conversationId?: string;
   clientMsgId?: string;
-  messageType?: number;
+  messageType?: MessageType;
   duration?: number;
   waveform?: string;
   createdAt: number;
