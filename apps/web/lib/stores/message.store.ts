@@ -5,6 +5,9 @@ interface MessageState {
   currentConversationId: string | null;
   messages: LocalMessageListItem[];
   groupedMessages: MessageDateGroup[];
+  dateKeys: string[];
+  groups: Map<string, string[]>;
+  msgMap: Record<string, LocalMessageListItem[]>;
   setConversationMessages: (conversationId: string, messages: LocalMessageListItem[]) => void;
   upsertMany: (conversationId: string, messages: LocalMessageListItem[]) => void;
   prependOlder: (conversationId: string, messages: LocalMessageListItem[]) => void;
@@ -95,11 +98,40 @@ const buildGroupedMessages = (messages: LocalMessageListItem[]): MessageDateGrou
   return groups;
 };
 
+const sortMessagesDesc = (messages: LocalMessageListItem[]): LocalMessageListItem[] =>
+  [...messages].sort((a, b) => orderTime(b) - orderTime(a));
+
+const buildSharedMessageGroups = (messages: LocalMessageListItem[]) => {
+  const msgMap: Record<string, LocalMessageListItem[]> = {};
+  const groups = new Map<string, string[]>();
+  const sortedMessages = sortMessagesDesc(messages);
+
+  for (const message of sortedMessages) {
+    const groupKey = message.mediaGroupId || message.clientMsgId || message.id;
+    const groupMessages = msgMap[groupKey] ?? [];
+    msgMap[groupKey] = sortMessagesDesc([...groupMessages, message]);
+
+    const timestamp = message.createTime || message.localTime;
+    const dateLabel = dateLabelOf(timestamp);
+    const dateGroup = groups.get(dateLabel) ?? [];
+    if (!dateGroup.includes(groupKey)) {
+      groups.set(dateLabel, [...dateGroup, groupKey]);
+    }
+  }
+
+  return {
+    dateKeys: Array.from(groups.keys()).reverse(),
+    groups,
+    msgMap,
+  };
+};
+
 const buildMessageState = (messages: LocalMessageListItem[]) => {
   const sortedMessages = sortMessages(messages);
   return {
     messages: sortedMessages,
     groupedMessages: buildGroupedMessages(sortedMessages),
+    ...buildSharedMessageGroups(sortedMessages),
   };
 };
 
@@ -107,6 +139,9 @@ export const useMessageStore = create<MessageState>((set) => ({
   currentConversationId: null,
   messages: [],
   groupedMessages: [],
+  dateKeys: [],
+  groups: new Map(),
+  msgMap: {},
 
   setConversationMessages: (conversationId, messages) =>
     set({ currentConversationId: conversationId, ...buildMessageState(messages) }),
@@ -123,5 +158,13 @@ export const useMessageStore = create<MessageState>((set) => ({
       return buildMessageState(mergeMessages(messages, state.messages));
     }),
 
-  clear: () => set({ currentConversationId: null, messages: [], groupedMessages: [] }),
+  clear: () =>
+    set({
+      currentConversationId: null,
+      messages: [],
+      groupedMessages: [],
+      dateKeys: [],
+      groups: new Map(),
+      msgMap: {},
+    }),
 }));

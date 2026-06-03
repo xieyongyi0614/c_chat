@@ -75,7 +75,6 @@ export abstract class MessageRegistry {
     const listener = this.handlers.get(event);
     if (isIgnoreConsoleEvent(event)) {
       console.log(`收到消息：Event=${event},requestId=${command.requestId}`);
-      console.log(this.handlers);
     }
     if (listener) {
       if (listener instanceof Map) {

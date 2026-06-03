@@ -7,7 +7,7 @@ const eslintConfig = defineConfig([
   ...nextTs,
   {
     // 只读媒体展示直接渲染远端 fileUrl，无法预知域名走 next/image。
-    files: ["app/chats/_components/MessageContent.tsx"],
+    files: ["app/chats/_components/LightboxImage.tsx"],
     rules: {
       "@next/next/no-img-element": "off",
     },

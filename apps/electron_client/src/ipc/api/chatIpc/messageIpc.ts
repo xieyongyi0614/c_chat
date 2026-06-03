@@ -262,6 +262,12 @@ const recreateUploadTaskForRetry = async (windowId: number, msg: LocalMessageLis
 
   if (uploadInit?.file?.id) {
     messageTableClass.updateFileIdByClientId(msg.clientMsgId, uploadInit.file.id);
+    try {
+      await sendSocketMessage(windowId, { ...msg, fileId: uploadInit.file.id });
+    } catch (error) {
+      getMessageAfterStatusUpdate(msg.clientMsgId, MessageStatus.fail);
+      throw error;
+    }
     return;
   }
 
@@ -439,7 +445,16 @@ const processSingleFile = async (
 
   if (uploadInit?.file?.id) {
     localMessageData.fileId = uploadInit.file.id;
-    uploadTaskTableClass.markInstantSuccess(taskId, uploadInit.file.id);
+    messageTableClass.updateFileIdByClientId(localMessageData.clientMsgId, uploadInit.file.id);
+    try {
+      await sendSocketMessage(params.windowId, localMessageData);
+    } catch (error) {
+      messageTableClass.updateMessageStateByClientId(
+        localMessageData.clientMsgId,
+        MessageStatus.fail,
+      );
+      throw error;
+    }
     return localMessageData;
   }
 

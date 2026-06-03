@@ -9,7 +9,7 @@ const iconClassName = 'size-3.5 text-[var(--message-green)]';
 function MessageStatusIcon({ status, isRead, onRetry, retrying }: ChatMessageStatusProps) {
   return (
     <span className="inline-flex w-4 justify-center">
-      {status === MessageStatus.fail && (
+      {status === MessageStatus.fail ? (
         <button
           type="button"
           className="inline-flex size-4 items-center justify-center text-destructive"
@@ -26,10 +26,15 @@ function MessageStatusIcon({ status, isRead, onRetry, retrying }: ChatMessageSta
             <CircleAlert className={cn(iconClassName, 'text-destructive')} />
           )}
         </button>
+      ) : status === MessageStatus.success ? (
+        isRead ? (
+          <CheckCheck className={iconClassName} />
+        ) : (
+          <Check className={iconClassName} />
+        )
+      ) : (
+        <Clock className={iconClassName} />
       )}
-      {status === MessageStatus.success &&
-        (isRead ? <CheckCheck className={iconClassName} /> : <Check className={iconClassName} />)}
-      {status === MessageStatus.sending && <Clock className={iconClassName} />}
     </span>
   );
 }

@@ -3,6 +3,7 @@
 import { forwardRef, useImperativeHandle, useRef, useState } from 'react';
 import { Button } from '@c_chat/ui';
 import type { MediaPreviewItem } from '@c_chat/shared-types';
+import { formatFileUrl } from '@/lib/media/formatFileUrl';
 
 export interface LightboxImageHandle {
   zoomIn: () => void;
@@ -19,7 +20,7 @@ const clamp = (value: number, min: number, max: number): number =>
 
 export const LightboxImage = forwardRef<LightboxImageHandle, LightboxImageProps>(
   function LightboxImage({ item }, ref) {
-    const src = item.fileUrl ?? '';
+    const src = formatFileUrl(item.fileUrl);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(false);
     const [scale, setScale] = useState(1);

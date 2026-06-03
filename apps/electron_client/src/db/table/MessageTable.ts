@@ -325,6 +325,13 @@ export class MessageTable extends TableConnection {
     ]);
   }
 
+  updateUploadedFileByClientId(clientMsgId: string, fileId: string, status: MessageStatus) {
+    this.run(
+      `UPDATE ${this.TABLE_NAME} SET file_id = ?, status = ?, update_time = ? WHERE client_msg_id = ?`,
+      [fileId, status, Date.now(), clientMsgId],
+    );
+  }
+
   /**
    * 删除消息
    */
