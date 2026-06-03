@@ -136,8 +136,6 @@ function ChatMessageScrollAreaWrapper({
   useLayoutEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
-    console.log('useLayoutEffect');
-
     const conversationChanged = previousConversationKeyRef.current !== conversationKey;
     if (conversationChanged) {
       previousConversationKeyRef.current = conversationKey;
@@ -207,7 +205,7 @@ function ChatMessageScrollAreaWrapper({
   }, [scheduleScrollToBottom, updateNearBottom]);
 
   return (
-    <div className="chat-text-container relative -me-4 flex min-h-0 min-w-0 flex-1 flex-col overflow-y-hidden">
+    <div className="chat-text-container relative flex min-h-0 min-w-0 flex-1 overflow-hidden">
       <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex justify-center">
         {isLoadingOlder && (
           <div className="bg-background/95 text-muted-foreground flex items-center gap-2 rounded-b-md border px-3 py-1 text-xs shadow-sm">
@@ -221,7 +219,7 @@ function ChatMessageScrollAreaWrapper({
         ref={scrollRef}
         onScroll={handleScroll}
         className={cn(
-          'chat-flex flex h-40 min-h-0 w-full grow flex-col justify-start overflow-y-auto py-2 pe-4 pb-4',
+          'chat-flex flex min-h-0 w-full flex-1 basis-0 flex-col justify-start overflow-y-auto py-2 pe-2 pb-4 [scrollbar-gutter:stable]',
           className,
         )}
         {...props}

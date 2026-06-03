@@ -13,13 +13,14 @@ export interface LightboxImageHandle {
 
 interface LightboxImageProps {
   item: MediaPreviewItem;
+  onBackdropClick: () => void;
 }
 
 const clamp = (value: number, min: number, max: number): number =>
   Math.max(min, Math.min(max, value));
 
 export const LightboxImage = forwardRef<LightboxImageHandle, LightboxImageProps>(
-  function LightboxImage({ item }, ref) {
+  function LightboxImage({ item, onBackdropClick }, ref) {
     const src = formatFileUrl(item.fileUrl);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(false);
@@ -54,7 +55,11 @@ export const LightboxImage = forwardRef<LightboxImageHandle, LightboxImageProps>
     }));
 
     if (!src) {
-      return <div className="flex h-full items-center justify-center text-sm text-white/60">图片地址为空</div>;
+      return (
+        <div className="flex h-full items-center justify-center text-sm text-white/60">
+          图片地址为空
+        </div>
+      );
     }
 
     return (
@@ -63,6 +68,9 @@ export const LightboxImage = forwardRef<LightboxImageHandle, LightboxImageProps>
         onWheel={(event) => {
           event.preventDefault();
           zoom(event.deltaY > 0 ? -0.1 : 0.1);
+        }}
+        onPointerDown={(event) => {
+          if (event.target === event.currentTarget) onBackdropClick();
         }}
       >
         {loading && !error && (

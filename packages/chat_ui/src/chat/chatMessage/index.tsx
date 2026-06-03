@@ -64,7 +64,7 @@ function ChatMessageBubble({
       className={cn(
         'rounded-2xl py-2 text-sm shadow-sm',
         isMe ? 'rounded-br-sm pl-3 pr-2' : 'rounded-bl-sm bg-muted pl-2 pr-3 text-foreground',
-        isMedia && 'relative group shadow-none',
+        isMedia && 'group relative bg-transparent p-0 shadow-none',
         isVideo && 'bg-transparent p-0 shadow-none',
         className,
       )}
