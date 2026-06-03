@@ -44,6 +44,7 @@ export interface ChatComposerProps {
   onDragOver?: DragEventHandler<HTMLDivElement>;
   actionsSlot?: ReactNode;
   className?: string;
+  disabled?: boolean;
   labels?: ChatComposerLabels;
 }
 
@@ -125,13 +126,19 @@ function ChatAttachmentList({
   );
 }
 
-function EmojiPicker({ onSelect }: { onSelect: (emoji: string) => void }) {
+function EmojiPicker({
+  disabled,
+  onSelect,
+}: {
+  disabled?: boolean;
+  onSelect: (emoji: string) => void;
+}) {
   const [open, setOpen] = useState(false);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button type="button" variant="ghost" size="icon">
+        <Button type="button" variant="ghost" size="icon" disabled={disabled}>
           <Smile />
         </Button>
       </PopoverTrigger>
@@ -170,10 +177,11 @@ export function ChatComposer({
   onDragOver,
   actionsSlot,
   className,
+  disabled = false,
   labels,
 }: ChatComposerProps) {
   const previewTitle = labels?.previewTitle ?? 'Attachment preview';
-  const sendDisabled = sending || (!value.trim() && attachments.length === 0);
+  const sendDisabled = disabled || sending || (!value.trim() && attachments.length === 0);
 
   return (
     <div
@@ -203,6 +211,7 @@ export function ChatComposer({
             }
           }}
           onPaste={onPaste}
+          disabled={disabled}
           placeholder={labels?.placeholder ?? 'Type a message, or paste/drop images...'}
           className="max-h-[100px] resize-none border-0 bg-transparent p-0 text-base shadow-none focus-visible:ring-0"
         />
@@ -214,6 +223,7 @@ export function ChatComposer({
               variant="ghost"
               size="icon"
               aria-label={labels?.attach ?? 'Attach file'}
+              disabled={disabled}
               onClick={onSelectFiles}
             >
               <Paperclip />
@@ -221,7 +231,10 @@ export function ChatComposer({
 
             {actionsSlot}
 
-            <EmojiPicker onSelect={(emoji) => onValueChange(`${value}${emoji}`)} />
+            <EmojiPicker
+              disabled={disabled}
+              onSelect={(emoji) => onValueChange(`${value}${emoji}`)}
+            />
           </div>
 
           <Button type="button" onClick={onSubmit} disabled={sendDisabled} size="sm">

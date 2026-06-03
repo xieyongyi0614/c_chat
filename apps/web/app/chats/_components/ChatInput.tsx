@@ -1,9 +1,10 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import type { ChangeEvent, DragEvent, KeyboardEvent } from 'react';
-import { Paperclip, Send } from 'lucide-react';
-import { Button, Spinner, Textarea } from '@c_chat/ui';
+import type { ChangeEvent, ClipboardEvent, DragEvent } from 'react';
+import { ChatComposer } from '@c_chat/ui';
+import { getSelectFileInfoByFile } from '@c_chat/shared-utils';
+import type { FileInfoListItem } from '@c_chat/shared-types';
 import { messageService, uploadManager } from '@/lib/services';
 import { VoiceRecorder } from './VoiceRecorder';
 
@@ -13,20 +14,47 @@ interface ChatInputProps {
   disabled?: boolean;
 }
 
+type WebAttachment = FileInfoListItem & {
+  file: File;
+};
+
 export function ChatInput({ conversationId, onSent, disabled = false }: ChatInputProps) {
   const [value, setValue] = useState('');
   const [sending, setSending] = useState(false);
-  const [dragOver, setDragOver] = useState(false);
+  const [attachments, setAttachments] = useState<WebAttachment[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const addFiles = async (files: File[]) => {
+    if (disabled || files.length === 0) return;
+
+    const nextAttachments = await Promise.all(
+      files.map(async (file) => ({
+        ...(await getSelectFileInfoByFile(file)),
+        file,
+      })),
+    );
+    setAttachments((current) => [...current, ...nextAttachments]);
+  };
 
   const submit = async () => {
     const content = value.trim();
-    if (!content || sending || disabled) return;
+    if ((!content && attachments.length === 0) || sending || disabled) return;
 
     setSending(true);
     try {
-      await messageService.sendMessage({ conversationId, content });
+      if (content) {
+        await messageService.sendMessage({ conversationId, content });
+      }
+      await Promise.all(
+        attachments.map((attachment) =>
+          uploadManager.upload({ file: attachment.file, conversationId }),
+        ),
+      );
       setValue('');
+      for (const attachment of attachments) {
+        if (attachment.url) URL.revokeObjectURL(attachment.url);
+      }
+      setAttachments([]);
       onSent();
     } catch (error) {
       console.error('Failed to send message:', error);
@@ -35,94 +63,61 @@ export function ChatInput({ conversationId, onSent, disabled = false }: ChatInpu
     }
   };
 
-  const uploadFiles = async (files: File[]) => {
-    if (disabled || files.length === 0) return;
-    for (const file of files) {
-      await uploadManager.upload({ file, conversationId });
-    }
-    onSent();
-  };
-
   const handleFilePick = (event: ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files ? Array.from(event.target.files) : [];
     event.target.value = '';
-    void uploadFiles(files);
+    void addFiles(files);
   };
 
-  const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (event.key === 'Enter' && !event.shiftKey) {
-      event.preventDefault();
-      void submit();
-    }
+  const handlePaste = (event: ClipboardEvent<HTMLTextAreaElement>) => {
+    const files = Array.from(event.clipboardData.items)
+      .filter((item) => item.kind === 'file')
+      .map((item) => item.getAsFile())
+      .filter((file): file is File => Boolean(file));
+
+    if (files.length === 0) return;
+    event.preventDefault();
+    void addFiles(files);
   };
 
   const handleDrop = (event: DragEvent<HTMLDivElement>) => {
     event.preventDefault();
-    setDragOver(false);
-    const files = Array.from(event.dataTransfer.files);
-    void uploadFiles(files);
+    void addFiles(Array.from(event.dataTransfer.files));
   };
-
-  const handleDragOver = (event: DragEvent<HTMLDivElement>) => {
-    if (disabled) return;
-    event.preventDefault();
-    setDragOver(true);
-  };
-
-  const sendDisabled = !value.trim() || sending || disabled;
 
   return (
     <div className="border-t border-border p-4">
-      <div
+      <input ref={fileInputRef} type="file" multiple hidden onChange={handleFilePick} />
+      <ChatComposer
+        value={value}
+        attachments={attachments}
+        sending={sending}
+        onValueChange={setValue}
+        onSubmit={() => {
+          void submit();
+        }}
+        onSelectFiles={() => fileInputRef.current?.click()}
+        onRemoveAttachment={(id) => {
+          const removed = attachments.find((item) => item.id === id);
+          if (removed?.url) URL.revokeObjectURL(removed.url);
+          setAttachments((current) => current.filter((item) => item.id !== id));
+        }}
+        onPaste={handlePaste}
         onDrop={handleDrop}
-        onDragOver={handleDragOver}
-        onDragLeave={() => setDragOver(false)}
-        className={`overflow-hidden rounded-xl border bg-background ${
-          dragOver ? 'border-primary ring-2 ring-primary/40' : 'border-border'
-        }`}
-      >
-        <Textarea
-          value={value}
-          onChange={(event) => setValue(event.target.value)}
-          onKeyDown={handleKeyDown}
-          disabled={disabled}
-          placeholder={
-            disabled
-              ? '会话已不可用'
-              : dragOver
-                ? '释放以上传文件'
-                : '输入消息，Enter 发送，Shift+Enter 换行'
-          }
-          className="max-h-32 resize-none border-0 bg-transparent p-3 shadow-none focus-visible:ring-0"
-        />
-        <div className="flex items-center justify-between gap-2 px-3 pb-3">
-          <div className="flex items-center gap-1">
-            <input ref={fileInputRef} type="file" multiple hidden onChange={handleFilePick} />
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              disabled={disabled}
-              aria-label="发送附件"
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <Paperclip />
-            </Button>
-            <VoiceRecorder conversationId={conversationId} onSent={onSent} disabled={disabled} />
-          </div>
-          <Button
-            type="button"
-            size="sm"
-            disabled={sendDisabled}
-            onClick={() => {
-              void submit();
-            }}
-          >
-            {sending ? <Spinner data-icon="inline-start" /> : <Send data-icon="inline-start" />}
-            {sending ? '发送中' : '发送'}
-          </Button>
-        </div>
-      </div>
+        onDragOver={(event) => event.preventDefault()}
+        actionsSlot={
+          <VoiceRecorder conversationId={conversationId} onSent={onSent} disabled={disabled} />
+        }
+        disabled={disabled}
+        className={disabled ? 'opacity-60' : undefined}
+        labels={{
+          placeholder: disabled ? '会话已不可用' : '输入消息，或粘贴/拖拽图片和文件，Enter 发送',
+          send: '发送',
+          sending: '发送中...',
+          attach: '添加文件',
+          previewTitle: '附件预览',
+        }}
+      />
     </div>
   );
 }

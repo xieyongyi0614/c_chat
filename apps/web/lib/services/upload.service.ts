@@ -1,21 +1,21 @@
 import { uploadService } from '../api/client';
-import { UploadTaskDB, MessageDB, type UploadTask } from '../db';
+import { MessageDB, UploadTaskDB, type UploadTask } from '../db';
 import { useMessageStore } from '../stores/message.store';
 import { useUserStore } from '../stores/user.store';
+import { uploadFileWithPipeline } from '@c_chat/shared-api';
 import { MessageStatus } from '@c_chat/shared-types';
 import type { LocalMessageListItem } from '@c_chat/shared-types';
 import {
-  UPLOAD_CHUNK_SIZE,
-  MESSAGE_TYPE,
-  messageTypeMap,
   EXTENSION_TO_TYPE_MAP,
+  MESSAGE_TYPE,
+  UPLOAD_CHUNK_SIZE,
+  messageTypeMap,
   type MessageType,
 } from '@c_chat/shared-config';
+import { messageService } from './message.service';
 
-const CHUNK_UPLOAD_CONCURRENCY = 4;
 const SAMPLE_SIZE = 256 * 1024;
 
-/** 与桌面端 calcSamplingHash 对齐：头/中/尾各采样 256KB + size，SHA-256 */
 async function calcSamplingHash(file: File): Promise<string> {
   const size = file.size;
   const parts: Blob[] = [];
@@ -50,23 +50,6 @@ function resolveMessageType(file: File): MessageType {
   return MESSAGE_TYPE.File;
 }
 
-async function runChunkPool(
-  indices: number[],
-  concurrency: number,
-  worker: (chunkIndex: number) => Promise<void>,
-): Promise<void> {
-  if (indices.length === 0) return;
-  const workerCount = Math.min(concurrency, indices.length);
-  let cursor = 0;
-  const runWorker = async () => {
-    while (cursor < indices.length) {
-      const index = indices[cursor++];
-      await worker(index);
-    }
-  };
-  await Promise.all(Array.from({ length: workerCount }, () => runWorker()));
-}
-
 export interface StartUploadParams {
   file: File;
   conversationId: string;
@@ -76,7 +59,6 @@ export interface StartUploadParams {
 }
 
 export class UploadManager {
-  /** 选择文件后创建 pending 消息 + 上传任务，并异步执行上传 */
   async upload({
     file,
     conversationId,
@@ -140,10 +122,9 @@ export class UploadManager {
     };
     await UploadTaskDB.upsert(task);
 
-    await this.runUpload(task, file, objectUrl);
+    void this.runUpload(task, file, objectUrl);
   }
 
-  /** 刷新后重试：File 对象已丢失，提示用户重新选择同一文件 */
   async retry(taskId: string, file: File): Promise<void> {
     const task = await UploadTaskDB.getById(taskId);
     if (!task || !task.conversationId) return;
@@ -157,76 +138,33 @@ export class UploadManager {
     try {
       await UploadTaskDB.updateStatus(task.id, 'uploading');
 
-      const initRes = await uploadService.uploadInit({
+      const uploadedFile = await uploadFileWithPipeline({
+        uploadService,
         fileName: task.fileName,
         fileSize: task.fileSize,
         fileHash: task.fileHash,
-        chunkSize: task.chunkSize,
         mimeType: file.type,
-        clientMsgId: task.clientMsgId,
-        conversationId: task.conversationId,
-        messageType: task.messageType,
-        duration: task.duration,
-        waveform: task.waveform,
+        usage: 'file',
+        initContext: {
+          clientMsgId: task.clientMsgId,
+          conversationId: task.conversationId,
+          messageType: task.messageType,
+          duration: task.duration,
+          waveform: task.waveform,
+        },
+        readChunk: async (index, chunkSize) => {
+          const start = index * chunkSize;
+          return file.slice(start, start + chunkSize);
+        },
+        onUploadId: async (uploadId) => {
+          await UploadTaskDB.upsert({ ...task, uploadId });
+        },
+        onProgress: async ({ uploadedChunks, totalChunks }) => {
+          await this.persistProgress(task, uploadedChunks, totalChunks);
+        },
       });
 
-      if (!initRes) {
-        throw new Error('上传初始化失败');
-      }
-
-      // 秒传：服务端命中已存在文件，直接 complete 由服务端建消息
-      if (initRes.file) {
-        await UploadTaskDB.updateStatus(task.id, 'completed');
-        URL.revokeObjectURL(objectUrl);
-        return;
-      }
-
-      const session = initRes.uploadSession;
-      if (!session) {
-        throw new Error('上传会话创建失败');
-      }
-
-      const uploadId = session.id;
-      const chunkSize = Number(session.chunkSize ?? task.chunkSize);
-      const totalChunks = Math.max(1, Number(session.totalChunks ?? task.totalChunks));
-      await UploadTaskDB.upsert({ ...task, uploadId });
-
-      const statusRes = await uploadService.getUploadStatus(uploadId);
-      const uploadedIndices = new Set<number>(statusRes?.uploadedChunks ?? []);
-
-      const missing: number[] = [];
-      for (let index = 0; index < totalChunks; index++) {
-        if (!uploadedIndices.has(index)) missing.push(index);
-      }
-
-      await this.persistProgress(task, uploadedIndices, totalChunks);
-
-      await runChunkPool(missing, CHUNK_UPLOAD_CONCURRENCY, async (index) => {
-        const start = index * chunkSize;
-        const chunk = file.slice(start, start + chunkSize);
-        const chunkRes = await uploadService.uploadChunk({
-          uploadId,
-          chunkIndex: index,
-          chunk,
-          fileName: task.fileName,
-          totalChunks,
-          fileSize: task.fileSize,
-        });
-
-        if (!chunkRes?.ok) {
-          throw new Error('分片上传失败');
-        }
-
-        uploadedIndices.add(index);
-        await this.persistProgress(task, uploadedIndices, totalChunks);
-      });
-
-      const completeRes = await uploadService.uploadComplete({ uploadId, usage: 'message' });
-      if (!completeRes?.queued && !completeRes?.file) {
-        throw new Error('触发合并失败');
-      }
-
-      // 方案 B：不二次 sendMessage，等待服务端 newUpdateMessage 覆盖 pending
+      await this.sendUploadedFileMessage(task, uploadedFile.id, uploadedFile.url);
       await UploadTaskDB.updateStatus(task.id, 'completed');
       URL.revokeObjectURL(objectUrl);
     } catch (error) {
@@ -239,17 +177,46 @@ export class UploadManager {
 
   private async persistProgress(
     task: UploadTask,
-    uploadedIndices: Set<number>,
+    uploadedChunks: number[],
     totalChunks: number,
   ): Promise<void> {
-    await UploadTaskDB.updateStatus(task.id, 'uploading', [...uploadedIndices]);
+    await UploadTaskDB.updateStatus(task.id, 'uploading', uploadedChunks);
 
     const message = await MessageDB.getByClientMsgId(task.clientMsgId ?? '');
     if (message) {
-      message.progress = Math.floor((uploadedIndices.size / totalChunks) * 100);
+      message.progress = Math.floor((uploadedChunks.length / totalChunks) * 100);
       await MessageDB.upsert(message);
       useMessageStore.getState().upsertMany(message.conversationId, [message]);
     }
+  }
+
+  private async sendUploadedFileMessage(
+    task: UploadTask,
+    fileId: string,
+    fileUrl: string,
+  ): Promise<void> {
+    const message = await MessageDB.getByClientMsgId(task.clientMsgId ?? '');
+    if (message) {
+      message.fileId = fileId;
+      message.fileUrl = fileUrl;
+      message.status = MessageStatus.sending;
+      message.progress = 100;
+      await MessageDB.upsert(message);
+      useMessageStore.getState().upsertMany(message.conversationId, [message]);
+    }
+
+    await messageService.sendMessage({
+      conversationId: task.conversationId,
+      content: '',
+      clientMsgId: task.clientMsgId,
+      type: task.messageType,
+      fileId,
+      fileUrl,
+      fileName: task.fileName,
+      fileSize: task.fileSize,
+      duration: task.duration,
+      waveform: task.waveform,
+    });
   }
 
   private async updateMessageStatus(

@@ -85,7 +85,7 @@ export namespace UploadTypes {
     id: string;
     fileHash: string;
     fileName: string;
-    size: bigint;
+    size: number;
     url: string;
     uploaderId: string;
     createdAt: Date;
