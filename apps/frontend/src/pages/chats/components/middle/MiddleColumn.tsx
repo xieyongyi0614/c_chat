@@ -27,12 +27,11 @@ const MiddleColumn = (props: RightSideProps) => {
   const isGroupConversation = selectedConversation?.type === ConversationType.Group;
   const [groupDetailOpen, setGroupDetailOpen] = useState(false);
 
-  const activeTitle = (() => {
-    if (selectedConversation) {
-      return selectedConversation.targetName;
-    }
-    return selectedUserForDraft?.nickname || '无';
-  })();
+  const activeTitle =
+    selectedConversation?.targetName ??
+    selectedUserForDraft?.nickname ??
+    selectedUserForDraft?.email;
+  const activeAvatar = selectedConversation?.targetAvatar ?? selectedUserForDraft?.avatarUrl;
 
   if (!selectedConversation && !selectedUserForDraft) {
     return (
@@ -62,17 +61,12 @@ const MiddleColumn = (props: RightSideProps) => {
           <div className="flex min-w-0 flex-1 items-center gap-2 lg:gap-4">
             <Avatar className="size-9 shrink-0 lg:size-11">
               <AvatarImage
-                src={selectedConversation?.targetAvatar}
-                alt="@shadcn"
+                src={activeAvatar ?? ''}
+                alt={activeTitle ?? 'conversation avatar'}
                 className="rounded-full"
               />
-              <AvatarFallback
-                className={getChatAvatarFallbackClass(
-                  selectedConversation?.targetName,
-                  'text-base',
-                )}
-              >
-                {selectedConversation?.targetName?.toUpperCase()?.slice(0, 2)}
+              <AvatarFallback className={getChatAvatarFallbackClass(activeTitle, 'text-base')}>
+                {activeTitle?.toUpperCase().slice(0, 2)}
               </AvatarFallback>
             </Avatar>
             <div className="min-w-0 flex-1 overflow-hidden">

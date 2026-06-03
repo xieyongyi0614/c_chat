@@ -38,6 +38,7 @@ const canUseLocalOlderMessages = (messages: LocalMessageListItem[], beforeMsgId:
 export const useChatsData = () => {
   const { conversationData, markConversationAsRead } = useChatStore();
   const selectedConversationId = useChatStore((s) => s.selectedConversation?.id);
+  const selectedDraftUserId = useChatStore((s) => s.selectedUserForDraft?.id);
   const unreadCount = useChatStore((s) => s.selectedConversation?.unreadCount);
   const { addMsgList, clear, setDataConversationId } = useMessageStore();
   const { fetchConversationData } = useConversationData();
@@ -159,6 +160,19 @@ export const useChatsData = () => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedConversationId]);
+
+  useEffect(() => {
+    if (!selectedDraftUserId) return;
+
+    const draftConversationId = `draft:${selectedDraftUserId}`;
+    if (useMessageStore.getState().dataConversationId === draftConversationId) return;
+
+    clear();
+    setDataConversationId(draftConversationId);
+    remoteBeforeMsgIdRef.current = null;
+    historyRequestRef.current = { isLoadingOlder: false, hasMoreOlder: false };
+    setHistoryState(INITIAL_HISTORY_STATE);
+  }, [clear, selectedDraftUserId, setDataConversationId]);
 
   return {
     conversationData,
