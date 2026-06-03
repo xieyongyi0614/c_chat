@@ -1,8 +1,7 @@
 import { memo, useState } from 'react';
 import EmptyConversation from './EmptyConversation';
 import { useChatStore } from '@c_chat/frontend/stores';
-import { Avatar, AvatarFallback, AvatarImage, Button, cn } from '@c_chat/ui';
-import { ArrowLeft, MoreVertical, Phone, Video } from 'lucide-react';
+import { ConversationHeader, cn } from '@c_chat/ui';
 
 import HistoryMessageList from './MessageHistoryList';
 import { ChatInput } from './input/ChatInput';
@@ -46,69 +45,21 @@ const MiddleColumn = (props: RightSideProps) => {
         selectedUserForDraft && 'start-0 flex',
       )}
     >
-      <div className="mb-1 flex flex-none justify-between bg-card p-4 shadow-lg sm:rounded-t-md">
-        <div className="flex min-w-0 flex-1 gap-3">
-          <Button
-            size="icon"
-            variant="ghost"
-            className="-ms-2 h-full sm:hidden"
-            onClick={() => {
-              setSelectedUserForDraft(null);
-            }}
-          >
-            <ArrowLeft className="rtl:rotate-180" />
-          </Button>
-          <div className="flex min-w-0 flex-1 items-center gap-2 lg:gap-4">
-            <Avatar className="size-9 shrink-0 lg:size-11">
-              <AvatarImage
-                src={activeAvatar ?? ''}
-                alt={activeTitle ?? 'conversation avatar'}
-                className="rounded-full"
-              />
-              <AvatarFallback className={getChatAvatarFallbackClass(activeTitle, 'text-base')}>
-                {activeTitle?.toUpperCase().slice(0, 2)}
-              </AvatarFallback>
-            </Avatar>
-            <div className="min-w-0 flex-1 overflow-hidden">
-              <div className="flex min-w-0 items-center gap-2">
-                <span className="block w-full min-w-0 truncate text-sm font-medium lg:text-base">
-                  {activeTitle}
-                </span>
-              </div>
-              <div className="mt-0.5 text-xs text-muted-foreground">会话信息</div>
-            </div>
-          </div>
-        </div>
-
-        <div className="-me-1 flex shrink-0 items-center gap-1 lg:gap-2">
-          <Button
-            size="icon"
-            variant="ghost"
-            className="hidden size-8 rounded-full sm:inline-flex lg:size-10"
-          >
-            <Video size={22} className="stroke-muted-foreground" />
-          </Button>
-          <Button
-            size="icon"
-            variant="ghost"
-            className="hidden size-8 rounded-full sm:inline-flex lg:size-10"
-          >
-            <Phone size={22} className="stroke-muted-foreground" />
-          </Button>
-          <Button
-            size="icon"
-            variant="ghost"
-            className="h-10 rounded-md sm:h-8 sm:w-4 lg:h-10 lg:w-6"
-            onClick={() => {
-              if (isGroupConversation) {
-                setGroupDetailOpen(true);
-              }
-            }}
-          >
-            <MoreVertical className="stroke-muted-foreground sm:size-5" />
-          </Button>
-        </div>
-      </div>
+      <ConversationHeader
+        title={activeTitle}
+        avatarUrl={activeAvatar}
+        description="会话信息"
+        fallbackClassName={getChatAvatarFallbackClass(activeTitle, 'text-base')}
+        showBackButton={Boolean(selectedUserForDraft)}
+        onBack={() => {
+          setSelectedUserForDraft(null);
+        }}
+        onMoreClick={() => {
+          if (isGroupConversation) {
+            setGroupDetailOpen(true);
+          }
+        }}
+      />
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2 rounded-md px-4 pt-0 pb-4">
         <HistoryMessageList historyState={historyState} loadOlderMessages={loadOlderMessages} />
