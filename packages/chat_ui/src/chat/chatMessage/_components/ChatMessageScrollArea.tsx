@@ -207,7 +207,7 @@ function ChatMessageScrollAreaWrapper({
   }, [scheduleScrollToBottom, updateNearBottom]);
 
   return (
-    <div className="chat-text-container relative -me-4 flex flex-1 flex-col overflow-y-hidden">
+    <div className="chat-text-container relative -me-4 flex min-h-0 min-w-0 flex-1 flex-col overflow-y-hidden">
       <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex justify-center">
         {isLoadingOlder && (
           <div className="bg-background/95 text-muted-foreground flex items-center gap-2 rounded-b-md border px-3 py-1 text-xs shadow-sm">
@@ -221,7 +221,7 @@ function ChatMessageScrollAreaWrapper({
         ref={scrollRef}
         onScroll={handleScroll}
         className={cn(
-          'chat-flex flex h-40 w-full grow flex-col justify-start overflow-y-auto py-2 pe-4 pb-4',
+          'chat-flex flex h-40 min-h-0 w-full grow flex-col justify-start overflow-y-auto py-2 pe-4 pb-4',
           className,
         )}
         {...props}

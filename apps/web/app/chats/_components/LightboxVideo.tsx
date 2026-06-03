@@ -4,6 +4,7 @@ import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 're
 import { Button, cn } from '@c_chat/ui';
 import { Pause, Play, RotateCcw, Volume1, Volume2, VolumeX } from 'lucide-react';
 import type { MediaPreviewItem } from '@c_chat/shared-types';
+import { formatFileUrl } from '@/lib/media/formatFileUrl';
 
 export interface LightboxVideoHandle {
   togglePlay: () => void;
@@ -28,7 +29,7 @@ const formatDuration = (seconds: number): string => {
 
 export const LightboxVideo = forwardRef<LightboxVideoHandle, LightboxVideoProps>(
   function LightboxVideo({ item }, ref) {
-    const src = item.fileUrl ?? '';
+    const src = formatFileUrl(item.fileUrl);
     const [error, setError] = useState(false);
     const [reloadKey, setReloadKey] = useState(0);
     const [playing, setPlaying] = useState(false);

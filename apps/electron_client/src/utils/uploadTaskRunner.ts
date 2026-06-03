@@ -5,6 +5,9 @@ import { ApiClient } from './axios';
 import { readChunkAsBlob } from './calcFileHash';
 import { runWithActionCtx } from '@c_chat/electron_client/ipc/actionContext';
 import { WindowManager } from '@c_chat/electron_client/main/windows';
+import { socketManager } from './socket-io-client';
+import { SendMessageRequest } from '@c_chat/shared-protobuf';
+import { ClientToServiceEvent } from '@c_chat/shared-protobuf/protoMap';
 
 /** 与服务端 ChunkService + 合并队列搭配的并发度（分片已按序号落盘，可并行上传） */
 const CHUNK_UPLOAD_CONCURRENCY = 4;
@@ -29,6 +32,43 @@ async function runChunkPool(
   };
   await Promise.all(Array.from({ length: n }, () => runWorker()));
 }
+
+const notifyMessageUpdate = (windowId: number, clientMsgId: string) => {
+  const msg = messageTableClass.getByClientMsgId(clientMsgId);
+  if (!msg) return;
+
+  WindowManager.sendToWindow(windowId, ELECTRON_TO_CLIENT_CHANNELS.newUpdateMessage, {
+    messages: [msg],
+    conversations: [],
+    removedConversationIds: [],
+  });
+};
+
+const sendUploadedFileMessage = async (windowId: number, clientMsgId: string, fileId: string) => {
+  const msg = messageTableClass.getByClientMsgId(clientMsgId);
+  if (!msg) return;
+
+  const socketService = socketManager.getSocketService(windowId);
+  const res = await socketService.genericRequest(
+    ClientToServiceEvent.sendMessage,
+    SendMessageRequest.encode(
+      SendMessageRequest.create({
+        conversationId: msg.conversationId,
+        content: msg.content,
+        type: msg.type,
+        clientMsgId: msg.clientMsgId,
+        fileId,
+        durationSec: msg.duration,
+        waveform: msg.waveform,
+        mediaGroupId: msg.mediaGroupId || undefined,
+      }),
+    ).finish(),
+  );
+
+  if (res.status !== 'ok') {
+    throw new Error('Failed to send uploaded file message');
+  }
+};
 
 /**
  * 分片上传并在完成后通过 Socket 发送消息。
@@ -57,6 +97,7 @@ async function startUploadInContext(
 ) {
   const task = uploadTaskTableClass.getByTaskId(taskId);
   if (!task?.filePath || !task.uploadSessionId) return;
+  const windowId = task.windowId ?? 1;
 
   const session =
     uploadSession ??
@@ -72,6 +113,11 @@ async function startUploadInContext(
 
   try {
     uploadTaskTableClass.updateStatus(taskId, UploadStatus.uploading);
+    messageTableClass.updateMessageStateByClientId(task.clientMsgId, MessageStatus.uploading);
+    WindowManager.sendToWindow(windowId, ELECTRON_TO_CLIENT_CHANNELS.uploadProgress, {
+      clientMsgId: task.clientMsgId,
+      progress: 0,
+    });
 
     const statusRes = await ApiClient.upload.getUploadStatus(task.uploadSessionId);
     const serverIndices = new Set(statusRes?.uploadedChunks ?? []);
@@ -109,6 +155,10 @@ async function startUploadInContext(
         Math.floor((finishedCount / totalChunks) * 100),
         uploadedBytes,
       );
+      WindowManager.sendToWindow(windowId, ELECTRON_TO_CLIENT_CHANNELS.uploadProgress, {
+        clientMsgId: task.clientMsgId,
+        progress: Math.floor((finishedCount / totalChunks) * 100),
+      });
     });
 
     const completeRes = await ApiClient.upload.uploadComplete({
@@ -124,6 +174,13 @@ async function startUploadInContext(
       progress: 100,
       uploaded_bytes: task.fileSize,
     });
+    messageTableClass.updateUploadedFileByClientId(
+      task.clientMsgId,
+      completeRes.file.id,
+      MessageStatus.sending,
+    );
+    notifyMessageUpdate(windowId, task.clientMsgId);
+    await sendUploadedFileMessage(windowId, task.clientMsgId, completeRes.file.id);
   } catch (e) {
     console.error('startUpload error:', e);
 

@@ -22,6 +22,7 @@ function MessageListComponent<TMessage extends ChatMessageListItem>({
   historyState,
   loadOlderMessages,
   fileResolver,
+  className,
   isRead = true,
   labels,
   AudioControlsSlot,
@@ -34,7 +35,7 @@ function MessageListComponent<TMessage extends ChatMessageListItem>({
   );
 
   return (
-    <div className="flex size-full flex-1">
+    <div className="flex size-full min-h-0 min-w-0 flex-1 overflow-hidden">
       <ChatMessageScrollArea
         key="chat-message-scroll-area"
         conversationKey={conversationKey}
@@ -43,7 +44,13 @@ function MessageListComponent<TMessage extends ChatMessageListItem>({
         isLoadingOlder={historyState.isLoadingOlder}
         isLoadingLatest={historyState.isLoadingLatest}
         loadOlderMessages={loadOlderMessages}
+        className={className}
       >
+        {!historyState.isLoadingLatest && messageCount === 0 && (
+          <div className="flex min-h-40 flex-1 items-center justify-center text-sm text-muted-foreground">
+            {labels?.empty ?? 'No messages yet'}
+          </div>
+        )}
         {dateKeys.map((dateKey) => (
           <MessageListGroup
             key={dateKey}

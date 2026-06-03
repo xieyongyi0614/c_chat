@@ -36,6 +36,7 @@ export interface ChatMessageListLabels {
   profileTitle?: string;
   ownBadge?: string;
   unknownSender?: string;
+  empty?: ReactNode;
 }
 
 export interface ChatMessageAudioControlsSlotProps<TMessage extends ChatMessageListItem> {
@@ -55,6 +56,7 @@ export interface ChatMessageListProps<TMessage extends ChatMessageListItem> {
   historyState: ChatMessageHistoryState;
   loadOlderMessages: () => Promise<boolean>;
   fileResolver: ChatMessageFileResolver;
+  className?: string;
   isRead?: boolean;
   labels?: ChatMessageListLabels;
   AudioControlsSlot?: (props: ChatMessageAudioControlsSlotProps<TMessage>) => ReactNode;
