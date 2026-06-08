@@ -3,6 +3,7 @@ import { Edit } from 'lucide-react';
 import { useChatStore } from '@c_chat/frontend/stores';
 import { ConversationType, type LocalConversationListItem } from '@c_chat/shared-types';
 import { Button, ConversationSidebar } from '@c_chat/ui';
+import { CHAT_CONVERSATION_SIDEBAR_LABELS } from '@c_chat/shared-config';
 
 export interface LeftColumnRef {
   filterConversations: LocalConversationListItem[];
@@ -56,7 +57,7 @@ const LeftColumn = forwardRef<LeftColumnRef, LeftColumnProps>((props, ref) => {
           type="button"
           size="icon"
           variant="ghost"
-          aria-label="Create conversation"
+          aria-label={CHAT_CONVERSATION_SIDEBAR_LABELS.createConversation}
           onClick={() => openCreateConversationDialog(true)}
           className="rounded-lg"
         >
@@ -64,12 +65,12 @@ const LeftColumn = forwardRef<LeftColumnRef, LeftColumnProps>((props, ref) => {
         </Button>
       }
       labels={{
-        title: 'Messages',
-        searchPlaceholder: 'Search conversations...',
-        searchLabel: 'Search',
-        emptyMessage: 'No conversations',
-        noMessage: 'No messages',
-        groupNoMessage: 'Group chat',
+        title: CHAT_CONVERSATION_SIDEBAR_LABELS.title,
+        searchPlaceholder: CHAT_CONVERSATION_SIDEBAR_LABELS.searchPlaceholder,
+        searchLabel: CHAT_CONVERSATION_SIDEBAR_LABELS.searchLabel,
+        emptyMessage: CHAT_CONVERSATION_SIDEBAR_LABELS.emptyMessage,
+        noMessage: CHAT_CONVERSATION_SIDEBAR_LABELS.noMessage,
+        groupNoMessage: CHAT_CONVERSATION_SIDEBAR_LABELS.groupNoMessage,
       }}
     />
   );

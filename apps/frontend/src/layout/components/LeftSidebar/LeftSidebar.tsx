@@ -7,46 +7,42 @@ import {
   Bookmark,
   Folder,
   Inbox,
+  LogOut,
   MessageCircle,
   Settings,
+  UserCircle,
   UserRound,
   UsersRound,
 } from 'lucide-react';
-import { Separator } from '@c_chat/ui';
+import { ChatLeftRail, type ChatLeftRailFilterItem, type ChatLeftRailNavItem } from '@c_chat/ui';
 import { useChatStore, useUserStore } from '@c_chat/frontend/stores';
-import { AccountMenu } from './AccountMenu';
 import { ProfileDialog } from './ProfileDialog';
-import { SidebarFolderButton } from './SidebarFolderButton';
-import { SidebarNavButton } from './SidebarNavButton';
 import type { ProfileStats, SidebarProfile } from './types';
 import { ipc } from '@c_chat/shared-utils';
+import { formatFileUrl } from '@c_chat/frontend/common/formatFileUrl';
+import {
+  CHAT_ACCOUNT_MENU_LABELS,
+  CHAT_LEFT_RAIL_FILTER_ITEMS,
+  CHAT_LEFT_RAIL_LABELS,
+  CHAT_LEFT_RAIL_NAV_ITEMS,
+  type ChatConversationFolderId,
+  type ChatLeftRailNavId,
+} from '@c_chat/shared-config';
 
-type NavId = 'chats' | 'contacts' | 'saved' | 'settings';
-type FolderId = 'all' | 'unread' | 'personal' | 'groups' | 'archive';
+const navIcons: Record<ChatLeftRailNavId, ComponentType<{ className?: string }>> = {
+  chats: MessageCircle,
+  contacts: UsersRound,
+  saved: Bookmark,
+  settings: Settings,
+};
 
-const navItems: Array<{
-  id: NavId;
-  label: string;
-  icon: ComponentType<{ className?: string }>;
-  path?: string;
-}> = [
-  { id: 'chats', label: '\u6d88\u606f', icon: MessageCircle, path: '/chat' },
-  { id: 'contacts', label: '\u8054\u7cfb\u4eba', icon: UsersRound },
-  { id: 'saved', label: '\u6536\u85cf', icon: Bookmark },
-  { id: 'settings', label: '\u8bbe\u7f6e', icon: Settings },
-];
-
-const folderItems: Array<{
-  id: FolderId;
-  label: string;
-  icon: ComponentType<{ className?: string }>;
-}> = [
-  { id: 'all', label: '\u5168\u90e8', icon: Inbox },
-  { id: 'unread', label: '\u672a\u8bfb', icon: Bell },
-  { id: 'personal', label: '\u79c1\u804a', icon: UserRound },
-  { id: 'groups', label: '\u7fa4\u7ec4', icon: Folder },
-  { id: 'archive', label: '\u5f52\u6863', icon: Archive },
-];
+const folderIcons: Record<ChatConversationFolderId, ComponentType<{ className?: string }>> = {
+  all: Inbox,
+  unread: Bell,
+  personal: UserRound,
+  groups: Folder,
+  archive: Archive,
+};
 
 export function LeftSidebar() {
   const navigate = useNavigate();
@@ -69,7 +65,7 @@ export function LeftSidebar() {
   });
 
   const displayProfile = useMemo<SidebarProfile>(() => {
-    const nickname = userInfo?.nickname || userInfo?.email || '\u672a\u547d\u540d\u8d26\u53f7';
+    const nickname = userInfo?.nickname || userInfo?.email || '未命名账号';
     return {
       id: userInfo?.id || '',
       avatarUrl: userInfo?.avatarUrl || '',
@@ -77,12 +73,12 @@ export function LeftSidebar() {
     };
   }, [userInfo?.avatarUrl, userInfo?.email, userInfo?.id, userInfo?.nickname]);
 
-  const activeNavId: NavId = location.pathname.startsWith('/chat') ? 'chats' : 'chats';
+  const activeNavId: ChatLeftRailNavId = location.pathname.startsWith('/chat') ? 'chats' : 'chats';
   const unreadCount = conversations.reduce((total, item) => total + (item.unreadCount ?? 0), 0);
   const groupCount = conversations.filter((item) => item.type === 2).length;
   const personalCount = conversations.length - groupCount;
 
-  const folderCounts: Record<FolderId, number> = {
+  const folderCounts: Record<ChatConversationFolderId, number> = {
     all: conversations.length,
     unread: unreadCount,
     personal: personalCount,
@@ -90,7 +86,7 @@ export function LeftSidebar() {
     archive: 0,
   };
 
-  const handleNavClick = (id: NavId, path?: string) => {
+  const handleNavClick = (id: ChatLeftRailNavId, path?: string) => {
     if (path) {
       navigate(path);
       return;
@@ -119,7 +115,7 @@ export function LeftSidebar() {
         avatarUrl: updated?.avatarUrl ?? file.url ?? profile.avatarUrl,
       }));
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : '\u5934\u50cf\u4e0a\u4f20\u5931\u8d25');
+      toast.error(error instanceof Error ? error.message : '头像上传失败');
     } finally {
       setSavingProfile(false);
     }
@@ -138,12 +134,10 @@ export function LeftSidebar() {
     try {
       setSavingProfile(true);
       await updateUserProfile(nextProfile);
-      toast.success('\u8d26\u53f7\u8d44\u6599\u5df2\u66f4\u65b0');
+      toast.success('账号资料已更新');
       setProfileOpen(false);
     } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : '\u8d26\u53f7\u8d44\u6599\u66f4\u65b0\u5931\u8d25',
-      );
+      toast.error(error instanceof Error ? error.message : '账号资料更新失败');
     } finally {
       setSavingProfile(false);
     }
@@ -155,57 +149,60 @@ export function LeftSidebar() {
     groups: groupCount,
   };
 
+  const railNavItems: ChatLeftRailNavItem[] = CHAT_LEFT_RAIL_NAV_ITEMS.map((item) => ({
+    id: item.id,
+    label: item.label,
+    icon: navIcons[item.id],
+    unreadCount: item.id === 'chats' ? unreadCount : undefined,
+  }));
+
+  const railFilterItems: ChatLeftRailFilterItem[] = CHAT_LEFT_RAIL_FILTER_ITEMS.map((item) => ({
+    id: item.id,
+    label: item.label,
+    icon: folderIcons[item.id],
+    count: folderCounts[item.id],
+  }));
+
   return (
     <>
-      <aside className="flex h-full w-[84px] shrink-0 flex-col border-r bg-background/95 text-foreground">
-        <div className="flex flex-col items-center gap-2 px-3 py-4">
-          <div className="flex flex-col items-center gap-1.5">
-            {navItems.map((item) => {
-              const active = activeNavId === item.id;
-
-              return (
-                <SidebarNavButton
-                  key={item.id}
-                  label={item.label}
-                  icon={item.icon}
-                  active={active}
-                  unreadCount={item.id === 'chats' ? unreadCount : undefined}
-                  onClick={() => handleNavClick(item.id, item.path)}
-                />
-              );
-            })}
-          </div>
-        </div>
-
-        <Separator />
-
-        <div className="flex flex-1 flex-col items-center gap-2 overflow-hidden px-2 py-4">
-          {folderItems.map((item) => {
-            const active = selectedConversationFolder === item.id;
-            const count = folderCounts[item.id];
-
-            return (
-              <SidebarFolderButton
-                key={item.id}
-                label={item.label}
-                icon={item.icon}
-                active={active}
-                count={count}
-                onClick={() => setSelectedConversationFolder(item.id)}
-              />
-            );
-          })}
-        </div>
-
-        <div className="border-t px-3 py-3">
-          <AccountMenu
-            profile={displayProfile}
-            onOpenProfile={handleOpenProfile}
-            onLogout={handleLogout}
-          />
-        </div>
-      </aside>
-
+      <ChatLeftRail
+        navItems={railNavItems}
+        filterItems={railFilterItems}
+        activeNavId={activeNavId}
+        activeFilterId={selectedConversationFolder}
+        account={{
+          id: displayProfile.id,
+          title: displayProfile.nickname,
+          avatarUrl: formatFileUrl(displayProfile.avatarUrl),
+          avatarAlt: displayProfile.nickname,
+        }}
+        onSelectNav={(item) => {
+          const navItem = CHAT_LEFT_RAIL_NAV_ITEMS.find((candidate) => candidate.id === item.id);
+          if (navItem) handleNavClick(navItem.id, navItem.path);
+        }}
+        onSelectFilter={(item) => {
+          const folderItem = CHAT_LEFT_RAIL_FILTER_ITEMS.find(
+            (candidate) => candidate.id === item.id,
+          );
+          if (folderItem) setSelectedConversationFolder(folderItem.id);
+        }}
+        accountMenuItems={[
+          {
+            id: 'profile',
+            label: CHAT_ACCOUNT_MENU_LABELS.profile,
+            icon: UserCircle,
+            onSelect: handleOpenProfile,
+          },
+          {
+            id: 'logout',
+            label: CHAT_ACCOUNT_MENU_LABELS.logout,
+            icon: LogOut,
+            destructive: true,
+            onSelect: handleLogout,
+          },
+        ]}
+        labels={CHAT_LEFT_RAIL_LABELS}
+      />
       <ProfileDialog
         open={profileOpen}
         profile={displayProfile}

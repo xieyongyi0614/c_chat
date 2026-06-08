@@ -44,7 +44,7 @@ export function ProfileDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-[420px]">
         <DialogHeader>
-          <DialogTitle>{'\u8d26\u53f7\u8d44\u6599'}</DialogTitle>
+          <DialogTitle>账号资料</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-5">
@@ -74,7 +74,7 @@ export function ProfileDialog({
                 <h2 className="truncate text-base font-semibold">{profile.nickname}</h2>
                 <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-600">
                   <Check className="size-3" />
-                  {'\u5728\u7ebf'}
+                  在线
                 </span>
               </div>
               <p className="mt-1 truncate text-sm text-muted-foreground">{email}</p>
@@ -82,7 +82,7 @@ export function ProfileDialog({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="sidebar-nickname">{'\u6635\u79f0'}</Label>
+            <Label htmlFor="sidebar-nickname">昵称</Label>
             <Input
               id="sidebar-nickname"
               value={draftProfile.nickname}
@@ -94,26 +94,26 @@ export function ProfileDialog({
           <div className="grid grid-cols-3 gap-2 rounded-lg border bg-muted/30 p-3 text-center">
             <div>
               <div className="text-sm font-semibold">{stats.conversations}</div>
-              <div className="text-xs text-muted-foreground">{'\u4f1a\u8bdd'}</div>
+              <div className="text-xs text-muted-foreground">会话</div>
             </div>
             <div>
               <div className="text-sm font-semibold">{stats.unread}</div>
-              <div className="text-xs text-muted-foreground">{'\u672a\u8bfb'}</div>
+              <div className="text-xs text-muted-foreground">未读</div>
             </div>
             <div>
               <div className="text-sm font-semibold">{stats.groups}</div>
-              <div className="text-xs text-muted-foreground">{'\u7fa4\u7ec4'}</div>
+              <div className="text-xs text-muted-foreground">群组</div>
             </div>
           </div>
         </div>
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
-            {'\u53d6\u6d88'}
+            取消
           </Button>
           <Button onClick={onSave} disabled={saving}>
             <Edit3 className="size-4" />
-            {saving ? '\u4fdd\u5b58\u4e2d...' : '\u4fdd\u5b58'}
+            {saving ? '保存中...' : '保存'}
           </Button>
         </DialogFooter>
       </DialogContent>

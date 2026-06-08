@@ -2,9 +2,37 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Button, ConversationSidebar } from '@c_chat/ui';
-import { Plus } from 'lucide-react';
-import type { LocalConversationListItem } from '@c_chat/shared-types';
+import {
+  Button,
+  ChatLeftRail,
+  ConversationSidebar,
+  type ChatLeftRailFilterItem,
+  type ChatLeftRailNavItem,
+} from '@c_chat/ui';
+import {
+  CHAT_ACCOUNT_MENU_LABELS,
+  CHAT_CONVERSATION_SIDEBAR_LABELS,
+  CHAT_EMPTY_STATE_LABELS,
+  CHAT_LEFT_RAIL_FILTER_ITEMS,
+  CHAT_LEFT_RAIL_NAV_ITEMS,
+  type ChatConversationFolderId,
+  type ChatLeftRailNavId,
+} from '@c_chat/shared-config';
+import {
+  Archive,
+  Bell,
+  Bookmark,
+  Folder,
+  Inbox,
+  LogOut,
+  MessageCircle,
+  Plus,
+  Settings,
+  UserCircle,
+  UserRound,
+  UsersRound,
+} from 'lucide-react';
+import { ConversationType, type LocalConversationListItem } from '@c_chat/shared-types';
 import { useUserStore } from '@/lib/stores/user.store';
 import { useConversationStore } from '@/lib/stores/conversation.store';
 import { authService, conversationService, initializeRealtimeListeners } from '@/lib/services';
@@ -13,9 +41,23 @@ import { CreateGroupDialog } from './_components/CreateGroupDialog';
 import { ChatWindow } from './_components/ChatWindow';
 import { MediaLightbox } from './_components/MediaLightbox';
 import { AudioPlayerBridge } from './_components/AudioPlayerBridge';
-import { ChatUserMenu } from './_components/ChatUserMenu';
 
 const SYNC_INTERVAL_MS = 30_000;
+
+const navIcons: Record<ChatLeftRailNavId, ChatLeftRailNavItem['icon']> = {
+  chats: MessageCircle,
+  contacts: UsersRound,
+  saved: Bookmark,
+  settings: Settings,
+};
+
+const folderIcons: Record<ChatConversationFolderId, ChatLeftRailFilterItem['icon']> = {
+  all: Inbox,
+  unread: Bell,
+  personal: UserRound,
+  groups: Folder,
+  archive: Archive,
+};
 
 export default function ChatsPage() {
   const router = useRouter();
@@ -38,14 +80,31 @@ export default function ChatsPage() {
   const [createGroupOpen, setCreateGroupOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const [checkingAuth, setCheckingAuth] = useState(!isAuthenticated);
+  const [selectedConversationFolder, setSelectedConversationFolder] =
+    useState<ChatConversationFolderId>('all');
 
   const visibleConversations = useMemo(() => {
     const keyword = search.trim().toLowerCase();
-    if (!keyword) return conversations;
-    return conversations.filter((conversation) =>
-      conversation.targetName.toLowerCase().includes(keyword),
-    );
-  }, [conversations, search]);
+    return conversations.filter((conversation) => {
+      if (selectedConversationFolder === 'unread' && (conversation.unreadCount ?? 0) <= 0) {
+        return false;
+      }
+      if (
+        selectedConversationFolder === 'personal' &&
+        conversation.type !== ConversationType.Single
+      ) {
+        return false;
+      }
+      if (selectedConversationFolder === 'groups' && conversation.type !== ConversationType.Group) {
+        return false;
+      }
+      if (selectedConversationFolder === 'archive') {
+        return false;
+      }
+      if (!keyword) return true;
+      return conversation.targetName.toLowerCase().includes(keyword);
+    });
+  }, [conversations, search, selectedConversationFolder]);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -140,19 +199,70 @@ export default function ChatsPage() {
     return null;
   }
 
-  const userMenu = (
-    <ChatUserMenu
-      userInfo={userInfo}
-      loggingOut={loggingOut}
-      onOpenProfile={() => setProfileOpen(true)}
-      onLogout={() => {
-        void handleLogout();
-      }}
-    />
-  );
+  const unreadCount = conversations.reduce((total, item) => total + (item.unreadCount ?? 0), 0);
+  const groupCount = conversations.filter((item) => item.type === ConversationType.Group).length;
+  const personalCount = conversations.length - groupCount;
+  const filterCounts: Record<ChatConversationFolderId, number> = {
+    all: conversations.length,
+    unread: unreadCount,
+    personal: personalCount,
+    groups: groupCount,
+    archive: 0,
+  };
 
   return (
     <main className="flex h-screen bg-background text-foreground">
+      <ChatLeftRail
+        navItems={CHAT_LEFT_RAIL_NAV_ITEMS.map((item) => ({
+          ...item,
+          icon: navIcons[item.id],
+          unreadCount: item.id === 'chats' ? unreadCount : undefined,
+        }))}
+        filterItems={CHAT_LEFT_RAIL_FILTER_ITEMS.map((item) => ({
+          ...item,
+          icon: folderIcons[item.id],
+          count: filterCounts[item.id],
+        }))}
+        activeNavId="chats"
+        activeFilterId={selectedConversationFolder}
+        account={{
+          id: userInfo?.id ?? '',
+          title: userInfo?.nickname || userInfo?.email,
+          avatarUrl: userInfo?.avatarUrl,
+          avatarAlt: userInfo?.nickname || userInfo?.email,
+        }}
+        onSelectNav={(item) => {
+          if (item.id === 'contacts') setSelectedConversationFolder('personal');
+          if (item.id !== 'contacts') setSelectedConversationFolder('all');
+        }}
+        onSelectFilter={(item) => {
+          const nextFolder = CHAT_LEFT_RAIL_FILTER_ITEMS.find(
+            (candidate) => candidate.id === item.id,
+          );
+          if (nextFolder) setSelectedConversationFolder(nextFolder.id);
+        }}
+        accountMenuItems={[
+          {
+            id: 'profile',
+            label: CHAT_ACCOUNT_MENU_LABELS.profile,
+            icon: UserCircle,
+            onSelect: () => setProfileOpen(true),
+          },
+          {
+            id: 'logout',
+            label: loggingOut
+              ? CHAT_ACCOUNT_MENU_LABELS.loggingOut
+              : CHAT_ACCOUNT_MENU_LABELS.logout,
+            icon: LogOut,
+            destructive: true,
+            disabled: loggingOut,
+            onSelect: () => {
+              void handleLogout();
+            },
+          },
+        ]}
+      />
+
       <ConversationSidebar
         className="border-r border-border px-4 py-4"
         conversations={visibleConversations}
@@ -167,7 +277,7 @@ export default function ChatsPage() {
             type="button"
             variant="ghost"
             size="icon"
-            aria-label="Create group"
+            aria-label={CHAT_CONVERSATION_SIDEBAR_LABELS.createGroup}
             onClick={() => setCreateGroupOpen(true)}
             className="rounded-lg"
           >
@@ -175,26 +285,21 @@ export default function ChatsPage() {
           </Button>
         }
         labels={{
-          title: 'Messages',
-          searchPlaceholder: 'Search conversations...',
-          searchLabel: 'Search',
-          emptyMessage: 'No conversations',
-          noMessage: 'No messages',
-          groupNoMessage: 'Group chat',
+          title: CHAT_CONVERSATION_SIDEBAR_LABELS.title,
+          searchPlaceholder: CHAT_CONVERSATION_SIDEBAR_LABELS.searchPlaceholder,
+          searchLabel: CHAT_CONVERSATION_SIDEBAR_LABELS.searchLabel,
+          emptyMessage: CHAT_CONVERSATION_SIDEBAR_LABELS.emptyMessage,
+          noMessage: CHAT_CONVERSATION_SIDEBAR_LABELS.noMessage,
+          groupNoMessage: CHAT_CONVERSATION_SIDEBAR_LABELS.groupNoMessage,
         }}
       />
 
       {selectedConversationId ? (
-        <ChatWindow
-          key={selectedConversationId}
-          conversationId={selectedConversationId}
-          headerAction={userMenu}
-        />
+        <ChatWindow key={selectedConversationId} conversationId={selectedConversationId} />
       ) : (
         <section className="relative flex flex-1 items-center justify-center bg-muted/30">
-          <div className="absolute top-4 right-4">{userMenu}</div>
           <div className="text-center text-muted-foreground">
-            <p className="text-lg">Select a conversation to start chatting</p>
+            <p className="text-lg">{CHAT_EMPTY_STATE_LABELS.selectConversation}</p>
           </div>
         </section>
       )}
