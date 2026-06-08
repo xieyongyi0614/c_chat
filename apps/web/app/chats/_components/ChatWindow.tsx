@@ -1,6 +1,5 @@
 'use client';
 
-import type { ReactNode } from 'react';
 import { useCallback, useEffect, useState } from 'react';
 import { ConversationHeader } from '@c_chat/ui';
 import { ConversationType } from '@c_chat/shared-types';
@@ -21,10 +20,9 @@ interface HistoryState {
 
 interface ChatWindowProps {
   conversationId: string;
-  headerAction?: ReactNode;
 }
 
-export function ChatWindow({ conversationId, headerAction }: ChatWindowProps) {
+export function ChatWindow({ conversationId }: ChatWindowProps) {
   const conversation = useConversationStore((state) =>
     state.conversations.find((item) => item.id === conversationId),
   );
@@ -118,7 +116,6 @@ export function ChatWindow({ conversationId, headerAction }: ChatWindowProps) {
         avatarUrl={conversation?.targetAvatar}
         fallback={conversation?.targetName.charAt(0).toUpperCase()}
         description="会话信息"
-        actionsSlot={headerAction}
         onMoreClick={() => {
           if (isGroup) {
             setProfileOpen(true);

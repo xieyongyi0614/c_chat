@@ -7,6 +7,7 @@ export * from './lib/constants';
 export * from './lib/fileType';
 export * from './lib/toast.config';
 export * from './lib/mediaPreview';
+export * from './lib/chatLabels';
 
 /** 统一端口配置 */
 export const PORTS = {

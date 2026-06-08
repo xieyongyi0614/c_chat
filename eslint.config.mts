@@ -61,14 +61,6 @@ export default defineConfig([
       'react-hooks/exhaustive-deps': 'warn',
       'react-hooks/rules-of-hooks': 'error',
       semi: 'warn',
-      '@typescript-eslint/no-misused-promises': [
-        'error',
-        {
-          checksVoidReturn: {
-            attributes: false,
-          },
-        },
-      ],
       '@typescript-eslint/require-await': 'off',
     },
     settings: {

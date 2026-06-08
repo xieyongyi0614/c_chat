@@ -1,24 +1,19 @@
-import { type ComponentType } from 'react';
-import { Badge, cn } from '@c_chat/ui';
+import { Badge } from '../../components/badge';
+import { cn } from '../../lib/utils';
+import type { ChatLeftRailFilterButtonProps } from './types';
 
-export function SidebarFolderButton({
-  label,
-  icon: Icon,
+export function ChatLeftRailFilterButton({
+  item,
   active,
-  count,
-  onClick,
-}: {
-  label: string;
-  icon: ComponentType<{ className?: string }>;
-  active: boolean;
-  count: number;
-  onClick: () => void;
-}) {
+  onSelect,
+}: ChatLeftRailFilterButtonProps) {
+  const Icon = item.icon;
+
   return (
     <button
       type="button"
-      title={label}
-      onClick={onClick}
+      title={item.label}
+      onClick={() => onSelect(item)}
       className={cn(
         'group flex w-full flex-col items-center gap-1 rounded-lg px-1.5 py-2 text-xs text-muted-foreground transition-colors',
         'hover:bg-accent hover:text-accent-foreground',
@@ -27,13 +22,13 @@ export function SidebarFolderButton({
     >
       <span className="relative flex size-8 items-center justify-center rounded-lg">
         <Icon className="size-4" />
-        {count > 0 && (
+        {item.count > 0 ? (
           <Badge className="absolute -right-2 -top-1 h-4 min-w-4 px-1 text-[10px]">
-            {count > 99 ? '99+' : count}
+            {item.count > 99 ? '99+' : item.count}
           </Badge>
-        )}
+        ) : null}
       </span>
-      <span className="max-w-full truncate">{label}</span>
+      <span className="max-w-full truncate">{item.label}</span>
     </button>
   );
 }
