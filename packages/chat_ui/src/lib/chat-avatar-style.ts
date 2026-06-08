@@ -1,4 +1,4 @@
-import { cn } from '@c_chat/ui';
+import { cn } from './utils';
 
 const TELEGRAM_AVATAR_COLORS = [
   'bg-sky-500 text-white',
@@ -25,4 +25,10 @@ export function getChatAvatarColorClass(seed?: string | null) {
 
 export function getChatAvatarFallbackClass(seed?: string | null, className?: string) {
   return cn(getChatAvatarColorClass(seed), 'font-semibold', className);
+}
+
+export function getChatAvatarFallbackText(title?: string | null) {
+  const text = title?.trim();
+  if (!text) return '?';
+  return text.slice(0, 2).toUpperCase();
 }

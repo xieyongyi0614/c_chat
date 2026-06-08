@@ -1,30 +1,19 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import {
-  Avatar,
-  AvatarFallback,
-  Button,
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-  ScrollArea,
-  Separator,
-  Spinner,
-} from '@c_chat/ui';
+import { Button, ConversationSidebar } from '@c_chat/ui';
 import { Plus } from 'lucide-react';
 import type { LocalConversationListItem } from '@c_chat/shared-types';
 import { useUserStore } from '@/lib/stores/user.store';
-import { useConversationStore, selectVisibleConversations } from '@/lib/stores/conversation.store';
+import { useConversationStore } from '@/lib/stores/conversation.store';
 import { authService, conversationService, initializeRealtimeListeners } from '@/lib/services';
-import { ConversationItem } from './_components/ConversationItem';
-import { ConversationFolders } from './_components/ConversationFolders';
 import { UserProfileDialog } from './_components/UserProfileDialog';
 import { CreateGroupDialog } from './_components/CreateGroupDialog';
 import { ChatWindow } from './_components/ChatWindow';
 import { MediaLightbox } from './_components/MediaLightbox';
 import { AudioPlayerBridge } from './_components/AudioPlayerBridge';
+import { ChatUserMenu } from './_components/ChatUserMenu';
 
 const SYNC_INTERVAL_MS = 30_000;
 
@@ -34,22 +23,29 @@ export default function ChatsPage() {
   const isAuthenticated = useUserStore((state) => state.isAuthenticated);
   const clearUser = useUserStore((state) => state.clearUser);
 
-  const visibleConversations = useConversationStore(selectVisibleConversations);
+  const conversations = useConversationStore((state) => state.conversations);
   const selectedConversationId = useConversationStore((state) => state.selectedConversationId);
-  const folder = useConversationStore((state) => state.folder);
   const loading = useConversationStore((state) => state.loading);
   const error = useConversationStore((state) => state.error);
   const setConversations = useConversationStore((state) => state.setConversations);
-  const setFolder = useConversationStore((state) => state.setFolder);
   const setLoading = useConversationStore((state) => state.setLoading);
   const setError = useConversationStore((state) => state.setError);
   const selectConversation = useConversationStore((state) => state.selectConversation);
   const clearUnread = useConversationStore((state) => state.clearUnread);
 
+  const [search, setSearch] = useState('');
   const [profileOpen, setProfileOpen] = useState(false);
   const [createGroupOpen, setCreateGroupOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const [checkingAuth, setCheckingAuth] = useState(!isAuthenticated);
+
+  const visibleConversations = useMemo(() => {
+    const keyword = search.trim().toLowerCase();
+    if (!keyword) return conversations;
+    return conversations.filter((conversation) =>
+      conversation.targetName.toLowerCase().includes(keyword),
+    );
+  }, [conversations, search]);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -103,13 +99,13 @@ export default function ChatsPage() {
         await conversationService.getConversationList();
       } catch (err) {
         console.error('Failed to load conversations:', err);
-        setError('加载会话失败');
+        setError('Failed to load conversations');
       } finally {
         setLoading(false);
       }
     };
 
-    initialLoad();
+    void initialLoad();
 
     const intervalId = setInterval(sync, SYNC_INTERVAL_MS);
     const onVisibilityChange = () => {
@@ -144,96 +140,61 @@ export default function ChatsPage() {
     return null;
   }
 
+  const userMenu = (
+    <ChatUserMenu
+      userInfo={userInfo}
+      loggingOut={loggingOut}
+      onOpenProfile={() => setProfileOpen(true)}
+      onLogout={() => {
+        void handleLogout();
+      }}
+    />
+  );
+
   return (
     <main className="flex h-screen bg-background text-foreground">
-      <aside className="flex w-80 flex-col border-r border-border">
-        <div className="border-b border-border p-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1">
-              <h1 className="text-xl font-semibold">消息</h1>
-              <Button
-                variant="ghost"
-                size="icon"
-                aria-label="创建群聊"
-                onClick={() => setCreateGroupOpen(true)}
-              >
-                <Plus />
-              </Button>
-            </div>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="ghost" size="sm" className="gap-2">
-                  <Avatar className="size-6">
-                    <AvatarFallback className="text-xs">
-                      {userInfo?.nickname?.charAt(0).toUpperCase() ||
-                        userInfo?.email?.charAt(0).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                  <span className="truncate text-sm">{userInfo?.nickname || userInfo?.email}</span>
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent align="end" className="w-48 p-2">
-                <div className="flex flex-col gap-1">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="justify-start"
-                    onClick={() => setProfileOpen(true)}
-                  >
-                    个人资料
-                  </Button>
-                  <Separator className="my-1" />
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="justify-start"
-                    onClick={() => {
-                      void handleLogout();
-                    }}
-                    disabled={loggingOut}
-                  >
-                    {loggingOut ? '退出中...' : '退出登录'}
-                  </Button>
-                </div>
-              </PopoverContent>
-            </Popover>
-          </div>
-        </div>
-
-        <ConversationFolders folder={folder} onChange={setFolder} />
-        <Separator />
-
-        <ScrollArea className="flex-1">
-          {loading && visibleConversations.length === 0 ? (
-            <div className="flex items-center justify-center gap-2 p-4 text-sm text-muted-foreground">
-              <Spinner />
-              加载中...
-            </div>
-          ) : error ? (
-            <div className="p-4 text-center text-sm text-destructive">{error}</div>
-          ) : visibleConversations.length === 0 ? (
-            <div className="p-4 text-center text-sm text-muted-foreground">暂无会话</div>
-          ) : (
-            <div className="flex flex-col">
-              {visibleConversations.map((conversation) => (
-                <ConversationItem
-                  key={conversation.id}
-                  conversation={conversation}
-                  selected={conversation.id === selectedConversationId}
-                  onSelect={handleSelect}
-                />
-              ))}
-            </div>
-          )}
-        </ScrollArea>
-      </aside>
+      <ConversationSidebar
+        className="border-r border-border px-4 py-4"
+        conversations={visibleConversations}
+        selectedConversationId={selectedConversationId}
+        search={search}
+        onSearchChange={setSearch}
+        onSelectConversation={handleSelect}
+        loading={loading}
+        error={error}
+        headerAction={
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            aria-label="Create group"
+            onClick={() => setCreateGroupOpen(true)}
+            className="rounded-lg"
+          >
+            <Plus className="stroke-muted-foreground" />
+          </Button>
+        }
+        labels={{
+          title: 'Messages',
+          searchPlaceholder: 'Search conversations...',
+          searchLabel: 'Search',
+          emptyMessage: 'No conversations',
+          noMessage: 'No messages',
+          groupNoMessage: 'Group chat',
+        }}
+      />
 
       {selectedConversationId ? (
-        <ChatWindow key={selectedConversationId} conversationId={selectedConversationId} />
+        <ChatWindow
+          key={selectedConversationId}
+          conversationId={selectedConversationId}
+          headerAction={userMenu}
+        />
       ) : (
-        <section className="flex flex-1 items-center justify-center bg-muted/30">
+        <section className="relative flex flex-1 items-center justify-center bg-muted/30">
+          <div className="absolute top-4 right-4">{userMenu}</div>
           <div className="text-center text-muted-foreground">
-            <p className="text-lg">选择一个会话开始聊天</p>
+            <p className="text-lg">Select a conversation to start chatting</p>
           </div>
         </section>
       )}

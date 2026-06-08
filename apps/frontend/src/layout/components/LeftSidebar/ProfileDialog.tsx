@@ -1,9 +1,7 @@
 import { Camera, Check, Edit3 } from 'lucide-react';
 import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
   Button,
+  ChatAvatar,
   Dialog,
   DialogContent,
   DialogFooter,
@@ -13,7 +11,6 @@ import {
   Label,
 } from '@c_chat/ui';
 import { formatFileUrl } from '@c_chat/frontend/common/formatFileUrl';
-import { getInitials } from './utils';
 import type { ProfileStats, SidebarProfile } from './types';
 
 export function ProfileDialog({
@@ -53,15 +50,14 @@ export function ProfileDialog({
         <div className="space-y-5">
           <div className="flex items-center gap-4">
             <div className="relative">
-              <Avatar className="size-20">
-                <AvatarImage
-                  src={formatFileUrl(draftProfile.avatarUrl)}
-                  alt={draftProfile.nickname}
-                />
-                <AvatarFallback className="text-lg">
-                  {getInitials(draftProfile.nickname)}
-                </AvatarFallback>
-              </Avatar>
+              <ChatAvatar
+                id={draftProfile.id}
+                title={draftProfile.nickname}
+                avatarUrl={formatFileUrl(draftProfile.avatarUrl)}
+                alt={draftProfile.nickname}
+                className="size-20"
+                fallbackClassName="text-lg"
+              />
               <Button
                 type="button"
                 size="icon-xs"

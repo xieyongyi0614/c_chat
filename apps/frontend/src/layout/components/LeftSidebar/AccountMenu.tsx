@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { LogOut, MoreHorizontal, UserCircle } from 'lucide-react';
-import { Avatar, AvatarFallback, AvatarImage, cn } from '@c_chat/ui';
+import { ChatAvatar, cn } from '@c_chat/ui';
 import { formatFileUrl } from '@c_chat/frontend/common/formatFileUrl';
-import { getInitials } from './utils';
 import type { SidebarProfile } from './types';
 
 export function AccountMenu({
@@ -69,10 +68,13 @@ export function AccountMenu({
         aria-haspopup="menu"
         aria-expanded={open}
       >
-        <Avatar className="size-11 ring-2 ring-background">
-          <AvatarImage src={formatFileUrl(profile.avatarUrl)} alt={profile.nickname} />
-          <AvatarFallback>{getInitials(profile.nickname)}</AvatarFallback>
-        </Avatar>
+        <ChatAvatar
+          id={profile.id}
+          title={profile.nickname}
+          avatarUrl={formatFileUrl(profile.avatarUrl)}
+          alt={profile.nickname}
+          className="size-11 ring-2 ring-background"
+        />
         <MoreHorizontal className="size-4 opacity-70" />
       </button>
 

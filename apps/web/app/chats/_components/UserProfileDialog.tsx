@@ -8,11 +8,9 @@ import {
   DialogHeader,
   DialogTitle,
   Button,
+  ChatAvatar,
   Input,
   Label,
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
   Spinner,
   Alert,
   AlertDescription,
@@ -74,12 +72,13 @@ export function UserProfileDialog({ open, onOpenChange }: UserProfileDialogProps
             </Alert>
           )}
           <div className="flex flex-col items-center gap-4">
-            <Avatar className="size-20">
-              <AvatarImage src={userInfo?.avatarUrl || undefined} />
-              <AvatarFallback>
-                {userInfo?.nickname?.charAt(0).toUpperCase() || userInfo?.email?.charAt(0).toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
+            <ChatAvatar
+              id={userInfo?.id ?? ''}
+              title={userInfo?.nickname || userInfo?.email}
+              avatarUrl={userInfo?.avatarUrl}
+              className="size-20"
+              fallbackClassName="text-lg"
+            />
             <p className="text-sm text-muted-foreground">{userInfo?.email}</p>
           </div>
           <div className="flex flex-col gap-2">
@@ -93,7 +92,12 @@ export function UserProfileDialog({ open, onOpenChange }: UserProfileDialogProps
             />
           </div>
           <div className="flex gap-3">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="flex-1">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              className="flex-1"
+            >
               取消
             </Button>
             <Button type="submit" disabled={loading} className="flex-1">

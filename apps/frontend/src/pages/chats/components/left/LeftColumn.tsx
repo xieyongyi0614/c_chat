@@ -1,8 +1,9 @@
 import { forwardRef, memo, useImperativeHandle, useMemo, useState } from 'react';
-import LeftColumnHeader from './LeftColumnHeader';
+import { Edit } from 'lucide-react';
 import { useChatStore } from '@c_chat/frontend/stores';
 import { ConversationType, type LocalConversationListItem } from '@c_chat/shared-types';
-import ConversationList from './ConversationList';
+import { Button, ConversationSidebar } from '@c_chat/ui';
+
 export interface LeftColumnRef {
   filterConversations: LocalConversationListItem[];
 }
@@ -10,9 +11,14 @@ export interface LeftColumnRef {
 interface LeftColumnProps {
   openCreateConversationDialog: (open: boolean) => void;
 }
+
 const LeftColumn = forwardRef<LeftColumnRef, LeftColumnProps>((props, ref) => {
   const { openCreateConversationDialog } = props;
-  const { conversationData, selectedConversationFolder } = useChatStore();
+  const conversationData = useChatStore((state) => state.conversationData);
+  const selectedConversationFolder = useChatStore((state) => state.selectedConversationFolder);
+  const selectedConversationId = useChatStore((state) => state.selectedConversation?.id);
+  const setSelectedConversation = useChatStore((state) => state.setSelectedConversation);
+  const setSelectedUserForDraft = useChatStore((state) => state.setSelectedUserForDraft);
   const [search, setSearch] = useState('');
 
   const filterConversations = useMemo(() => {
@@ -33,15 +39,40 @@ const LeftColumn = forwardRef<LeftColumnRef, LeftColumnProps>((props, ref) => {
     filterConversations,
   }));
 
+  const handleSelectConversation = (conversation: LocalConversationListItem) => {
+    setSelectedConversation(conversation);
+    setSelectedUserForDraft(null);
+  };
+
   return (
-    <div className="flex w-72 shrink-0 flex-col gap-2 2xl:w-80">
-      <LeftColumnHeader
-        search={search}
-        onSearchChange={setSearch}
-        openCreateConversationDialog={openCreateConversationDialog}
-      />
-      <ConversationList list={filterConversations} />
-    </div>
+    <ConversationSidebar
+      conversations={filterConversations}
+      selectedConversationId={selectedConversationId}
+      search={search}
+      onSearchChange={setSearch}
+      onSelectConversation={handleSelectConversation}
+      headerAction={
+        <Button
+          type="button"
+          size="icon"
+          variant="ghost"
+          aria-label="Create conversation"
+          onClick={() => openCreateConversationDialog(true)}
+          className="rounded-lg"
+        >
+          <Edit className="stroke-muted-foreground" />
+        </Button>
+      }
+      labels={{
+        title: 'Messages',
+        searchPlaceholder: 'Search conversations...',
+        searchLabel: 'Search',
+        emptyMessage: 'No conversations',
+        noMessage: 'No messages',
+        groupNoMessage: 'Group chat',
+      }}
+    />
   );
 });
+
 export default memo(LeftColumn);

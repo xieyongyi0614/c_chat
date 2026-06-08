@@ -37,6 +37,7 @@ export default defineConfig([
       '@typescript-eslint/no-namespace': 'off',
       '@typescript-eslint/no-floating-promises': 'off',
       '@typescript-eslint/require-await': 'off',
+      '@typescript-eslint/no-misused-promises': 'off',
     },
   },
   {

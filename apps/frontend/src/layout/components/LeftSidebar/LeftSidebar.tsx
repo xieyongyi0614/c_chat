@@ -63,6 +63,7 @@ export function LeftSidebar() {
   const [profileOpen, setProfileOpen] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
   const [draftProfile, setDraftProfile] = useState<SidebarProfile>({
+    id: '',
     avatarUrl: '',
     nickname: '',
   });
@@ -70,10 +71,11 @@ export function LeftSidebar() {
   const displayProfile = useMemo<SidebarProfile>(() => {
     const nickname = userInfo?.nickname || userInfo?.email || '\u672a\u547d\u540d\u8d26\u53f7';
     return {
+      id: userInfo?.id || '',
       avatarUrl: userInfo?.avatarUrl || '',
       nickname,
     };
-  }, [userInfo?.avatarUrl, userInfo?.email, userInfo?.nickname]);
+  }, [userInfo?.avatarUrl, userInfo?.email, userInfo?.id, userInfo?.nickname]);
 
   const activeNavId: NavId = location.pathname.startsWith('/chat') ? 'chats' : 'chats';
   const unreadCount = conversations.reduce((total, item) => total + (item.unreadCount ?? 0), 0);
