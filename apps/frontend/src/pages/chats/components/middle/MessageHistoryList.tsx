@@ -7,6 +7,7 @@ import {
   type ChatMessageOpenPreviewPayload,
   type ChatMessageRetryPayload,
   type ChatMessageSenderProfile,
+  type ChatAvatarPreviewPayload,
 } from '@c_chat/ui';
 import { useChatStore, useMessageStore, useUserStore } from '@c_chat/frontend/stores';
 import { ConversationType, MessageStatus, type LocalMessageListItem } from '@c_chat/shared-types';
@@ -184,6 +185,22 @@ const MessageHistoryList = ({ historyState, loadOlderMessages }: MessageHistoryL
       });
     }, []);
 
+  const handleAvatarPreview = useCallback((payload: ChatAvatarPreviewPayload) => {
+    void ipc.OpenMediaPreview({
+      items: [
+        {
+          id: payload.id,
+          type: 'image',
+          fileUrl: payload.avatarUrl,
+          fileName: payload.name,
+          createTime: Date.now(),
+          senderId: payload.id,
+        },
+      ],
+      initialIndex: 0,
+    });
+  }, []);
+
   return (
     <MessageList
       conversationKey={dataConversationId}
@@ -199,6 +216,7 @@ const MessageHistoryList = ({ historyState, loadOlderMessages }: MessageHistoryL
       AudioControlsSlot={AudioControlsSlot}
       onRetryMessages={handleRetryMessages}
       onOpenPreview={handleOpenPreview}
+      onAvatarPreview={handleAvatarPreview}
       labels={messageListLabels}
     />
   );

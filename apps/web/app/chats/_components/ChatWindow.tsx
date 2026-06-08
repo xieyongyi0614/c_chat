@@ -6,6 +6,7 @@ import { ConversationType } from '@c_chat/shared-types';
 import { useConversationStore } from '@/lib/stores/conversation.store';
 import { useMessageStore } from '@/lib/stores/message.store';
 import { messageService } from '@/lib/services';
+import { formatFileUrl } from '@/lib/media/formatFileUrl';
 import { ChatInput } from './ChatInput';
 import { MessageList } from './MessageList';
 import { GroupProfileSheet } from './GroupProfileSheet';
@@ -113,7 +114,7 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
       <ConversationHeader
         id={conversation?.id ?? conversationId}
         title={conversation?.targetName}
-        avatarUrl={conversation?.targetAvatar}
+        avatarUrl={formatFileUrl(conversation?.targetAvatar)}
         fallback={conversation?.targetName.charAt(0).toUpperCase()}
         description="会话信息"
         onMoreClick={() => {

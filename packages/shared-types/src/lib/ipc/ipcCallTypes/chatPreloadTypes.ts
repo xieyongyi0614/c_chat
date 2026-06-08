@@ -22,6 +22,7 @@ export type UpdateGroupParams = {
   groupId: string;
   name?: string;
   avatarUrl?: string;
+  avatarFilePath?: string;
   notice?: string;
 };
 export type InviteGroupMembersParams = {

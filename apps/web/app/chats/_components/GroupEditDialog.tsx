@@ -1,23 +1,11 @@
 'use client';
 
-import { useState } from 'react';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  Button,
-  Input,
-  Label,
-  Textarea,
-  Spinner,
-  Alert,
-  AlertDescription,
-} from '@c_chat/ui';
+import { type ChangeEvent, useEffect, useRef, useState } from 'react';
+import { ChatGroupEditDialog, type ChatGroupDraft } from '@c_chat/ui';
 import type { IGroupInfo } from '@c_chat/shared-protobuf';
-import { groupService } from '@/lib/services';
+import { groupService, uploadProfileImage } from '@/lib/services';
+import { useLightboxStore } from '@/lib/stores/lightbox.store';
+import { formatFileUrl } from '@/lib/media/formatFileUrl';
 
 interface GroupEditDialogProps {
   open: boolean;
@@ -27,11 +15,25 @@ interface GroupEditDialogProps {
 }
 
 export function GroupEditDialog({ open, onOpenChange, group, onUpdated }: GroupEditDialogProps) {
-  const [name, setName] = useState(group.name ?? '');
-  const [notice, setNotice] = useState(group.notice ?? '');
-  const [avatarUrl, setAvatarUrl] = useState(group.avatarUrl ?? '');
+  const [draft, setDraft] = useState<ChatGroupDraft>({
+    name: group.name ?? '',
+    notice: group.notice ?? '',
+    avatarUrl: group.avatarUrl ?? '',
+  });
   const [submitting, setSubmitting] = useState(false);
+  const [avatarUploading, setAvatarUploading] = useState(false);
   const [error, setError] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    setDraft({
+      name: group.name ?? '',
+      notice: group.notice ?? '',
+      avatarUrl: group.avatarUrl ?? '',
+    });
+    setError('');
+  }, [group.avatarUrl, group.name, group.notice, open]);
 
   const submit = async () => {
     if (submitting || !group.id) return;
@@ -41,9 +43,9 @@ export function GroupEditDialog({ open, onOpenChange, group, onUpdated }: GroupE
     try {
       const response = await groupService.updateGroup({
         groupId: group.id,
-        name: name.trim() || undefined,
-        notice: notice.trim() || undefined,
-        avatarUrl: avatarUrl.trim() || undefined,
+        name: draft.name.trim() || undefined,
+        notice: draft.notice.trim() || undefined,
+        avatarUrl: draft.avatarUrl.trim() || undefined,
       });
       if (!response.success) {
         throw new Error('更新群资料失败');
@@ -57,63 +59,70 @@ export function GroupEditDialog({ open, onOpenChange, group, onUpdated }: GroupE
     }
   };
 
+  const handleSelectAvatar = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleAvatarChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+
+    setAvatarUploading(true);
+    setError('');
+    try {
+      const avatarUrl = await uploadProfileImage(file);
+      setDraft((current) => ({ ...current, avatarUrl }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '群头像上传失败');
+    } finally {
+      setAvatarUploading(false);
+    }
+  };
+
+  const openAvatarPreview = (avatarUrl: string) => {
+    useLightboxStore.getState().openPreview({
+      items: [
+        {
+          id: group.id ?? 'group-avatar',
+          type: 'image',
+          fileUrl: avatarUrl,
+          fileName: draft.name || group.name || 'avatar',
+          createTime: Date.now(),
+        },
+      ],
+      initialIndex: 0,
+    });
+  };
+
+  const uiDraft: ChatGroupDraft = {
+    ...draft,
+    avatarUrl: formatFileUrl(draft.avatarUrl),
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>编辑群资料</DialogTitle>
-          <DialogDescription>修改群名称、头像与公告</DialogDescription>
-        </DialogHeader>
-        <div className="flex flex-col gap-4">
-          {error && (
-            <Alert variant="destructive">
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="edit-group-name">群名称</Label>
-            <Input
-              id="edit-group-name"
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              placeholder="输入群名称"
-            />
-          </div>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="edit-group-avatar">群头像链接</Label>
-            <Input
-              id="edit-group-avatar"
-              value={avatarUrl}
-              onChange={(event) => setAvatarUrl(event.target.value)}
-              placeholder="输入头像图片链接"
-            />
-          </div>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="edit-group-notice">群公告</Label>
-            <Textarea
-              id="edit-group-notice"
-              value={notice}
-              onChange={(event) => setNotice(event.target.value)}
-              placeholder="输入群公告"
-              className="resize-none"
-            />
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            取消
-          </Button>
-          <Button
-            disabled={submitting}
-            onClick={() => {
-              void submit();
-            }}
-          >
-            {submitting && <Spinner data-icon="inline-start" />}
-            {submitting ? '保存中' : '保存'}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleAvatarChange}
+      />
+      <ChatGroupEditDialog
+        open={open}
+        onOpenChange={onOpenChange}
+        draft={uiDraft}
+        onDraftChange={(nextDraft) =>
+          setDraft((current) => ({ ...nextDraft, avatarUrl: current.avatarUrl }))
+        }
+        onSubmit={submit}
+        submitting={submitting || avatarUploading}
+        error={error}
+        groupId={group.id ?? undefined}
+        onSelectAvatar={handleSelectAvatar}
+        onAvatarPreview={openAvatarPreview}
+      />
+    </>
   );
 }

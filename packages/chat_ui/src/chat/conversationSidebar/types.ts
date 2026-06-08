@@ -19,6 +19,7 @@ export interface ConversationSidebarProps {
   search: string;
   onSearchChange: (value: string) => void;
   onSelectConversation: (conversation: LocalConversationListItem) => void;
+  formatAvatarUrl?: (url?: string | null) => string;
   headerAction?: ReactNode;
   loading?: boolean;
   error?: ReactNode;
@@ -31,5 +32,6 @@ export interface ConversationSidebarItemProps {
   conversation: LocalConversationListItem;
   selected: boolean;
   onSelect: (conversation: LocalConversationListItem) => void;
+  formatAvatarUrl: (url?: string | null) => string;
   labels?: ConversationSidebarLabels;
 }

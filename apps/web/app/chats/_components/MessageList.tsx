@@ -10,6 +10,7 @@ import {
   type ChatMessageOpenPreviewPayload,
   type ChatMessageRetryPayload,
   type ChatMessageSenderProfile,
+  type ChatAvatarPreviewPayload,
 } from '@c_chat/ui';
 import { audioPlayerManager } from '@c_chat/audio-core';
 import { MESSAGE_TYPE } from '@c_chat/shared-config';
@@ -153,7 +154,7 @@ export function MessageList({
     return {
       id: userInfo.id,
       nickname: userInfo.nickname ?? undefined,
-      avatarUrl: userInfo.avatarUrl ?? undefined,
+      avatarUrl: formatFileUrl(userInfo.avatarUrl),
       email: userInfo.email ?? undefined,
     };
   }, [userInfo]);
@@ -204,6 +205,22 @@ export function MessageList({
       useLightboxStore.getState().openPreview({ items, initialIndex });
     }, []);
 
+  const handleAvatarPreview = useCallback((payload: ChatAvatarPreviewPayload) => {
+    useLightboxStore.getState().openPreview({
+      items: [
+        {
+          id: payload.id,
+          type: 'image',
+          fileUrl: payload.avatarUrl,
+          fileName: payload.name,
+          createTime: Date.now(),
+          senderId: payload.id,
+        },
+      ],
+      initialIndex: 0,
+    });
+  }, []);
+
   return (
     <>
       <ChatUiMessageList
@@ -225,6 +242,7 @@ export function MessageList({
         AudioControlsSlot={AudioControlsSlot}
         onRetryMessages={handleRetryMessages}
         onOpenPreview={handleOpenPreview}
+        onAvatarPreview={handleAvatarPreview}
       />
       <input
         ref={retryFileInputRef}

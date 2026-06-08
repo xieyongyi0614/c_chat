@@ -1,12 +1,12 @@
 import { memo, useState } from 'react';
-import EmptyConversation from './EmptyConversation';
 import { useChatStore } from '@c_chat/frontend/stores';
-import { ConversationHeader, cn } from '@c_chat/ui';
+import { ChatEmptyConversationState, ConversationHeader, cn } from '@c_chat/ui';
 
 import HistoryMessageList from './MessageHistoryList';
 import { ChatInput } from './input/ChatInput';
 import { ConversationType } from '@c_chat/shared-types';
 import { GroupDetailDialog } from './GroupDetailDialog';
+import { formatFileUrl } from '@c_chat/frontend/common/formatFileUrl';
 
 interface RightSideProps {
   openCreateConversationDialog: (open: boolean) => void;
@@ -27,7 +27,13 @@ const MiddleColumn = (props: RightSideProps) => {
 
   if (!selectedConversation && !selectedUserForDraft) {
     return (
-      <EmptyConversation openCreateConversationDialog={() => openCreateConversationDialog(true)} />
+      <ChatEmptyConversationState
+        title="Your messages"
+        description="Send a message to start a chat."
+        actionLabel="Send message"
+        onAction={() => openCreateConversationDialog(true)}
+        className="absolute inset-0 start-full z-50 hidden w-full rounded-md border shadow-xs sm:static sm:z-auto sm:flex"
+      />
     );
   }
 
@@ -36,6 +42,7 @@ const MiddleColumn = (props: RightSideProps) => {
     selectedUserForDraft?.nickname ??
     selectedUserForDraft?.email;
   const activeAvatar = selectedConversation?.targetAvatar ?? selectedUserForDraft?.avatarUrl;
+  console.log(selectedConversation, 'selectedConversation');
   const activeId =
     selectedConversation?.id ?? selectedUserForDraft?.id ?? activeTitle ?? activeAvatar ?? '';
   return (
@@ -48,7 +55,7 @@ const MiddleColumn = (props: RightSideProps) => {
       <ConversationHeader
         id={activeId}
         title={activeTitle}
-        avatarUrl={activeAvatar}
+        avatarUrl={formatFileUrl(activeAvatar)}
         description="会话信息"
         showBackButton={Boolean(selectedUserForDraft)}
         onBack={() => {

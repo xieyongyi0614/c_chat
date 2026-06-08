@@ -28,6 +28,7 @@ function MessageListComponent<TMessage extends ChatMessageListItem>({
   AudioControlsSlot,
   onRetryMessages,
   onOpenPreview,
+  onAvatarPreview,
 }: ChatMessageListProps<TMessage>) {
   const messageCount = useMemo(
     () => Object.values(msgMap).reduce((count, messages) => count + messages.length, 0),
@@ -66,6 +67,7 @@ function MessageListComponent<TMessage extends ChatMessageListItem>({
             AudioControlsSlot={AudioControlsSlot}
             onRetryMessages={onRetryMessages}
             onOpenPreview={onOpenPreview}
+            onAvatarPreview={onAvatarPreview}
           />
         ))}
       </ChatMessageScrollArea>

@@ -1,5 +1,4 @@
 import { SOCKET_ERROR_CODE } from '@c_chat/shared-config';
-import type { MessageType } from '@c_chat/shared-config';
 import type {
   AckSendMessage,
   ConversationInfo,
@@ -71,7 +70,7 @@ export class RealtimeListenersService {
   }
 
   private async handleNewUpdateMessage(data: NewUpdateMessage): Promise<void> {
-    if (data.messages.length > 0) {
+    if (data.messages && data.messages.length > 0) {
       const messages = data.messages.map((msg) => messageService.toLocalMessage(msg));
       await MessageDB.upsertMany(messages);
 
@@ -85,7 +84,7 @@ export class RealtimeListenersService {
       }
     }
 
-    if (data.conversations.length > 0) {
+    if (data.conversations && data.conversations.length > 0) {
       const conversations = data.conversations.map((conversation) =>
         conversationService.toLocalConversation(conversation),
       );
@@ -127,7 +126,7 @@ export class RealtimeListenersService {
       ...message,
       fileId,
       status: MessageStatus.success,
-      type: (task.messageType ?? message.type) as MessageType,
+      type: task.messageType ?? message.type,
     };
 
     await MessageDB.upsert(nextMessage);

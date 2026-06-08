@@ -14,10 +14,14 @@ import {
   UserRound,
   UsersRound,
 } from 'lucide-react';
-import { ChatLeftRail, type ChatLeftRailFilterItem, type ChatLeftRailNavItem } from '@c_chat/ui';
+import {
+  ChatLeftRail,
+  ChatProfileDialog,
+  type ChatLeftRailFilterItem,
+  type ChatLeftRailNavItem,
+} from '@c_chat/ui';
 import { useChatStore, useUserStore } from '@c_chat/frontend/stores';
-import { ProfileDialog } from './ProfileDialog';
-import type { ProfileStats, SidebarProfile } from './types';
+import type { SidebarProfile } from './types';
 import { ipc } from '@c_chat/shared-utils';
 import { formatFileUrl } from '@c_chat/frontend/common/formatFileUrl';
 import {
@@ -143,10 +147,20 @@ export function LeftSidebar() {
     }
   };
 
-  const profileStats: ProfileStats = {
-    conversations: conversations.length,
-    unread: unreadCount,
-    groups: groupCount,
+  const handleAvatarPreview = (avatarUrl: string) => {
+    void ipc.OpenMediaPreview({
+      items: [
+        {
+          id: draftProfile.id || 'profile-avatar',
+          type: 'image',
+          fileUrl: avatarUrl,
+          fileName: displayProfile.nickname,
+          createTime: Date.now(),
+          senderId: draftProfile.id,
+        },
+      ],
+      initialIndex: 0,
+    });
   };
 
   const railNavItems: ChatLeftRailNavItem[] = CHAT_LEFT_RAIL_NAV_ITEMS.map((item) => ({
@@ -203,15 +217,25 @@ export function LeftSidebar() {
         ]}
         labels={CHAT_LEFT_RAIL_LABELS}
       />
-      <ProfileDialog
+
+      <ChatProfileDialog
         open={profileOpen}
-        profile={displayProfile}
-        draftProfile={draftProfile}
-        email={userInfo?.email}
-        stats={profileStats}
-        saving={savingProfile}
         onOpenChange={setProfileOpen}
-        onDraftChange={setDraftProfile}
+        profile={{
+          id: draftProfile.id,
+          nickname: displayProfile.nickname,
+          avatarUrl: formatFileUrl(draftProfile.avatarUrl),
+        }}
+        draftNickname={draftProfile.nickname}
+        email={userInfo?.email}
+        stats={[
+          { id: 'conversations', label: '会话', value: conversations.length },
+          { id: 'unread', label: '未读', value: unreadCount },
+          { id: 'groups', label: '群组', value: groupCount },
+        ]}
+        saving={savingProfile}
+        onNicknameChange={(nickname) => setDraftProfile((p) => ({ ...p, nickname }))}
+        onAvatarPreview={handleAvatarPreview}
         onSelectAvatar={handleSelectAvatar}
         onSave={handleSaveProfile}
       />

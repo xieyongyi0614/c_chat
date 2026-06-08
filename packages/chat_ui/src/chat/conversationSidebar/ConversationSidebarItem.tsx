@@ -15,6 +15,7 @@ function ConversationSidebarItemBase({
   conversation,
   selected,
   onSelect,
+  formatAvatarUrl,
   labels,
 }: ConversationSidebarItemProps) {
   const { lastMsgContent, lastMsgTime, targetName, targetAvatar, unreadCount } = conversation;
@@ -37,7 +38,7 @@ function ConversationSidebarItemBase({
       <ChatAvatar
         id={conversation.id}
         title={targetName}
-        avatarUrl={targetAvatar}
+        avatarUrl={formatAvatarUrl(targetAvatar)}
         alt={labels?.avatarAlt ?? `${targetName ?? 'conversation'} avatar`}
         className="size-11 shrink-0"
         fallbackClassName="text-lg"

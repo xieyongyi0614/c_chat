@@ -1,6 +1,7 @@
 export { MessageList } from './MessageList';
 export { buildChatMediaPreviewItems, toChatMediaPreviewItem } from './mediaPreview';
 export type {
+  ChatAvatarPreviewPayload,
   ChatMessageAudioControlsSlotProps,
   ChatMessageHistoryState,
   ChatMessageListItem,

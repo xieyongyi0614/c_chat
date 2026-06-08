@@ -3,6 +3,7 @@ import { MessageListItem } from './MessageListItem';
 import type { ChatMessageFileResolver } from '../chatMessage';
 import type {
   ChatMessageAudioControlsSlotProps,
+  ChatAvatarPreviewPayload,
   ChatMessageListItem,
   ChatMessageListLabels,
   ChatMessageOpenPreviewPayload,
@@ -22,6 +23,7 @@ interface MessageListGroupProps<TMessage extends ChatMessageListItem> {
   AudioControlsSlot?: (props: ChatMessageAudioControlsSlotProps<TMessage>) => ReactNode;
   onRetryMessages?: (payload: { messages: TMessage[] }) => void | Promise<void>;
   onOpenPreview?: (payload: ChatMessageOpenPreviewPayload<TMessage>) => void;
+  onAvatarPreview?: (payload: ChatAvatarPreviewPayload) => void;
 }
 
 function MessageListGroupComponent<TMessage extends ChatMessageListItem>({
@@ -37,6 +39,7 @@ function MessageListGroupComponent<TMessage extends ChatMessageListItem>({
   AudioControlsSlot,
   onRetryMessages,
   onOpenPreview,
+  onAvatarPreview,
 }: MessageListGroupProps<TMessage>) {
   return (
     <>
@@ -58,6 +61,7 @@ function MessageListGroupComponent<TMessage extends ChatMessageListItem>({
             AudioControlsSlot={AudioControlsSlot}
             onRetryMessages={onRetryMessages}
             onOpenPreview={onOpenPreview}
+            onAvatarPreview={onAvatarPreview}
           />
         );
       })}

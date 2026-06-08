@@ -28,6 +28,12 @@ export interface ChatMessageOpenPreviewPayload<TMessage extends ChatMessageListI
   initialIndex: number;
 }
 
+export interface ChatAvatarPreviewPayload {
+  id: string;
+  name: string;
+  avatarUrl: string;
+}
+
 export interface ChatMessageRetryPayload<TMessage extends ChatMessageListItem> {
   messages: TMessage[];
 }
@@ -62,4 +68,5 @@ export interface ChatMessageListProps<TMessage extends ChatMessageListItem> {
   AudioControlsSlot?: (props: ChatMessageAudioControlsSlotProps<TMessage>) => ReactNode;
   onRetryMessages?: (payload: ChatMessageRetryPayload<TMessage>) => void | Promise<void>;
   onOpenPreview?: (payload: ChatMessageOpenPreviewPayload<TMessage>) => void;
+  onAvatarPreview?: (payload: ChatAvatarPreviewPayload) => void;
 }

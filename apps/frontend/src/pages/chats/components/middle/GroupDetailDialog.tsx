@@ -1,5 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Shield, UsersRound, X } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { useChatStore, useUserStore } from '@c_chat/frontend/stores';
 import type {
@@ -9,36 +8,13 @@ import type {
 } from '@c_chat/shared-types';
 import { ipc, to } from '@c_chat/shared-utils';
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-  Badge,
-  Button,
-  ChatAvatar,
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  Input,
-  ScrollArea,
-  Separator,
-  Spinner,
-  Textarea,
+  ChatGroupDetailDialog,
+  ChatGroupInviteDialog,
+  type ChatGroupDraft,
+  type ChatGroupInviteUser,
 } from '@c_chat/ui';
 import { MAX_GROUP_NAME_LENGTH } from '../group-name';
+import { formatFileUrl } from '@c_chat/frontend/common/formatFileUrl';
 
 interface GroupDetailDialogProps {
   open: boolean;
@@ -54,19 +30,33 @@ export function GroupDetailDialog({ open, conversation, onOpenChange }: GroupDet
   const [detail, setDetail] = useState<GetGroupDetailResult | null>(null);
   const [userList, setUserList] = useState<UserTypes.UserListItem[]>([]);
   const [selectedInviteUsers, setSelectedInviteUsers] = useState<UserTypes.UserListItem[]>([]);
-  const [name, setName] = useState('');
-  const [avatarUrl, setAvatarUrl] = useState('');
-  const [notice, setNotice] = useState('');
+  const [draft, setDraft] = useState<ChatGroupDraft>({ name: '', avatarUrl: '', notice: '' });
   const [saving, setSaving] = useState(false);
+  const [avatarUploading, setAvatarUploading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState('');
   const [inviteOpen, setInviteOpen] = useState(false);
 
   const group = detail?.group;
   const members = useMemo(() => detail?.members ?? [], [detail?.members]);
+  const detailLoading = loading || (open && Boolean(conversation?.targetId) && !detail && !loadError);
   const isOwner = Boolean(group?.ownerId && group.ownerId === userId);
   const memberIds = useMemo(() => new Set(members.map((member) => member.userId)), [members]);
   const inviteCandidates = userList.filter((user) => !memberIds.has(user.id));
+
+  const applyDetail = useCallback(
+    (res: GetGroupDetailResult) => {
+      setLoadError('');
+      setDetail(res);
+      setDraft({
+        name: res.group?.name ?? conversation?.targetName ?? '',
+        avatarUrl: res.group?.avatarUrl ?? conversation?.targetAvatar ?? '',
+        notice: res.group?.notice ?? '',
+      });
+    },
+    [conversation?.targetAvatar, conversation?.targetName],
+  );
+
   const handleGroupDialogOpenChange = (nextOpen: boolean) => {
     onOpenChange(nextOpen);
     if (!nextOpen) {
@@ -74,10 +64,19 @@ export function GroupDetailDialog({ open, conversation, onOpenChange }: GroupDet
       setSelectedInviteUsers([]);
     }
   };
+
   const handleInviteDialogOpenChange = (nextOpen: boolean) => {
     setInviteOpen(nextOpen);
     if (!nextOpen) {
       setSelectedInviteUsers([]);
+    }
+  };
+
+  const refreshDetail = async () => {
+    if (!conversation?.targetId) return;
+    const [err, res] = await to(ipc.GetGroupDetail({ groupId: conversation.targetId }));
+    if (!err) {
+      applyDetail(res);
     }
   };
 
@@ -95,15 +94,11 @@ export function GroupDetailDialog({ open, conversation, onOpenChange }: GroupDet
         return;
       }
 
-      setLoadError('');
-      setDetail(res);
-      setName(res.group?.name ?? conversation.targetName ?? '');
-      setAvatarUrl(res.group?.avatarUrl ?? conversation.targetAvatar ?? '');
-      setNotice(res.group?.notice ?? '');
+      applyDetail(res);
     };
 
-    load();
-  }, [conversation?.targetAvatar, conversation?.targetId, conversation?.targetName, open]);
+    void load();
+  }, [applyDetail, conversation?.targetId, open]);
 
   useEffect(() => {
     if ((!open && !inviteOpen) || !isOwner) return;
@@ -115,20 +110,8 @@ export function GroupDetailDialog({ open, conversation, onOpenChange }: GroupDet
       }
     };
 
-    loadUsers();
+    void loadUsers();
   }, [inviteOpen, isOwner, open]);
-
-  const refreshDetail = async () => {
-    if (!conversation?.targetId) return;
-    const [err, res] = await to(ipc.GetGroupDetail({ groupId: conversation.targetId }));
-    if (!err) {
-      setLoadError('');
-      setDetail(res);
-      setName(res.group?.name ?? '');
-      setAvatarUrl(res.group?.avatarUrl ?? '');
-      setNotice(res.group?.notice ?? '');
-    }
-  };
 
   const toggleInviteUser = (user: UserTypes.UserListItem) => {
     setSelectedInviteUsers((current) =>
@@ -140,15 +123,15 @@ export function GroupDetailDialog({ open, conversation, onOpenChange }: GroupDet
 
   const handleSave = async () => {
     if (!conversation?.targetId) return;
-    const trimmedName = name.trim().slice(0, MAX_GROUP_NAME_LENGTH);
+    const trimmedName = draft.name.trim().slice(0, MAX_GROUP_NAME_LENGTH);
 
     setSaving(true);
     const [err, res] = await to(
       ipc.UpdateGroup({
         groupId: conversation.targetId,
         name: trimmedName,
-        avatarUrl,
-        notice,
+        avatarUrl: draft.avatarUrl,
+        notice: draft.notice,
       }),
     );
     setSaving(false);
@@ -167,7 +150,7 @@ export function GroupDetailDialog({ open, conversation, onOpenChange }: GroupDet
       });
     }
     toast.success('群资料已更新');
-    refreshDetail();
+    void refreshDetail();
   };
 
   const handleInvite = async () => {
@@ -189,7 +172,7 @@ export function GroupDetailDialog({ open, conversation, onOpenChange }: GroupDet
 
     setSelectedInviteUsers([]);
     toast.success('已邀请成员');
-    refreshDetail();
+    void refreshDetail();
     setInviteOpen(false);
   };
 
@@ -221,220 +204,135 @@ export function GroupDetailDialog({ open, conversation, onOpenChange }: GroupDet
     toast.success('群聊已解散');
   };
 
+  const handleSelectAvatar = async () => {
+    if (!conversation?.targetId) return;
+
+    const files = await ipc.SelectFiles({
+      allowMultiSelect: false,
+      filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif'] }],
+    });
+    const file = files?.[0];
+    if (!file) return;
+
+    setAvatarUploading(true);
+    const [err, res] = await to(
+      ipc.UpdateGroup({
+        groupId: conversation.targetId,
+        avatarFilePath: file.filePath,
+      }),
+    );
+    setAvatarUploading(false);
+
+    if (err || !res.success) {
+      toast.error(err instanceof Error ? err.message : '群头像更新失败');
+      return;
+    }
+
+    if (res.group) {
+      setDraft((current) => ({
+        ...current,
+        avatarUrl: res.group?.avatarUrl ?? current.avatarUrl,
+      }));
+      upsertAndPinConversation({
+        ...conversation,
+        targetName: res.group.name ?? conversation.targetName,
+        targetAvatar: res.group.avatarUrl ?? conversation.targetAvatar,
+        updateTime: Number(res.group.updateTime ?? conversation.updateTime),
+      });
+    }
+    toast.success('群头像已更新');
+    void refreshDetail();
+  };
+
+  const openAvatarPreview = (avatarUrl: string, id: string, name?: string | null) => {
+    void ipc.OpenMediaPreview({
+      items: [
+        {
+          id,
+          type: 'image',
+          fileUrl: formatFileUrl(avatarUrl),
+          fileName: name || 'avatar',
+          createTime: Date.now(),
+        },
+      ],
+      initialIndex: 0,
+    });
+  };
+
+  const uiGroup = detail
+    ? (group ?? {
+        id: conversation?.targetId ?? conversation?.id,
+        name: conversation?.targetName,
+        avatarUrl: conversation?.targetAvatar,
+      })
+    : null;
+  const displayGroup = uiGroup
+    ? {
+        ...uiGroup,
+        avatarUrl: formatFileUrl(uiGroup.avatarUrl),
+      }
+    : null;
+
   return (
     <>
-      <Dialog open={open} onOpenChange={handleGroupDialogOpenChange}>
-        <DialogContent className="grid max-h-[calc(100dvh-2rem)] max-w-[560px] grid-rows-[auto_minmax(0,1fr)] overflow-hidden">
-          <DialogHeader>
-            <DialogTitle>群资料</DialogTitle>
-          </DialogHeader>
+      <ChatGroupDetailDialog
+        open={open}
+        onOpenChange={handleGroupDialogOpenChange}
+        group={displayGroup}
+        members={members.map((member) => ({
+          ...member,
+          avatarUrl: formatFileUrl(member.avatarUrl),
+        }))}
+        loading={detailLoading}
+        loadError={loadError}
+        isOwner={isOwner}
+        saving={saving || avatarUploading}
+        draft={{
+          ...draft,
+          avatarUrl: formatFileUrl(draft.avatarUrl),
+        }}
+        maxNameLength={MAX_GROUP_NAME_LENGTH}
+        inlineEdit
+        onDraftChange={(nextDraft) =>
+          setDraft((current) => ({ ...nextDraft, avatarUrl: current.avatarUrl }))
+        }
+        onRetry={refreshDetail}
+        onSave={handleSave}
+        onOpenInvite={() => setInviteOpen(true)}
+        onAvatarPreview={(avatarUrl) =>
+          openAvatarPreview(avatarUrl, group?.id ?? conversation?.targetId ?? 'group-avatar', group?.name)
+        }
+        onMemberAvatarPreview={(member) =>
+          openAvatarPreview(
+            member.avatarUrl ?? '',
+            member.userId ?? 'member-avatar',
+            member.nickname || member.alias || member.userId,
+          )
+        }
+        onLeave={handleLeave}
+        onDismiss={handleDismiss}
+        onSelectAvatar={handleSelectAvatar}
+      />
 
-          <div className="min-h-0 overflow-y-auto pr-1">
-            <div className="flex flex-col gap-4">
-              {loading && !detail && (
-                <div className="flex min-h-56 items-center justify-center gap-2 text-sm text-muted-foreground">
-                  <Spinner />
-                  加载群资料中...
-                </div>
-              )}
-
-              {!loading && loadError && !detail && (
-                <div className="flex min-h-56 flex-col items-center justify-center gap-3 text-sm text-muted-foreground">
-                  <span>{loadError}</span>
-                  <Button variant="outline" onClick={refreshDetail}>
-                    重试
-                  </Button>
-                </div>
-              )}
-
-              {(!loading || detail) && !loadError && (
-                <>
-                  <div className="flex items-center gap-3">
-                    <ChatAvatar
-                      id={group?.id ?? conversation?.targetId ?? conversation?.id ?? ''}
-                      title={group?.name ?? conversation?.targetName}
-                      avatarUrl={group?.avatarUrl ?? conversation?.targetAvatar}
-                      className="size-12"
-                    />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="truncate text-base font-semibold">
-                          {group?.name ?? conversation?.targetName ?? '群聊'}
-                        </span>
-                        <Badge variant="secondary" className="gap-1">
-                          <UsersRound />
-                          {members.length} 人
-                        </Badge>
-                      </div>
-                      <p className="truncate text-sm text-muted-foreground">
-                        {group?.notice || '暂无群公告'}
-                      </p>
-                    </div>
-                  </div>
-
-                  <Separator />
-
-                  {isOwner && (
-                    <div className="flex flex-col gap-3">
-                      <Input
-                        value={name}
-                        onChange={(event) => setName(event.target.value)}
-                        maxLength={MAX_GROUP_NAME_LENGTH}
-                        placeholder="群名称"
-                      />
-                      <Input
-                        value={avatarUrl}
-                        onChange={(event) => setAvatarUrl(event.target.value)}
-                        placeholder="群头像 URL"
-                      />
-                      <Textarea
-                        value={notice}
-                        onChange={(event) => setNotice(event.target.value)}
-                        placeholder="群公告"
-                        rows={3}
-                      />
-                      <div className="flex justify-end gap-2">
-                        <Button variant="outline" onClick={() => setInviteOpen(true)}>
-                          邀请成员
-                        </Button>
-                        <Button onClick={handleSave} disabled={saving || !name.trim()}>
-                          {saving && <Spinner />}
-                          保存群资料
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="flex flex-col gap-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">成员</span>
-                      {loading && <span className="text-xs text-muted-foreground">加载中...</span>}
-                    </div>
-                    <ScrollArea className="h-56 rounded-md border">
-                      <div className="flex flex-col gap-1 p-2">
-                        {!loading && members.length === 0 && (
-                          <div className="py-8 text-center text-sm text-muted-foreground">
-                            暂无成员
-                          </div>
-                        )}
-                        {members.map((member) => (
-                          <div
-                            key={member.userId}
-                            className="flex items-center gap-2 rounded-md px-2 py-1.5"
-                          >
-                            <ChatAvatar
-                              id={member.userId ?? ''}
-                              title={member.nickname || member.userId}
-                              avatarUrl={member.avatarUrl}
-                              className="size-6"
-                              fallbackClassName="text-xs"
-                            />
-                            <span className="min-w-0 flex-1 truncate text-sm">
-                              {member.nickname || member.userId}
-                            </span>
-                            {member.role === 0 && (
-                              <Badge variant="secondary" className="gap-1">
-                                <Shield />
-                                群主
-                              </Badge>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </ScrollArea>
-                  </div>
-
-                  <div className="flex justify-end gap-2">
-                    {!isOwner && (
-                      <Button variant="outline" onClick={handleLeave}>
-                        退出群聊
-                      </Button>
-                    )}
-                    {isOwner && (
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="destructive">解散群聊</Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>确认解散群聊？</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              解散后所有成员将无法继续发送消息，会话也会从列表中移除。
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel size="default" variant="outline">
-                              取消
-                            </AlertDialogCancel>
-                            <AlertDialogAction
-                              size="default"
-                              variant="destructive"
-                              onClick={handleDismiss}
-                            >
-                              解散
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    )}
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={inviteOpen} onOpenChange={handleInviteDialogOpenChange}>
-        <DialogContent className="grid max-h-[calc(100dvh-2rem)] max-w-[480px] grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden">
-          <DialogHeader>
-            <DialogTitle>邀请成员</DialogTitle>
-          </DialogHeader>
-
-          <div className="min-h-0 overflow-y-auto pr-1">
-            <div className="flex flex-col gap-3">
-              <div className="flex min-h-6 flex-wrap gap-2">
-                {selectedInviteUsers.map((user) => (
-                  <Badge key={user.id} onClick={() => toggleInviteUser(user)}>
-                    {user.nickname || user.email}
-                    <X data-icon="inline-end" />
-                  </Badge>
-                ))}
-              </div>
-              <Command className="rounded-lg border">
-                <CommandInput placeholder="邀请成员..." />
-                <CommandList className="max-h-[calc(100dvh-14rem)]">
-                  <CommandEmpty>暂无可邀请成员</CommandEmpty>
-                  <CommandGroup>
-                    {inviteCandidates.map((user) => (
-                      <CommandItem
-                        key={user.id}
-                        onSelect={() => toggleInviteUser(user)}
-                        className="flex cursor-pointer items-center justify-between"
-                      >
-                        <span>{user.nickname || user.email}</span>
-                        {selectedInviteUsers.some((item) => item.id === user.id) && (
-                          <Badge variant="secondary">已选</Badge>
-                        )}
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
-                </CommandList>
-              </Command>
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setInviteOpen(false)}>
-              取消
-            </Button>
-            <Button onClick={handleInvite} disabled={saving || selectedInviteUsers.length === 0}>
-              {saving && <Spinner />}
-              邀请成员
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ChatGroupInviteDialog
+        open={inviteOpen}
+        onOpenChange={handleInviteDialogOpenChange}
+        users={inviteCandidates.map(toInviteUser)}
+        selectedUsers={selectedInviteUsers.map(toInviteUser)}
+        onToggleUser={(user) => {
+          const matchedUser = userList.find((item) => item.id === user.id);
+          if (matchedUser) toggleInviteUser(matchedUser);
+        }}
+        onSubmit={handleInvite}
+        submitting={saving}
+      />
     </>
   );
 }
+
+const toInviteUser = (user: UserTypes.UserListItem): ChatGroupInviteUser => ({
+  id: user.id,
+  email: user.email,
+  nickname: user.nickname,
+  avatarUrl: user.avatarUrl,
+});

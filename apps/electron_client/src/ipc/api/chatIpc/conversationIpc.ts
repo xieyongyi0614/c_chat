@@ -12,6 +12,7 @@ import {
   GroupOperationResponse,
 } from '@c_chat/shared-protobuf';
 import { conversationTableClass } from '../../../db';
+import { ApiClient } from '../../../utils/axios';
 import { ipc, to, transformPageParams } from '@c_chat/shared-utils';
 import { ConversationType, LocalConversationListItem, SocketTypes } from '@c_chat/shared-types';
 import { ClientToServiceEvent } from '@c_chat/shared-protobuf/protoMap';
@@ -146,19 +147,33 @@ const decodeGroupOperationResponse = (res: GroupOperationResponse) => ({
   conversation: res.conversation,
 });
 
+const syncGroupOperationConversation = (res: GroupOperationResponse) => {
+  const result = decodeGroupOperationResponse(res);
+  if (result.conversation) {
+    conversationTableClass.upsertConversations([toLocalConversation(result.conversation)]);
+  }
+  return result;
+};
+
 addActionHandler('UpdateGroup', async (data) => {
   const params = omitActionCtx(data);
+  const { avatarFilePath, ...requestParams } = params;
   const socketService = socketManager.getSocketService(data.windowId);
+  const avatarUrl = avatarFilePath
+    ? (await ApiClient.upload.uploadFileByPath(avatarFilePath)).url
+    : requestParams.avatarUrl;
 
   const [err, res] = await to(
     socketService.genericRequest(
       ClientToServiceEvent.updateGroup,
-      UpdateGroupRequest.encode(UpdateGroupRequest.create(params)).finish(),
+      UpdateGroupRequest.encode(
+        UpdateGroupRequest.create({ ...requestParams, avatarUrl }),
+      ).finish(),
     ),
   );
 
   if (err) throw err;
-  return decodeGroupOperationResponse(res);
+  return syncGroupOperationConversation(res);
 });
 
 addActionHandler('InviteGroupMembers', async (data) => {
@@ -173,7 +188,7 @@ addActionHandler('InviteGroupMembers', async (data) => {
   );
 
   if (err) throw err;
-  return decodeGroupOperationResponse(res);
+  return syncGroupOperationConversation(res);
 });
 
 addActionHandler('LeaveGroup', async (data) => {
