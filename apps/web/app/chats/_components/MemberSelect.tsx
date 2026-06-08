@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Badge, ChatAvatar, Input, ScrollArea, Spinner, cn } from '@c_chat/ui';
 import { authService } from '@/lib/services';
+import { formatFileUrl } from '@/lib/media/formatFileUrl';
 
 type UserListItem = Awaited<ReturnType<typeof authService.getUserList>>['list'][number];
 
@@ -95,7 +96,7 @@ export function MemberSelect({ selectedIds, onChange, excludeIds = [] }: MemberS
                 <ChatAvatar
                   id={user.id}
                   title={user.nickname || user.email}
-                  avatarUrl={user.avatarUrl}
+                  avatarUrl={formatFileUrl(user.avatarUrl)}
                   alt={user.nickname ?? ''}
                   className="size-9 shrink-0"
                 />

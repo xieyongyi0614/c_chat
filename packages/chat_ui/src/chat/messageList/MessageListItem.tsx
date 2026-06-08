@@ -1,8 +1,7 @@
 import { memo, useMemo, useState, type ReactNode } from 'react';
 import { MESSAGE_TYPE } from '@c_chat/shared-config';
 import { MessageStatus } from '@c_chat/shared-types';
-import { Badge, Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components';
-import { ChatAvatar } from '../chat-avatar';
+import { ChatUserInfoDialog } from '../profileDialog';
 import {
   ChatMessageAvatar,
   ChatMessageBubble,
@@ -16,6 +15,7 @@ import {
 } from '../chatMessage';
 import type {
   ChatMessageAudioControlsSlotProps,
+  ChatAvatarPreviewPayload,
   ChatMessageListItem,
   ChatMessageListLabels,
   ChatMessageOpenPreviewPayload,
@@ -33,6 +33,7 @@ interface MessageListItemProps<TMessage extends ChatMessageListItem> {
   AudioControlsSlot?: (props: ChatMessageAudioControlsSlotProps<TMessage>) => ReactNode;
   onRetryMessages?: (payload: { messages: TMessage[] }) => void | Promise<void>;
   onOpenPreview?: (payload: ChatMessageOpenPreviewPayload<TMessage>) => void;
+  onAvatarPreview?: (payload: ChatAvatarPreviewPayload) => void;
 }
 
 const getInitials = (value?: string | null) => {
@@ -52,6 +53,7 @@ function MessageListItemComponent<TMessage extends ChatMessageListItem>({
   AudioControlsSlot,
   onRetryMessages,
   onOpenPreview,
+  onAvatarPreview,
 }: MessageListItemProps<TMessage>) {
   const [profileOpen, setProfileOpen] = useState(false);
   const [retrying, setRetrying] = useState(false);
@@ -118,6 +120,14 @@ function MessageListItemComponent<TMessage extends ChatMessageListItem>({
       message: clickedMessage,
       groupMessages: messages,
       initialIndex,
+    });
+  };
+
+  const handleAvatarPreview = (avatarUrl: string) => {
+    onAvatarPreview?.({
+      id: sender.id,
+      name: senderName,
+      avatarUrl,
     });
   };
 
@@ -221,30 +231,23 @@ function MessageListItemComponent<TMessage extends ChatMessageListItem>({
         />
       )}
 
-      <Dialog open={profileOpen} onOpenChange={setProfileOpen}>
-        <DialogContent className="max-w-[360px]">
-          <DialogHeader>
-            <DialogTitle>{labels?.profileTitle ?? 'Account information'}</DialogTitle>
-          </DialogHeader>
-          <div className="flex items-center gap-3">
-            <ChatAvatar
-              id={sender.id}
-              title={senderName}
-              avatarUrl={fileResolver.formatFileUrl(sender.avatarUrl ?? '')}
-              alt={senderName}
-              fallback={getInitials(senderName)}
-              className="size-14"
-            />
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
-                <span className="truncate text-base font-semibold">{senderName}</span>
-                {isMe && <Badge variant="secondary">{labels?.ownBadge ?? 'Me'}</Badge>}
-              </div>
-              <p className="truncate text-sm text-muted-foreground">{sender.email || sender.id}</p>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <ChatUserInfoDialog
+        open={profileOpen}
+        onOpenChange={setProfileOpen}
+        profile={{
+          id: sender.id,
+          name: senderName,
+          avatarUrl: fileResolver.formatFileUrl(sender.avatarUrl ?? ''),
+          email: sender.email,
+          fallback: getInitials(senderName),
+        }}
+        isCurrentUser={isMe}
+        labels={{
+          title: labels?.profileTitle,
+          ownBadge: labels?.ownBadge,
+        }}
+        onAvatarPreview={handleAvatarPreview}
+      />
     </ChatMessageRow>
   );
 }

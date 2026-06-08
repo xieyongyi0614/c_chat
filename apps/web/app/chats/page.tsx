@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Button,
+  ChatEmptyConversationState,
   ChatLeftRail,
   ConversationSidebar,
   type ChatLeftRailFilterItem,
@@ -36,6 +37,7 @@ import { ConversationType, type LocalConversationListItem } from '@c_chat/shared
 import { useUserStore } from '@/lib/stores/user.store';
 import { useConversationStore } from '@/lib/stores/conversation.store';
 import { authService, conversationService, initializeRealtimeListeners } from '@/lib/services';
+import { formatFileUrl } from '@/lib/media/formatFileUrl';
 import { UserProfileDialog } from './_components/UserProfileDialog';
 import { CreateGroupDialog } from './_components/CreateGroupDialog';
 import { ChatWindow } from './_components/ChatWindow';
@@ -105,7 +107,6 @@ export default function ChatsPage() {
       return conversation.targetName.toLowerCase().includes(keyword);
     });
   }, [conversations, search, selectedConversationFolder]);
-
   useEffect(() => {
     if (isAuthenticated) {
       setCheckingAuth(false);
@@ -228,7 +229,7 @@ export default function ChatsPage() {
         account={{
           id: userInfo?.id ?? '',
           title: userInfo?.nickname || userInfo?.email,
-          avatarUrl: userInfo?.avatarUrl,
+          avatarUrl: formatFileUrl(userInfo?.avatarUrl),
           avatarAlt: userInfo?.nickname || userInfo?.email,
         }}
         onSelectNav={(item) => {
@@ -270,6 +271,7 @@ export default function ChatsPage() {
         search={search}
         onSearchChange={setSearch}
         onSelectConversation={handleSelect}
+        formatAvatarUrl={formatFileUrl}
         loading={loading}
         error={error}
         headerAction={
@@ -297,14 +299,21 @@ export default function ChatsPage() {
       {selectedConversationId ? (
         <ChatWindow key={selectedConversationId} conversationId={selectedConversationId} />
       ) : (
-        <section className="relative flex flex-1 items-center justify-center bg-muted/30">
-          <div className="text-center text-muted-foreground">
-            <p className="text-lg">{CHAT_EMPTY_STATE_LABELS.selectConversation}</p>
-          </div>
-        </section>
+        <ChatEmptyConversationState
+          title={CHAT_EMPTY_STATE_LABELS.selectConversation}
+          className="relative bg-muted/30"
+        />
       )}
 
-      <UserProfileDialog open={profileOpen} onOpenChange={setProfileOpen} />
+      <UserProfileDialog
+        open={profileOpen}
+        onOpenChange={setProfileOpen}
+        stats={{
+          conversations: conversations.length,
+          unread: unreadCount,
+          groups: groupCount,
+        }}
+      />
       <CreateGroupDialog open={createGroupOpen} onOpenChange={setCreateGroupOpen} />
       <MediaLightbox />
       <AudioPlayerBridge />

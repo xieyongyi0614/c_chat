@@ -4,6 +4,7 @@ import { useChatStore } from '@c_chat/frontend/stores';
 import { ConversationType, type LocalConversationListItem } from '@c_chat/shared-types';
 import { Button, ConversationSidebar } from '@c_chat/ui';
 import { CHAT_CONVERSATION_SIDEBAR_LABELS } from '@c_chat/shared-config';
+import { formatFileUrl } from '@c_chat/frontend/common/formatFileUrl';
 
 export interface LeftColumnRef {
   filterConversations: LocalConversationListItem[];
@@ -52,6 +53,7 @@ const LeftColumn = forwardRef<LeftColumnRef, LeftColumnProps>((props, ref) => {
       search={search}
       onSearchChange={setSearch}
       onSelectConversation={handleSelectConversation}
+      formatAvatarUrl={formatFileUrl}
       headerAction={
         <Button
           type="button"

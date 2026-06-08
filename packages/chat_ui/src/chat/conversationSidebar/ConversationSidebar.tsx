@@ -26,6 +26,7 @@ function ConversationSidebarBase({
   search,
   onSearchChange,
   onSelectConversation,
+  formatAvatarUrl = (url) => url ?? '',
   headerAction,
   loading = false,
   error,
@@ -77,6 +78,7 @@ function ConversationSidebarBase({
                 conversation={conversation}
                 selected={selectedConversationId === conversation.id}
                 onSelect={onSelectConversation}
+                formatAvatarUrl={formatAvatarUrl}
                 labels={mergedLabels}
               />
               <Separator className="my-1" />

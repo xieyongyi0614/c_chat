@@ -1,38 +1,55 @@
 'use client';
 
-import { useState } from 'react';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  Button,
-  ChatAvatar,
-  Input,
-  Label,
-  Spinner,
-  Alert,
-  AlertDescription,
-} from '@c_chat/ui';
-import { authService } from '@/lib/services';
+import { type ChangeEvent, useEffect, useRef, useState } from 'react';
+import { ChatProfileDialog } from '@c_chat/ui';
+import { authService, uploadProfileImage } from '@/lib/services';
 import { useUserStore } from '@/lib/stores/user.store';
+import { useLightboxStore } from '@/lib/stores/lightbox.store';
+import { formatFileUrl } from '@/lib/media/formatFileUrl';
 
 interface UserProfileDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  stats: {
+    conversations: number;
+    unread: number;
+    groups: number;
+  };
 }
 
-export function UserProfileDialog({ open, onOpenChange }: UserProfileDialogProps) {
+export function UserProfileDialog({ open, onOpenChange, stats }: UserProfileDialogProps) {
   const userInfo = useUserStore((state) => state.userInfo);
   const setUserInfo = useUserStore((state) => state.setUserInfo);
   const [nickname, setNickname] = useState(userInfo?.nickname || '');
   const [loading, setLoading] = useState(false);
+  const [avatarUploading, setAvatarUploading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  const openAvatarPreview = (avatarUrl: string) => {
+    useLightboxStore.getState().openPreview({
+      items: [
+        {
+          id: userInfo?.id ?? 'profile-avatar',
+          type: 'image',
+          fileUrl: avatarUrl,
+          fileName: userInfo?.nickname || userInfo?.email || 'avatar',
+          createTime: Date.now(),
+          senderId: userInfo?.id,
+        },
+      ],
+      initialIndex: 0,
+    });
+  };
+
+  useEffect(() => {
+    if (open) {
+      setNickname(userInfo?.nickname || '');
+    }
+  }, [open, userInfo?.nickname]);
+
+  const handleSave = async () => {
     setError('');
     setSuccess(false);
     setLoading(true);
@@ -53,60 +70,66 @@ export function UserProfileDialog({ open, onOpenChange }: UserProfileDialogProps
     }
   };
 
+  const handleSelectAvatar = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleAvatarChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+
+    setError('');
+    setSuccess(false);
+    setAvatarUploading(true);
+    try {
+      const avatarUrl = await uploadProfileImage(file);
+      await authService.updateUserProfile({ avatarUrl });
+      const updated = await authService.getUserInfo();
+      setUserInfo(updated);
+      setSuccess(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '头像更新失败');
+    } finally {
+      setAvatarUploading(false);
+    }
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>个人资料</DialogTitle>
-          <DialogDescription>编辑你的个人信息</DialogDescription>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="flex flex-col gap-6">
-          {error && (
-            <Alert variant="destructive">
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
-          {success && (
-            <Alert>
-              <AlertDescription>更新成功</AlertDescription>
-            </Alert>
-          )}
-          <div className="flex flex-col items-center gap-4">
-            <ChatAvatar
-              id={userInfo?.id ?? ''}
-              title={userInfo?.nickname || userInfo?.email}
-              avatarUrl={userInfo?.avatarUrl}
-              className="size-20"
-              fallbackClassName="text-lg"
-            />
-            <p className="text-sm text-muted-foreground">{userInfo?.email}</p>
-          </div>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="nickname">昵称</Label>
-            <Input
-              id="nickname"
-              value={nickname}
-              onChange={(e) => setNickname(e.target.value)}
-              placeholder="输入昵称"
-              required
-            />
-          </div>
-          <div className="flex gap-3">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              className="flex-1"
-            >
-              取消
-            </Button>
-            <Button type="submit" disabled={loading} className="flex-1">
-              {loading && <Spinner />}
-              {loading ? '保存中...' : '保存'}
-            </Button>
-          </div>
-        </form>
-      </DialogContent>
-    </Dialog>
+    <>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleAvatarChange}
+      />
+      <ChatProfileDialog
+        open={open}
+        onOpenChange={onOpenChange}
+        profile={{
+          id: userInfo?.id ?? '',
+          nickname: userInfo?.nickname || userInfo?.email,
+          avatarUrl: formatFileUrl(userInfo?.avatarUrl),
+        }}
+        draftNickname={nickname}
+        email={userInfo?.email}
+        stats={[
+          { id: 'conversations', label: '会话', value: stats.conversations },
+          { id: 'unread', label: '未读', value: stats.unread },
+          { id: 'groups', label: '群组', value: stats.groups },
+        ]}
+        error={error}
+        success={success ? '更新成功' : undefined}
+        saving={loading || avatarUploading}
+        onNicknameChange={setNickname}
+        onAvatarPreview={openAvatarPreview}
+        onSelectAvatar={handleSelectAvatar}
+        onSave={handleSave}
+        labels={{
+          title: '账号资料',
+        }}
+      />
+    </>
   );
 }

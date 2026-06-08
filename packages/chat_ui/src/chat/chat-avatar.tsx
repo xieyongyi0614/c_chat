@@ -12,6 +12,8 @@ export interface ChatAvatarProps {
   className?: string;
   imageClassName?: string;
   fallbackClassName?: string;
+  buttonLabel?: string;
+  onClick?: () => void;
 }
 
 export function ChatAvatar({
@@ -23,8 +25,10 @@ export function ChatAvatar({
   className,
   imageClassName,
   fallbackClassName,
+  buttonLabel,
+  onClick,
 }: ChatAvatarProps) {
-  return (
+  const avatar = (
     <Avatar className={className}>
       <AvatarImage
         src={avatarUrl ?? ''}
@@ -35,5 +39,20 @@ export function ChatAvatar({
         {fallback ?? getChatAvatarFallbackText(title)}
       </AvatarFallback>
     </Avatar>
+  );
+
+  if (!onClick) {
+    return avatar;
+  }
+
+  return (
+    <button
+      type="button"
+      className={cn('shrink-0 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring')}
+      onClick={onClick}
+      aria-label={buttonLabel ?? alt ?? title ?? 'avatar'}
+    >
+      {avatar}
+    </button>
   );
 }
