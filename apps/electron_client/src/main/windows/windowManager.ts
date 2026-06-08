@@ -117,14 +117,14 @@ export class WindowManager {
     if (!app.isPackaged) {
       // 加载内容
       const loadUrl = `http://localhost:${PORTS.FRONTEND}/#/auth/sign-in`;
-      window.loadURL(loadUrl).catch((err) => {
-        console.log(`Window load failed: ${err instanceof Error ? err.message : String(err)}`);
-        if (process.env.NODE_ENV === 'development') {
-          setTimeout(() => {
-            void window.loadURL(loadUrl);
-          }, 1000);
-        }
-      });
+      const loadDevUrl = () => {
+        if (window.isDestroyed()) return;
+        window.loadURL(loadUrl).catch((err) => {
+          console.log(`Window load failed: ${err instanceof Error ? err.message : String(err)}`);
+          setTimeout(loadDevUrl, 1000);
+        });
+      };
+      loadDevUrl();
     } else {
       // 生产环境：加载本地 HTML 文件
       const localPath = path.join(__dirname, '../renderer/index.html');
