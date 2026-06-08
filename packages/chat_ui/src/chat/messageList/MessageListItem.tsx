@@ -1,16 +1,8 @@
 import { memo, useMemo, useState, type ReactNode } from 'react';
 import { MESSAGE_TYPE } from '@c_chat/shared-config';
 import { MessageStatus } from '@c_chat/shared-types';
-import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-  Badge,
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '../../components';
+import { Badge, Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components';
+import { ChatAvatar } from '../chat-avatar';
 import {
   ChatMessageAvatar,
   ChatMessageBubble,
@@ -101,6 +93,7 @@ function MessageListItemComponent<TMessage extends ChatMessageListItem>({
 
   const senderName = sender.nickname || sender.email || sender.id;
   const showSender = Boolean(isGroupConversation);
+  const showGroupPeer = showSender && !isMe;
   const isVideoMessage = message.type === MESSAGE_TYPE.Video;
   const failedOwnMessages = isMe
     ? messages.filter((item) => item.status === MessageStatus.fail && item.clientMsgId)
@@ -155,20 +148,22 @@ function MessageListItemComponent<TMessage extends ChatMessageListItem>({
   );
 
   return (
-    <ChatMessageRow isMe={isMe}>
+    <ChatMessageRow isMe={isMe} className={showGroupPeer ? 'items-center' : undefined}>
       {showSender && !isMe && (
         <ChatMessageAvatar
+          id={sender.id}
           avatarUrl={fileResolver.formatFileUrl(sender.avatarUrl ?? '')}
           senderName={senderName}
           fallback={getInitials(senderName)}
+          className="hover:bg-transparent"
           onClick={() => setProfileOpen(true)}
         />
       )}
 
       <ChatMessageStack isMe={isMe}>
-        {showSender && !isMe && (
+        {showGroupPeer && message.type !== MESSAGE_TYPE.Text ? (
           <ChatMessageSenderName
-            className="mb-1 cursor-pointer"
+            className="mb-1 cursor-pointer text-violet-600"
             role="button"
             tabIndex={0}
             onClick={() => setProfileOpen(true)}
@@ -180,12 +175,32 @@ function MessageListItemComponent<TMessage extends ChatMessageListItem>({
           >
             {senderName}
           </ChatMessageSenderName>
-        )}
+        ) : null}
         <ChatMessageBubble
           isMe={isMe}
           isMedia={message.type === MESSAGE_TYPE.Image}
           isVideo={isVideoMessage}
+          className={
+            showGroupPeer && message.type === MESSAGE_TYPE.Text
+              ? 'rounded-2xl rounded-bl-sm px-3 py-1.5'
+              : undefined
+          }
         >
+          {showGroupPeer && message.type === MESSAGE_TYPE.Text ? (
+            <ChatMessageSenderName
+              className="mb-0.5 block cursor-pointer text-sm font-medium leading-tight text-violet-600"
+              role="button"
+              tabIndex={0}
+              onClick={() => setProfileOpen(true)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  setProfileOpen(true);
+                }
+              }}
+            >
+              {senderName}
+            </ChatMessageSenderName>
+          ) : null}
           {AudioControlsSlot ? (
             <AudioControlsSlot message={message} isMe={isMe}>
               {renderMessageContent}
@@ -198,6 +213,7 @@ function MessageListItemComponent<TMessage extends ChatMessageListItem>({
 
       {showSender && isMe && (
         <ChatMessageAvatar
+          id={sender.id}
           avatarUrl={fileResolver.formatFileUrl(sender.avatarUrl ?? '')}
           senderName={senderName}
           fallback={getInitials(senderName)}
@@ -211,13 +227,14 @@ function MessageListItemComponent<TMessage extends ChatMessageListItem>({
             <DialogTitle>{labels?.profileTitle ?? 'Account information'}</DialogTitle>
           </DialogHeader>
           <div className="flex items-center gap-3">
-            <Avatar className="size-14">
-              <AvatarImage
-                src={fileResolver.formatFileUrl(sender.avatarUrl ?? '')}
-                alt={senderName}
-              />
-              <AvatarFallback>{getInitials(senderName)}</AvatarFallback>
-            </Avatar>
+            <ChatAvatar
+              id={sender.id}
+              title={senderName}
+              avatarUrl={fileResolver.formatFileUrl(sender.avatarUrl ?? '')}
+              alt={senderName}
+              fallback={getInitials(senderName)}
+              className="size-14"
+            />
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
                 <span className="truncate text-base font-semibold">{senderName}</span>

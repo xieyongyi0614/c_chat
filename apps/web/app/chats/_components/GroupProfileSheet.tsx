@@ -16,11 +16,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
   Badge,
   Button,
+  ChatAvatar,
   ScrollArea,
   Separator,
   Spinner,
@@ -147,10 +145,13 @@ export function GroupProfileSheet({ open, onOpenChange, groupId }: GroupProfileS
         ) : (
           <div className="flex flex-col gap-4 overflow-hidden">
             <div className="flex items-center gap-3">
-              <Avatar className="size-14 shrink-0">
-                <AvatarImage src={group.avatarUrl ?? undefined} alt={group.name ?? ''} />
-                <AvatarFallback>{(group.name ?? '群').charAt(0).toUpperCase()}</AvatarFallback>
-              </Avatar>
+              <ChatAvatar
+                id={group.id ?? groupId}
+                title={group.name}
+                avatarUrl={group.avatarUrl}
+                alt={group.name ?? ''}
+                className="size-14 shrink-0"
+              />
               <div className="flex min-w-0 flex-col gap-1">
                 <h3 className="truncate text-base font-semibold">{group.name}</h3>
                 <span className="text-xs text-muted-foreground">
@@ -174,15 +175,13 @@ export function GroupProfileSheet({ open, onOpenChange, groupId }: GroupProfileS
               <div className="flex flex-col">
                 {members.map((member) => (
                   <div key={member.userId} className="flex items-center gap-3 px-3 py-2">
-                    <Avatar className="size-9 shrink-0">
-                      <AvatarImage
-                        src={member.avatarUrl ?? undefined}
-                        alt={member.nickname ?? ''}
-                      />
-                      <AvatarFallback>
-                        {(member.alias || member.nickname || '?').charAt(0).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
+                    <ChatAvatar
+                      id={member.userId ?? ''}
+                      title={member.alias || member.nickname}
+                      avatarUrl={member.avatarUrl}
+                      alt={member.nickname ?? ''}
+                      className="size-9 shrink-0"
+                    />
                     <span className="min-w-0 flex-1 truncate text-sm">
                       {member.alias || member.nickname}
                     </span>

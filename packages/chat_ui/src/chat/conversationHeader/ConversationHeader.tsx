@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { ArrowLeft, MoreVertical, Phone, Video } from 'lucide-react';
-import { Avatar, AvatarFallback, AvatarImage } from '../../components/avatar';
 import { Button } from '../../components/button';
+import { ChatAvatar } from '../chat-avatar';
 import { cn } from '../../lib/utils';
 
 export interface ConversationHeaderLabels {
@@ -13,11 +13,11 @@ export interface ConversationHeaderLabels {
 }
 
 export interface ConversationHeaderProps {
+  id: string;
   title?: string | null;
   avatarUrl?: string | null;
   description?: ReactNode;
   fallback?: ReactNode;
-  fallbackClassName?: string;
   className?: string;
   showBackButton?: boolean;
   onBack?: () => void;
@@ -30,16 +30,12 @@ export interface ConversationHeaderProps {
   labels?: ConversationHeaderLabels;
 }
 
-function getFallbackText(title?: string | null) {
-  return title?.trim().toUpperCase().slice(0, 2);
-}
-
 export function ConversationHeader({
+  id,
   title,
   avatarUrl,
   description,
   fallback,
-  fallbackClassName,
   className,
   showBackButton = false,
   onBack,
@@ -75,12 +71,15 @@ export function ConversationHeader({
         ) : null}
 
         <div className="flex min-w-0 flex-1 items-center gap-2 lg:gap-4">
-          <Avatar className="size-9 shrink-0 lg:size-11">
-            <AvatarImage src={avatarUrl ?? ''} alt={avatarAlt} className="rounded-full" />
-            <AvatarFallback className={fallbackClassName}>
-              {fallback ?? getFallbackText(title)}
-            </AvatarFallback>
-          </Avatar>
+          <ChatAvatar
+            id={id}
+            title={title}
+            avatarUrl={avatarUrl}
+            alt={avatarAlt}
+            fallback={fallback}
+            className="size-9 shrink-0 lg:size-11"
+            fallbackClassName="text-base"
+          />
 
           <div className="min-w-0 flex-1 overflow-hidden">
             <div className="flex min-w-0 items-center gap-2">

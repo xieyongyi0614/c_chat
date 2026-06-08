@@ -1,7 +1,7 @@
 import type { ComponentProps, ReactNode } from 'react';
 import { cn } from '../../lib/utils';
-import { Avatar, AvatarFallback, AvatarImage } from '../../components/avatar';
 import { Button } from '../../components/button';
+import { ChatAvatar } from '../chat-avatar';
 
 interface ChatMessageOwnProps {
   isMe: boolean;
@@ -40,7 +40,7 @@ function ChatMessageStack({ isMe, className, ...props }: ChatMessageStackProps) 
 function ChatMessageSenderName({ className, ...props }: ComponentProps<'span'>) {
   return (
     <span
-      className={cn('max-w-full truncate px-1 text-xs text-muted-foreground', className)}
+      className={cn('max-w-full truncate text-xs font-medium text-muted-foreground', className)}
       {...props}
     />
   );
@@ -83,15 +83,19 @@ function ChatMessageMeta({ className, ...props }: ComponentProps<'div'>) {
 }
 
 interface ChatMessageAvatarProps extends ComponentProps<'button'> {
+  id: string;
   avatarUrl?: string;
   fallback: ReactNode;
   senderName: string;
+  avatarClassName?: string;
 }
 
 function ChatMessageAvatar({
+  id,
   avatarUrl,
   fallback,
   senderName,
+  avatarClassName,
   className,
   ...props
 }: ChatMessageAvatarProps) {
@@ -103,10 +107,14 @@ function ChatMessageAvatar({
       className={cn('size-9 shrink-0 rounded-full p-0', className)}
       {...props}
     >
-      <Avatar className="size-9">
-        <AvatarImage src={avatarUrl} alt={senderName} />
-        <AvatarFallback>{fallback}</AvatarFallback>
-      </Avatar>
+      <ChatAvatar
+        id={id}
+        title={senderName}
+        avatarUrl={avatarUrl}
+        alt={senderName}
+        fallback={fallback}
+        className={cn('size-9', avatarClassName)}
+      />
     </Button>
   );
 }

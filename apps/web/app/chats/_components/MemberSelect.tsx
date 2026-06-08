@@ -1,16 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-  Badge,
-  Input,
-  ScrollArea,
-  Spinner,
-  cn,
-} from '@c_chat/ui';
+import { Badge, ChatAvatar, Input, ScrollArea, Spinner, cn } from '@c_chat/ui';
 import { authService } from '@/lib/services';
 
 type UserListItem = Awaited<ReturnType<typeof authService.getUserList>>['list'][number];
@@ -101,12 +92,13 @@ export function MemberSelect({ selectedIds, onChange, excludeIds = [] }: MemberS
                   selected.has(user.id) && 'bg-accent',
                 )}
               >
-                <Avatar className="size-9 shrink-0">
-                  <AvatarImage src={user.avatarUrl ?? undefined} alt={user.nickname ?? ''} />
-                  <AvatarFallback>
-                    {(user.nickname || user.email).charAt(0).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
+                <ChatAvatar
+                  id={user.id}
+                  title={user.nickname || user.email}
+                  avatarUrl={user.avatarUrl}
+                  alt={user.nickname ?? ''}
+                  className="size-9 shrink-0"
+                />
                 <div className="flex min-w-0 flex-1 flex-col">
                   <span className="truncate text-sm font-medium">
                     {user.nickname || user.email}

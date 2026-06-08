@@ -18,11 +18,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
   Badge,
   Button,
+  ChatAvatar,
   Command,
   CommandEmpty,
   CommandGroup,
@@ -252,12 +250,12 @@ export function GroupDetailDialog({ open, conversation, onOpenChange }: GroupDet
               {(!loading || detail) && !loadError && (
                 <>
                   <div className="flex items-center gap-3">
-                    <Avatar className="size-12">
-                      <AvatarImage src={group?.avatarUrl ?? conversation?.targetAvatar ?? ''} />
-                      <AvatarFallback>
-                        {(group?.name ?? conversation?.targetName ?? '群').slice(0, 2)}
-                      </AvatarFallback>
-                    </Avatar>
+                    <ChatAvatar
+                      id={group?.id ?? conversation?.targetId ?? conversation?.id ?? ''}
+                      title={group?.name ?? conversation?.targetName}
+                      avatarUrl={group?.avatarUrl ?? conversation?.targetAvatar}
+                      className="size-12"
+                    />
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
                         <span className="truncate text-base font-semibold">
@@ -324,12 +322,13 @@ export function GroupDetailDialog({ open, conversation, onOpenChange }: GroupDet
                             key={member.userId}
                             className="flex items-center gap-2 rounded-md px-2 py-1.5"
                           >
-                            <Avatar size="sm">
-                              <AvatarImage src={member.avatarUrl ?? ''} />
-                              <AvatarFallback>
-                                {(member.nickname || member.userId || '?').slice(0, 2)}
-                              </AvatarFallback>
-                            </Avatar>
+                            <ChatAvatar
+                              id={member.userId ?? ''}
+                              title={member.nickname || member.userId}
+                              avatarUrl={member.avatarUrl}
+                              className="size-6"
+                              fallbackClassName="text-xs"
+                            />
                             <span className="min-w-0 flex-1 truncate text-sm">
                               {member.nickname || member.userId}
                             </span>

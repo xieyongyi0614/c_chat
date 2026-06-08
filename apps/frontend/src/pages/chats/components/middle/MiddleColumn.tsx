@@ -7,7 +7,6 @@ import HistoryMessageList from './MessageHistoryList';
 import { ChatInput } from './input/ChatInput';
 import { ConversationType } from '@c_chat/shared-types';
 import { GroupDetailDialog } from './GroupDetailDialog';
-import { getChatAvatarFallbackClass } from '../chat-avatar-style';
 
 interface RightSideProps {
   openCreateConversationDialog: (open: boolean) => void;
@@ -26,18 +25,19 @@ const MiddleColumn = (props: RightSideProps) => {
   const isGroupConversation = selectedConversation?.type === ConversationType.Group;
   const [groupDetailOpen, setGroupDetailOpen] = useState(false);
 
-  const activeTitle =
-    selectedConversation?.targetName ??
-    selectedUserForDraft?.nickname ??
-    selectedUserForDraft?.email;
-  const activeAvatar = selectedConversation?.targetAvatar ?? selectedUserForDraft?.avatarUrl;
-
   if (!selectedConversation && !selectedUserForDraft) {
     return (
       <EmptyConversation openCreateConversationDialog={() => openCreateConversationDialog(true)} />
     );
   }
 
+  const activeTitle =
+    selectedConversation?.targetName ??
+    selectedUserForDraft?.nickname ??
+    selectedUserForDraft?.email;
+  const activeAvatar = selectedConversation?.targetAvatar ?? selectedUserForDraft?.avatarUrl;
+  const activeId =
+    selectedConversation?.id ?? selectedUserForDraft?.id ?? activeTitle ?? activeAvatar ?? '';
   return (
     <div
       className={cn(
@@ -46,10 +46,10 @@ const MiddleColumn = (props: RightSideProps) => {
       )}
     >
       <ConversationHeader
+        id={activeId}
         title={activeTitle}
         avatarUrl={activeAvatar}
         description="会话信息"
-        fallbackClassName={getChatAvatarFallbackClass(activeTitle, 'text-base')}
         showBackButton={Boolean(selectedUserForDraft)}
         onBack={() => {
           setSelectedUserForDraft(null);

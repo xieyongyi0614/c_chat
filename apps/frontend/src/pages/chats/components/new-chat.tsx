@@ -14,16 +14,13 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  Avatar,
-  AvatarImage,
-  AvatarFallback,
+  ChatAvatar,
   Input,
   Spinner,
 } from '@c_chat/ui';
 import { ipc, to } from '@c_chat/shared-utils';
 import type { IpcTypes, LocalConversationListItem, UserTypes } from '@c_chat/shared-types';
 import { toast } from 'sonner';
-import { getChatAvatarFallbackClass } from './chat-avatar-style';
 import { MAX_GROUP_NAME_LENGTH } from './group-name';
 
 type NewChatProps = {
@@ -144,14 +141,13 @@ export function NewChat({ onOpenChange, open, onSelectUser, onSelectGroup }: New
                         className="h-8 w-8 rounded-full"
                       /> */}
 
-                      <Avatar className="size-10">
-                        <AvatarImage src={user.avatarUrl ?? ''} alt={user.nickname || user.email} />
-                        <AvatarFallback
-                          className={getChatAvatarFallbackClass(user.nickname || user.email)}
-                        >
-                          {(user.nickname || user.email).slice(0, 2).toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
+                      <ChatAvatar
+                        id={user.id}
+                        title={user.nickname || user.email}
+                        avatarUrl={user.avatarUrl}
+                        alt={user.nickname || user.email}
+                        className="size-10"
+                      />
                       <div className="flex flex-col">
                         <span className="text-sm font-medium">{user.nickname}</span>
                         <span className="text-xs text-accent-foreground/70">{user.email}</span>
