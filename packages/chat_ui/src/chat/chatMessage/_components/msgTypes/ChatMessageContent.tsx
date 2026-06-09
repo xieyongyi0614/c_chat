@@ -1,4 +1,4 @@
-import { memo, type RefObject } from 'react';
+import { memo, type Ref } from 'react';
 import { MESSAGE_TYPE } from '@c_chat/shared-config';
 import AudioMessage from './AudioMessage';
 import FileMessage from './FileMessage';
@@ -14,7 +14,7 @@ import type {
 
 export interface ChatMessageAudioControls {
   playback: AudioPlaybackState;
-  waveformCanvasRef: RefObject<HTMLCanvasElement | null>;
+  waveformCanvasRef: Ref<HTMLCanvasElement>;
   onTogglePlay: () => void | Promise<void>;
 }
 

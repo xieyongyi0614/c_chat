@@ -7,6 +7,7 @@ import { Button } from '../../../components/button';
 const DEFAULT_BOTTOM_THRESHOLD = 120;
 const DEFAULT_TOP_LOAD_THRESHOLD = 80;
 const DEFAULT_KEEP_BOTTOM_MS = 1200;
+const MESSAGE_ANCHOR_SELECTOR = '[data-message-anchor]';
 
 export interface ChatMessageScrollAreaLabels {
   loadingOlder?: ReactNode;
@@ -27,6 +28,11 @@ export interface ChatMessageScrollAreaProps extends Omit<ComponentProps<'div'>, 
   keepBottomMs?: number;
   scrollToBottomEventName?: string;
   labels?: ChatMessageScrollAreaLabels;
+}
+
+interface ScrollAnchorSnapshot {
+  id: string;
+  top: number;
 }
 
 function ChatMessageScrollAreaWrapper({
@@ -50,10 +56,47 @@ function ChatMessageScrollAreaWrapper({
   const contentRef = useRef<HTMLDivElement>(null);
   const shouldStickToBottomRef = useRef(true);
   const previousConversationKeyRef = useRef(conversationKey);
-  const pendingPrependHeightRef = useRef<number | null>(null);
+  const pendingPrependAnchorRef = useRef<ScrollAnchorSnapshot | null>(null);
+  const scrollAnchorRef = useRef<ScrollAnchorSnapshot | null>(null);
   const isLoadingOlderRef = useRef(false);
   const keepBottomUntilRef = useRef(0);
   const lastScrollHeightRef = useRef(0);
+  const scrollToBottomGenerationRef = useRef(0);
+
+  const getAnchorSnapshot = useCallback((): ScrollAnchorSnapshot | null => {
+    const el = scrollRef.current;
+    if (!el) return null;
+
+    const containerTop = el.getBoundingClientRect().top;
+    const anchors = Array.from(el.querySelectorAll<HTMLElement>(MESSAGE_ANCHOR_SELECTOR));
+    const anchor =
+      anchors.find((item) => item.getBoundingClientRect().bottom >= containerTop) ?? anchors[0];
+    const id = anchor?.dataset.messageAnchor;
+    if (!anchor || !id) return null;
+
+    return {
+      id,
+      top: anchor.getBoundingClientRect().top - containerTop,
+    };
+  }, []);
+
+  const restoreAnchorSnapshot = useCallback((snapshot: ScrollAnchorSnapshot) => {
+    const el = scrollRef.current;
+    if (!el) return false;
+
+    const anchor = el.querySelector<HTMLElement>(
+      `[data-message-anchor="${CSS.escape(snapshot.id)}"]`,
+    );
+    if (!anchor) return false;
+
+    const containerTop = el.getBoundingClientRect().top;
+    const nextTop = anchor.getBoundingClientRect().top - containerTop;
+    const scrollDelta = nextTop - snapshot.top;
+    if (scrollDelta !== 0) {
+      el.scrollTop += scrollDelta;
+    }
+    return true;
+  }, []);
 
   const scrollToBottom = useCallback(() => {
     const el = scrollRef.current;
@@ -63,10 +106,15 @@ function ChatMessageScrollAreaWrapper({
   }, []);
 
   const scheduleScrollToBottom = useCallback(() => {
+    const generation = scrollToBottomGenerationRef.current;
     scrollToBottom();
     requestAnimationFrame(() => {
+      if (scrollToBottomGenerationRef.current !== generation) return;
       scrollToBottom();
-      requestAnimationFrame(scrollToBottom);
+      requestAnimationFrame(() => {
+        if (scrollToBottomGenerationRef.current !== generation) return;
+        scrollToBottom();
+      });
     });
   }, [scrollToBottom]);
 
@@ -83,6 +131,7 @@ function ChatMessageScrollAreaWrapper({
 
   const handleScrollToBottom = useCallback(() => {
     shouldStickToBottomRef.current = true;
+    scrollToBottomGenerationRef.current += 1;
     keepBottomUntilRef.current = Date.now() + keepBottomMs;
     scheduleScrollToBottom();
 
@@ -108,7 +157,12 @@ function ChatMessageScrollAreaWrapper({
     const el = scrollRef.current;
     if (!el) return;
 
-    updateNearBottom();
+    const nearBottom = updateNearBottom();
+    if (!nearBottom) {
+      keepBottomUntilRef.current = 0;
+      scrollToBottomGenerationRef.current += 1;
+    }
+    scrollAnchorRef.current = getAnchorSnapshot();
 
     if (
       el.scrollTop > topLoadThreshold ||
@@ -121,17 +175,26 @@ function ChatMessageScrollAreaWrapper({
 
     isLoadingOlderRef.current = true;
     shouldStickToBottomRef.current = false;
-    pendingPrependHeightRef.current = el.scrollHeight;
+    keepBottomUntilRef.current = 0;
+    scrollToBottomGenerationRef.current += 1;
+    pendingPrependAnchorRef.current = getAnchorSnapshot();
     void loadOlderMessages()
       .then((loaded) => {
         if (!loaded) {
-          pendingPrependHeightRef.current = null;
+          pendingPrependAnchorRef.current = null;
         }
       })
       .finally(() => {
         isLoadingOlderRef.current = false;
       });
-  }, [hasMoreOlder, isLoadingOlder, loadOlderMessages, topLoadThreshold, updateNearBottom]);
+  }, [
+    getAnchorSnapshot,
+    hasMoreOlder,
+    isLoadingOlder,
+    loadOlderMessages,
+    topLoadThreshold,
+    updateNearBottom,
+  ]);
 
   useLayoutEffect(() => {
     const el = scrollRef.current;
@@ -140,24 +203,23 @@ function ChatMessageScrollAreaWrapper({
     if (conversationChanged) {
       previousConversationKeyRef.current = conversationKey;
       shouldStickToBottomRef.current = true;
-      pendingPrependHeightRef.current = null;
+      pendingPrependAnchorRef.current = null;
+      scrollAnchorRef.current = null;
       isLoadingOlderRef.current = false;
       keepBottomUntilRef.current = Date.now() + keepBottomMs;
     }
 
-    // const previousHeight = pendingPrependHeightRef.current;
-    // if (previousHeight != null) {
-
-    //   if (el.scrollHeight && el.scrollHeight !== previousHeight) {
-    //     console.log(el.scrollHeight, previousHeight, 'el.scrollHeight');
-    //     el.scrollTop += el.scrollHeight - previousHeight;
-    //     pendingPrependHeightRef.current = null;
-    //     lastScrollHeightRef.current = el.scrollHeight;
-    //     updateNearBottom();
-    //     shouldStickToBottomRef.current = false;
-    //   }
-    //   return;
-    // }
+    const pendingPrependAnchor = pendingPrependAnchorRef.current;
+    if (pendingPrependAnchor) {
+      if (restoreAnchorSnapshot(pendingPrependAnchor)) {
+        pendingPrependAnchorRef.current = null;
+        lastScrollHeightRef.current = el.scrollHeight;
+        updateNearBottom();
+        scrollAnchorRef.current = getAnchorSnapshot();
+        shouldStickToBottomRef.current = false;
+      }
+      return;
+    }
 
     if (isLoadingOlderRef.current) {
       lastScrollHeightRef.current = el.scrollHeight;
@@ -172,7 +234,15 @@ function ChatMessageScrollAreaWrapper({
     }
 
     lastScrollHeightRef.current = el.scrollHeight;
-  }, [conversationKey, keepBottomMs, scheduleScrollToBottom, updateNearBottom]);
+    scrollAnchorRef.current = getAnchorSnapshot();
+  }, [
+    conversationKey,
+    getAnchorSnapshot,
+    keepBottomMs,
+    restoreAnchorSnapshot,
+    scheduleScrollToBottom,
+    updateNearBottom,
+  ]);
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -185,15 +255,24 @@ function ChatMessageScrollAreaWrapper({
       const heightDelta = currentHeight - previousHeight;
       lastScrollHeightRef.current = currentHeight;
 
-      if (pendingPrependHeightRef.current != null) return;
+      const pendingPrependAnchor = pendingPrependAnchorRef.current;
+      if (pendingPrependAnchor) {
+        if (restoreAnchorSnapshot(pendingPrependAnchor)) {
+          pendingPrependAnchorRef.current = null;
+          updateNearBottom();
+          scrollAnchorRef.current = getAnchorSnapshot();
+        }
+        return;
+      }
 
       if (shouldStickToBottomRef.current || Date.now() <= keepBottomUntilRef.current) {
         scheduleScrollToBottom();
-      } else if (heightDelta !== 0) {
-        el.scrollTop += heightDelta;
+      } else if (heightDelta !== 0 && scrollAnchorRef.current) {
+        restoreAnchorSnapshot(scrollAnchorRef.current);
       }
 
       updateNearBottom();
+      scrollAnchorRef.current = getAnchorSnapshot();
     });
 
     resizeObserver.observe(el);
@@ -202,7 +281,7 @@ function ChatMessageScrollAreaWrapper({
     return () => {
       resizeObserver.disconnect();
     };
-  }, [scheduleScrollToBottom, updateNearBottom]);
+  }, [getAnchorSnapshot, restoreAnchorSnapshot, scheduleScrollToBottom, updateNearBottom]);
 
   return (
     <div className="chat-text-container relative flex min-h-0 min-w-0 flex-1 overflow-hidden">

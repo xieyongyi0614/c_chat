@@ -1,4 +1,4 @@
-import type { CSSProperties, RefObject } from 'react';
+import type { CSSProperties, Ref } from 'react';
 import type { MessageType } from '@c_chat/shared-config';
 import type { MessageStatus } from '@c_chat/shared-types';
 
@@ -89,7 +89,7 @@ export interface AudioMessageProps extends ChatMessageRetryProps {
     duration: number;
   };
   playback: AudioPlaybackState;
-  waveformCanvasRef: RefObject<HTMLCanvasElement | null>;
+  waveformCanvasRef: Ref<HTMLCanvasElement>;
   fileResolver: ChatMessageFileResolver;
   senderName?: string;
   forwarded?: boolean;

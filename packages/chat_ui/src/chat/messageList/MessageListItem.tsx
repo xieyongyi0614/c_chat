@@ -157,8 +157,14 @@ function MessageListItemComponent<TMessage extends ChatMessageListItem>({
     </>
   );
 
+  const anchorId = message.clientMsgId || message.id;
+
   return (
-    <ChatMessageRow isMe={isMe} className={showGroupPeer ? 'items-center' : undefined}>
+    <ChatMessageRow
+      data-message-anchor={anchorId}
+      isMe={isMe}
+      className={showGroupPeer ? 'items-center' : undefined}
+    >
       {showSender && !isMe && (
         <ChatMessageAvatar
           id={sender.id}
