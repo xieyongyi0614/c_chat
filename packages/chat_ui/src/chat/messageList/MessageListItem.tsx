@@ -227,16 +227,6 @@ function MessageListItemComponent<TMessage extends ChatMessageListItem>({
         </ChatMessageBubble>
       </ChatMessageStack>
 
-      {showSender && isMe && (
-        <ChatMessageAvatar
-          id={sender.id}
-          avatarUrl={fileResolver.formatFileUrl(sender.avatarUrl ?? '')}
-          senderName={senderName}
-          fallback={getInitials(senderName)}
-          onClick={() => setProfileOpen(true)}
-        />
-      )}
-
       <ChatUserInfoDialog
         open={profileOpen}
         onOpenChange={setProfileOpen}
