@@ -84,7 +84,7 @@ const AudioControlsSlot: ChatMessageListProps<LocalMessageListItem>['AudioContro
   children,
 }) => {
   const playKey = message.clientMsgId || message.id;
-  const [canvasRef] = useState(() => ({ current: null as HTMLCanvasElement | null }));
+  const [waveformCanvas, setWaveformCanvas] = useState<HTMLCanvasElement | null>(null);
   const currentId = useAudioPlayerStore((state) => state.currentId);
   const playing = useAudioPlayerStore((state) => state.playing);
   const progressMap = useAudioPlayerStore((state) => state.progressMap);
@@ -99,24 +99,22 @@ const AudioControlsSlot: ChatMessageListProps<LocalMessageListItem>['AudioContro
   const progress = duration > 0 ? currentTime / duration : 0;
 
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas || !message.waveform) return;
+    if (!waveformCanvas || !message.waveform) return;
 
     const { data, peak } = decodeWaveformForRender(message.waveform, SPIKE_COUNT);
     if (!data.length) return;
 
-    const color = window.getComputedStyle(canvas).color;
-    drawWaveform(canvas, data, peak, progress, color);
-  }, [canvasRef, message.waveform, progress]);
+    const color = window.getComputedStyle(waveformCanvas).color;
+    drawWaveform(waveformCanvas, data, peak, progress, color);
+  }, [message.waveform, progress, waveformCanvas]);
 
-  // eslint-disable-next-line react-hooks/refs
   return children({
     playback: {
       playing: isActive && playing,
       currentTime,
       duration,
     },
-    waveformCanvasRef: canvasRef,
+    waveformCanvasRef: setWaveformCanvas,
     onTogglePlay: async () => {
       const audioUrl = formatFileUrl(message.fileUrl);
       if (!audioUrl) return;
