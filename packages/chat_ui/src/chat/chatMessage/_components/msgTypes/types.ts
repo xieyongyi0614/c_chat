@@ -60,6 +60,7 @@ export interface ImagePreviewProps {
   index: number;
   imgClassName: string;
   fileResolver: ChatMessageFileResolver;
+  containerClassName?: string;
   containerStyle?: CSSProperties;
   onOpen?: (index: number) => void;
 }

@@ -1,5 +1,6 @@
 import { memo, useEffect, useState } from 'react';
 import { MessageStatus } from '@c_chat/shared-types';
+import { cn } from '../../../../lib/utils';
 import MessageDate from './MessageDate';
 import type { ImageGroupProps, ImagePreviewProps } from './types';
 
@@ -7,6 +8,7 @@ function ImagePreview({
   message,
   index,
   imgClassName,
+  containerClassName,
   containerStyle,
   fileResolver,
   onOpen,
@@ -89,7 +91,7 @@ function ImagePreview({
   return (
     <button
       type="button"
-      className="relative overflow-hidden rounded-xl bg-muted text-left"
+      className={cn('relative overflow-hidden bg-muted text-left', containerClassName)}
       style={containerStyle}
       onClick={() => onOpen?.(index)}
     >
@@ -103,6 +105,105 @@ function ImagePreview({
       {renderOverlay()}
     </button>
   );
+}
+
+const imageClassName = 'h-full w-full object-cover';
+
+function getImageGroupLayout(count: number) {
+  if (count === 2) {
+    return {
+      rootClassName:
+        'relative grid h-56 max-w-[21rem] grid-cols-2 gap-0.5 overflow-hidden rounded-xl',
+      itemClassNames: ['rounded-l-xl', 'rounded-r-xl'],
+    };
+  }
+
+  if (count === 3) {
+    return {
+      rootClassName:
+        'relative grid h-72 max-w-[21rem] grid-cols-[2fr_1fr] grid-rows-2 gap-0.5 overflow-hidden rounded-xl',
+      itemClassNames: ['row-span-2 rounded-l-xl', 'rounded-tr-xl', 'rounded-br-xl'],
+    };
+  }
+
+  if (count === 4) {
+    return {
+      rootClassName:
+        'relative grid h-72 max-w-[21rem] grid-cols-2 gap-0.5 overflow-hidden rounded-xl',
+      itemClassNames: ['rounded-tl-xl', 'rounded-tr-xl', 'rounded-bl-xl', 'rounded-br-xl'],
+    };
+  }
+
+  if (count === 5) {
+    return {
+      rootClassName:
+        'relative grid h-72 max-w-[21rem] grid-cols-6 grid-rows-2 gap-0.5 overflow-hidden rounded-xl',
+      itemClassNames: [
+        'col-span-3 rounded-tl-xl',
+        'col-span-3 rounded-tr-xl',
+        'col-span-2 rounded-bl-xl',
+        'col-span-2',
+        'col-span-2 rounded-br-xl',
+      ],
+    };
+  }
+
+  if (count === 6) {
+    return {
+      rootClassName:
+        'relative grid h-72 max-w-[21rem] grid-cols-3 grid-rows-2 gap-0.5 overflow-hidden rounded-xl',
+      itemClassNames: ['rounded-tl-xl', '', 'rounded-tr-xl', 'rounded-bl-xl', '', 'rounded-br-xl'],
+    };
+  }
+
+  if (count === 7) {
+    return {
+      rootClassName:
+        'relative grid h-72 max-w-[21rem] grid-cols-6 grid-rows-3 gap-0.5 overflow-hidden rounded-xl',
+      itemClassNames: [
+        'col-span-2 rounded-tl-xl',
+        'col-span-2',
+        'col-span-2 rounded-tr-xl',
+        'col-span-3',
+        'col-span-3',
+        'col-span-3 rounded-bl-xl',
+        'col-span-3 rounded-br-xl',
+      ],
+    };
+  }
+
+  if (count === 8) {
+    return {
+      rootClassName:
+        'relative grid h-72 max-w-[21rem] grid-cols-6 grid-rows-3 gap-0.5 overflow-hidden rounded-xl',
+      itemClassNames: [
+        'col-span-3 rounded-tl-xl',
+        'col-span-3 rounded-tr-xl',
+        'col-span-2',
+        'col-span-2',
+        'col-span-2',
+        'col-span-2 rounded-bl-xl',
+        'col-span-2',
+        'col-span-2 rounded-br-xl',
+      ],
+    };
+  }
+
+  return {
+    rootClassName:
+      'relative grid h-72 max-w-[21rem] grid-cols-3 grid-rows-3 gap-0.5 overflow-hidden rounded-xl',
+    itemClassNames: [
+      'rounded-tl-xl',
+      '',
+      'rounded-tr-xl',
+      '',
+      '',
+      '',
+      'rounded-bl-xl',
+      '',
+      'rounded-br-xl',
+    ],
+  };
 }
 
 function ImageGroup({
@@ -146,11 +247,12 @@ function ImageGroup({
   if (count === 1) {
     const message = messages[0];
     return (
-      <div className="relative grid max-w-xs grid-cols-1">
+      <div className="relative grid max-w-[20rem] grid-cols-1">
         <ImagePreview
           message={message}
           index={0}
-          imgClassName="rounded-xl object-contain"
+          imgClassName="block max-h-[28rem] max-w-[20rem] object-contain"
+          containerClassName="rounded-xl"
           fileResolver={fileResolver}
           onOpen={onOpenPreview}
         />
@@ -159,75 +261,18 @@ function ImageGroup({
     );
   }
 
-  if (count === 2) {
-    return (
-      <div className="relative grid max-w-xs grid-cols-2 gap-1">
-        {messages.map((message, index) => (
-          <ImagePreview
-            key={message.id}
-            message={message}
-            index={index}
-            imgClassName="h-44 w-full object-cover"
-            fileResolver={fileResolver}
-            onOpen={onOpenPreview}
-          />
-        ))}
-        {renderDate()}
-      </div>
-    );
-  }
-
-  if (count === 3) {
-    return (
-      <div className="relative grid max-w-xs grid-cols-1 grid-rows-3 gap-1">
-        {messages.map((message, index) => (
-          <ImagePreview
-            key={message.id}
-            message={message}
-            index={index}
-            imgClassName="h-44 w-full object-cover"
-            fileResolver={fileResolver}
-            onOpen={onOpenPreview}
-          />
-        ))}
-        {renderDate()}
-      </div>
-    );
-  }
-
-  if (count === 4) {
-    return (
-      <div className="relative grid max-w-xs grid-cols-2 gap-1">
-        {messages.map((message, index) => (
-          <ImagePreview
-            key={message.id}
-            message={message}
-            index={index}
-            imgClassName="h-40 w-full object-cover"
-            fileResolver={fileResolver}
-            onOpen={onOpenPreview}
-          />
-        ))}
-        {renderDate()}
-      </div>
-    );
-  }
-
   const showMessages = messages.slice(0, 9);
-  const cols =
-    showMessages.length === 5 ? 3 : Math.min(3, Math.ceil(Math.sqrt(showMessages.length)));
+  const layout = getImageGroupLayout(showMessages.length);
 
   return (
-    <div
-      className="relative grid max-w-xs cursor-pointer gap-1"
-      style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
-    >
+    <div className={layout.rootClassName}>
       {showMessages.map((message, index) => (
         <ImagePreview
           key={message.id}
           message={message}
           index={index}
-          imgClassName="h-28 w-full object-cover"
+          imgClassName={imageClassName}
+          containerClassName={layout.itemClassNames[index]}
           fileResolver={fileResolver}
           onOpen={onOpenPreview}
         />
