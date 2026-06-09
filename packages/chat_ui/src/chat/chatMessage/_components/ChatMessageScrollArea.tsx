@@ -62,6 +62,7 @@ function ChatMessageScrollAreaWrapper({
   const keepBottomUntilRef = useRef(0);
   const lastScrollHeightRef = useRef(0);
   const scrollToBottomGenerationRef = useRef(0);
+  const userScrollIntentRef = useRef(false);
 
   const getAnchorSnapshot = useCallback((): ScrollAnchorSnapshot | null => {
     const el = scrollRef.current;
@@ -129,8 +130,17 @@ function ChatMessageScrollAreaWrapper({
     return nearBottom;
   }, [bottomThreshold, messageCount]);
 
+  const getNearBottom = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return true;
+
+    const distanceToBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    return distanceToBottom <= bottomThreshold;
+  }, [bottomThreshold]);
+
   const handleScrollToBottom = useCallback(() => {
     shouldStickToBottomRef.current = true;
+    userScrollIntentRef.current = false;
     scrollToBottomGenerationRef.current += 1;
     keepBottomUntilRef.current = Date.now() + keepBottomMs;
     scheduleScrollToBottom();
@@ -157,8 +167,13 @@ function ChatMessageScrollAreaWrapper({
     const el = scrollRef.current;
     if (!el) return;
 
-    const nearBottom = updateNearBottom();
-    if (!nearBottom) {
+    const nearBottom = getNearBottom();
+    if (nearBottom) {
+      shouldStickToBottomRef.current = true;
+      setShowScrollToBottom(false);
+    } else if (userScrollIntentRef.current) {
+      shouldStickToBottomRef.current = false;
+      setShowScrollToBottom(messageCount > 0);
       keepBottomUntilRef.current = 0;
       scrollToBottomGenerationRef.current += 1;
     }
@@ -175,6 +190,7 @@ function ChatMessageScrollAreaWrapper({
 
     isLoadingOlderRef.current = true;
     shouldStickToBottomRef.current = false;
+    userScrollIntentRef.current = false;
     keepBottomUntilRef.current = 0;
     scrollToBottomGenerationRef.current += 1;
     pendingPrependAnchorRef.current = getAnchorSnapshot();
@@ -189,11 +205,12 @@ function ChatMessageScrollAreaWrapper({
       });
   }, [
     getAnchorSnapshot,
+    getNearBottom,
     hasMoreOlder,
     isLoadingOlder,
     loadOlderMessages,
+    messageCount,
     topLoadThreshold,
-    updateNearBottom,
   ]);
 
   useLayoutEffect(() => {
@@ -206,6 +223,7 @@ function ChatMessageScrollAreaWrapper({
       pendingPrependAnchorRef.current = null;
       scrollAnchorRef.current = null;
       isLoadingOlderRef.current = false;
+      userScrollIntentRef.current = false;
       keepBottomUntilRef.current = Date.now() + keepBottomMs;
     }
 
@@ -297,6 +315,15 @@ function ChatMessageScrollAreaWrapper({
       <div
         ref={scrollRef}
         onScroll={handleScroll}
+        onPointerDown={() => {
+          userScrollIntentRef.current = true;
+        }}
+        onWheel={() => {
+          userScrollIntentRef.current = true;
+        }}
+        onTouchStart={() => {
+          userScrollIntentRef.current = true;
+        }}
         className={cn(
           'chat-flex flex min-h-0 w-full flex-1 basis-0 flex-col justify-start overflow-y-auto py-2 pe-2 pb-4 [scrollbar-gutter:stable]',
           className,
