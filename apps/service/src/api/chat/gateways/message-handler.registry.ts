@@ -6,9 +6,11 @@ import {
   ServiceDecodeProtoMapKey,
   ServiceToClientEvent,
 } from '@c_chat/shared-protobuf/protoMap';
-import { ChatSocket } from 'src/types/socket.types';
-import { Server, Socket } from 'socket.io';
 import { SOCKET_ERROR_CODE } from '@c_chat/shared-config';
+import { Server, Socket } from 'socket.io';
+import { ChatSocket } from 'src/types/socket.types';
+
+export const getUserRoom = (userId: string) => `user:${userId}`;
 
 type Handler<K extends keyof ServiceDecodeProtoCallback> = (
   client: ChatSocket,
@@ -21,7 +23,6 @@ interface HandlerMap {
   set<K extends keyof ServiceDecodeProtoCallback>(event: K, handler: Handler<K>): this;
 }
 
-/** 消息命令处理器注册中心 */
 export abstract class MessageHandlerRegistry {
   public abstract server: Server;
   protected abstract userSockets: Map<string, Set<string>>;
@@ -35,25 +36,11 @@ export abstract class MessageHandlerRegistry {
     const handler = this.handlers.get(event);
 
     if (!handler) {
-      console.warn(`⚠️ 未找到事件处理器: ${command.event}`, this.handlers);
+      console.warn(`No handler found for event: ${command.event}`);
       return;
     }
+
     const decodedResult = this.decodePayload(event, command);
-    if (decodedResult) {
-      console.log(
-        '============================处理订阅广播========================================',
-      );
-      console.log(`收到消息：Event=${event},requestId=${command.requestId}`);
-      console.log(decodedResult);
-      console.log(
-        '============================处理订阅广播========================================',
-      );
-    }
-
-    // 这里可以根据 event 类型自动解码 body，或者交给 handler 自己解
-    // 为了灵活性，这里直接把整个 command 传进去，或者只传 body
-    // 假设我们传解码后的 body (需要根据你的逻辑调整)
-
     return handler(client, decodedResult, command.requestId);
   }
 
@@ -83,16 +70,14 @@ export abstract class MessageHandlerRegistry {
     });
     const responseBuffer = Command.encode(sendCommand).finish();
     socketClient.emit('message', responseBuffer);
-    console.log('✅ 已发送到客户端', sendCommand);
   }
+
   sendErrorMessageToClient(
     socketClient: ChatSocket,
     errorResult: Pick<ErrorResult, 'errorCode' | 'errorMessage'>,
   ) {
-    const {
-      errorCode = SOCKET_ERROR_CODE.INTERNAL_ERROR,
-      errorMessage = '未知错误，请联系管理员',
-    } = errorResult;
+    const { errorCode = SOCKET_ERROR_CODE.INTERNAL_ERROR, errorMessage = 'Unknown error' } =
+      errorResult;
 
     this.sendMessageToClient(
       socketClient,
@@ -101,9 +86,6 @@ export abstract class MessageHandlerRegistry {
     );
   }
 
-  /**
-   * 广播消息到指定房间
-   */
   broadcastToRoom(
     roomId: string,
     event: ClientDecodeProtoMapKey,
@@ -122,13 +104,8 @@ export abstract class MessageHandlerRegistry {
     } else {
       this.server.to(roomId).emit('message', responseBuffer);
     }
-
-    console.log(`✅ 已广播到房间 ${roomId}`, sendCommand);
   }
 
-  /**
-   * 将多个用户的所有连接加入指定 Socket.io 房间
-   */
   protected async joinUserToRoom(server: Server, userIds: string[], roomId: string) {
     if (!server) return;
     const sockets = server.sockets as unknown as Map<string, Socket>;
@@ -154,11 +131,6 @@ export abstract class MessageHandlerRegistry {
     payload: Uint8Array | Uint8Array[],
     senderId?: string,
   ) {
-    const socketIds = this.userSockets.get(userId);
-    if (!socketIds?.size) {
-      return;
-    }
-
     const sendCommand = Command.create({
       event,
       userId: senderId,
@@ -166,6 +138,6 @@ export abstract class MessageHandlerRegistry {
     });
     const responseBuffer = Command.encode(sendCommand).finish();
 
-    this.server.to([...socketIds]).emit('message', responseBuffer);
+    this.server.to(getUserRoom(userId)).emit('message', responseBuffer);
   }
 }

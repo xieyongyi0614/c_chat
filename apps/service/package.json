@@ -43,6 +43,7 @@
     "@prisma/adapter-mariadb": "^7.0.1",
     "@prisma/client": "^7.0.1",
     "@prisma/client-runtime-utils": "^7.0.1",
+    "@socket.io/redis-adapter": "^8.3.0",
     "bcryptjs": "^3.0.3",
     "bull": "^4.16.5",
     "class-transformer": "^0.5.1",
@@ -50,6 +51,7 @@
     "crypto": "^1.0.1",
     "dotenv": "^17.2.3",
     "fs-extra": "^11.3.4",
+    "ioredis": "^5.11.1",
     "joi": "^18.2.1",
     "multer": "^2.1.1",
     "passport-jwt": "^4.0.1",
@@ -97,6 +99,10 @@
       "json",
       "ts"
     ],
+    "moduleNameMapper": {
+      "^src/(.*)$": "<rootDir>/$1",
+      "^generated/(.*)$": "<rootDir>/../generated/$1"
+    },
     "rootDir": "src",
     "testRegex": ".*\\.spec\\.ts$",
     "transform": {

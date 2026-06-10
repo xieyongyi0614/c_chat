@@ -556,7 +556,15 @@ export abstract class MessageHandler extends MessageHandlerRegistry {
   ): Promise<Map<string, IConversationInfo>> {
     const participants = await this.prisma.conversationParticipant.findMany({
       where: { conversationId, isDeleted: false },
-      include: { conversation: { select: { type: true, groupId: true } }, user: true },
+      select: {
+        conversationId: true,
+        userId: true,
+        remark: true,
+        lastReadSeq: true,
+        createTime: true,
+        conversation: { select: { type: true, groupId: true } },
+        user: { select: { id: true, nickname: true, avatarUrl: true } },
+      },
     });
     const conversation = participants[0]?.conversation;
     const group = conversation?.groupId

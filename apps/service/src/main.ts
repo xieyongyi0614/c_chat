@@ -11,9 +11,13 @@ import { join } from 'node:path';
 
 import { AppModule } from './app/app.module';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { RedisSocketIoAdapter } from './app/redis-socket-io.adapter';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  const redisSocketIoAdapter = new RedisSocketIoAdapter(app);
+  await redisSocketIoAdapter.connectToRedis();
+  app.useWebSocketAdapter(redisSocketIoAdapter);
   const globalPrefix = 'api';
   app.setGlobalPrefix(globalPrefix);
 
