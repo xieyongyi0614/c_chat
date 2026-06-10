@@ -131,7 +131,6 @@ export class MessageService {
       }
 
       const seq = await this.allocateSeq(tx, conversationId);
-      console.log('allocateSeq', seq);
       const created = await tx.messageHistory.create({
         data: {
           senderId,

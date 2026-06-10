@@ -8,6 +8,7 @@ export const envSchema = Joi.object({
   REDIS_HOST: Joi.string().required(),
   REDIS_PORT: Joi.number().default(6379),
   REDIS_PASSWORD: Joi.string().allow('').default(''),
+  SOCKET_IO_REDIS_ADAPTER_ENABLED: Joi.boolean().default(false),
 
   // JWT
   JWT_SECRET: Joi.string().required(),

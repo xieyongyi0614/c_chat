@@ -4,7 +4,6 @@ import {
   ClientDecodeProtoCallback,
   ClientPaddingRequestsEvent,
   ServiceDecodeProtoMapKey,
-  ServiceToClientEvent,
   ClientPaddingRequestsCallback,
 } from '@c_chat/shared-protobuf/protoMap';
 import { Command } from '@c_chat/shared-protobuf';
@@ -16,7 +15,7 @@ type Deferred<T = any> = {
   timer: ReturnType<typeof setTimeout>;
   event: ServiceDecodeProtoMapKey;
   resolve: (value: T | PromiseLike<T>) => void;
-  reject: (reason?: any) => void;
+  reject: (reason?: unknown) => void;
 };
 
 interface QueuedEvent {
@@ -38,27 +37,14 @@ const toUint8Array = (data: ProtobufMessage): Uint8Array => {
   return new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
 };
 
-/** 消息命令处理器注册中心（传输中立） */
 export abstract class MessageRegistry {
-  /**
-   * 事件监听器注册表
-   *
-   * 结构说明:
-   * - 外层 Map Key (ProtoMapKey 事件名)
-   * - 内层 Map (EventListenerMap): 该事件类型下所有订阅者的集合
-   *   - Key: 订阅者的唯一标识 (用于精确取消订阅，默认是外层Map Key)
-   *   - Value: 具体的回调函数
-   */
   protected readonly handlers = new Map<
     ClientDecodeProtoMapKey,
-    Map<string, (data: any) => void | Promise<void>>
+    Map<string, (data: unknown) => void | Promise<void>>
   >();
 
-  /** 待处理的请求队列 */
   private pendingRequests = new Map<string, Deferred>();
   private static readonly DEFAULT_WAIT_TIMEOUT_MS = 20_000;
-
-  /** 发送消息队列 */
   private sendQueue: QueuedEvent[] = [];
 
   constructor(
@@ -71,37 +57,27 @@ export abstract class MessageRegistry {
   public dispatch(data: ProtobufMessage) {
     const command = Command.decode(toUint8Array(data));
     const event = command.event as ClientDecodeProtoMapKey;
-
     const listener = this.handlers.get(event);
-    if (isIgnoreConsoleEvent(event)) {
-      console.log(`收到消息：Event=${event},requestId=${command.requestId}`);
-    }
+
     if (listener) {
-      if (listener instanceof Map) {
-        listener?.forEach((callback) => {
-          try {
-            const clazz = clientDecodeProtoMap[event];
-            const decodedResult = clazz?.decode(command.payload[0]);
+      listener.forEach((callback) => {
+        try {
+          const clazz = clientDecodeProtoMap[event];
+          const decodedResult = clazz?.decode(command.payload[0]);
+          const data = decodedResult?.toJSON() || decodedResult;
 
-            if (command.requestId) {
-              this.resolveOrRejectWaiter(
-                command.requestId,
-                decodedResult?.toJSON() || decodedResult,
-                null,
-              );
-            }
-
-            callback(decodedResult?.toJSON() || decodedResult);
-          } catch (err) {
-            console.error(`[客户端 ${this.logName}] 处理事件${event}出错:`, err);
-            console.log(command);
+          if (command.requestId) {
+            this.resolveOrRejectWaiter(command.requestId, data, null);
           }
-        });
-      }
+
+          callback(data);
+        } catch (err) {
+          console.error(`[Client ${this.logName}] Failed to handle event ${event}:`, err);
+        }
+      });
     }
   }
 
-  /** 主动发送消息 */
   protected _sendMessageToService(
     event: ServiceDecodeProtoMapKey,
     payload?: Uint8Array | Uint8Array[],
@@ -122,9 +98,8 @@ export abstract class MessageRegistry {
     if (socket && socket.connected) {
       try {
         socket.emit('message', data);
-        console.log(`[客户端 ${this.logName}] 发送事件: ${event}`);
       } catch (error) {
-        console.error(`[客户端 ${this.logName}] 发送数据出错:`, error);
+        console.error(`[Client ${this.logName}] Failed to send socket data:`, error);
         this._queueMessage(command);
       }
     } else {
@@ -132,7 +107,6 @@ export abstract class MessageRegistry {
     }
   }
 
-  /** 发送消息队列 */
   protected _queueMessage(command: Command) {
     const event = command.event as ClientDecodeProtoMapKey;
     const existingIndex = this.sendQueue.findIndex((q) => q.event === event);
@@ -143,22 +117,16 @@ export abstract class MessageRegistry {
     }
   }
 
-  /** 处理队列中的消息 */
   protected _processQueue(socket: CChatSocket) {
-    if (this.sendQueue.length === 0) return;
-
-    console.log(`[Socket] Processing ${this.sendQueue.length} queued messages`);
     while (this.sendQueue.length > 0) {
       const queued = this.sendQueue.shift();
       if (queued) {
         const data = Command.encode(queued.data).finish();
         socket.emit('message', data);
-        console.log(`[Socket] Sent queued event: ${queued.event}`);
       }
     }
   }
 
-  /** 订阅事件 */
   subscribeToEvent<T extends ClientDecodeProtoMapKey>(
     event: T,
     callback: ClientDecodeProtoCallback[T],
@@ -168,10 +136,9 @@ export abstract class MessageRegistry {
       this.handlers.set(event, new Map());
     }
     const listeners = this.handlers.get(event);
-    listeners?.set(comIdentification ?? String(event), callback);
+    listeners?.set(comIdentification ?? String(event), callback as (data: unknown) => void);
   }
 
-  /** 取消订阅事件 */
   unsubscribeFromEvent(type: ClientDecodeProtoMapKey, comIdentification?: string): void {
     const listeners = this.handlers.get(type);
     if (!listeners) return;
@@ -182,7 +149,6 @@ export abstract class MessageRegistry {
     }
   }
 
-  /** 请求处理 */
   async genericRequest<T extends keyof typeof ClientPaddingRequestsEvent>(
     event: T,
     encodedData: Uint8Array,
@@ -196,7 +162,7 @@ export abstract class MessageRegistry {
         if (entry) {
           this.pendingRequests.delete(requestId);
           clearTimeout(entry.timer);
-          reject(new globalThis.Error(`请求 ${event}: ${requestId} 超时.`));
+          reject(new globalThis.Error(`Request ${event}: ${requestId} timed out.`));
         }
       }, MessageRegistry.DEFAULT_WAIT_TIMEOUT_MS);
 
@@ -224,7 +190,6 @@ export abstract class MessageRegistry {
     error: unknown,
   ): void {
     const entry = this.pendingRequests.get(requestId);
-    console.log(`客户端 ${this.logName} 收到响应：${requestId}`);
     if (!entry) {
       return;
     }
@@ -247,9 +212,3 @@ export abstract class MessageRegistry {
     this.pendingRequests.clear();
   }
 }
-
-/** 排除掉一些事件的打印 */
-const isIgnoreConsoleEvent = (event: ClientDecodeProtoMapKey) => {
-  const ignoreEvents: ClientDecodeProtoMapKey[] = [ServiceToClientEvent.pong];
-  return !ignoreEvents.includes(event);
-};

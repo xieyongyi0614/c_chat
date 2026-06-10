@@ -130,6 +130,7 @@ model ConversationParticipant {
   @@unique([conversationId, userId])
   @@index([userId, isDeleted])
   @@index([userId, isTop])
+  @@index([userId, isDeleted, isTop, updateTime])
 }
 
 //UI projection
